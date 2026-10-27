@@ -7,6 +7,7 @@ const frame = document.querySelector("#scene-frame");
 const canvas = document.querySelector("#scene-canvas");
 const fallback = document.querySelector("#scene-fallback");
 const track = document.querySelector("#hero-track");
+const heroScreen = document.querySelector(".hero-screen");
 const status = document.querySelector("#scene-status");
 const stageLabel = document.querySelector("#scene-stage");
 const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
@@ -19,27 +20,29 @@ const pointerNdc = new THREE.Vector2();
 const pointerWorld = new THREE.Vector3();
 const pointerTarget = new THREE.Vector3();
 const modelPivot = new THREE.Group();
+const studioLights = [];
 const surfaceMaterials = [];
 const wireMaterials = [];
 const revealMaterials = [];
 let renderer;
 let knight;
-let pointerLight;
 let reflectiveFloor;
 let frameRequest = 0;
 let sceneVisible = true;
-let pointerInside = false;
 let targetYaw = 0;
 let targetPitch = 0;
-let targetLight = 0;
 let targetReveal = 0;
 let yaw = 0;
 let pitch = 0;
-let lightAmount = 0;
 let revealAmount = 0;
 let progress = 0;
 let lastFrameAt = 0;
 
+const YAW_LIMIT = THREE.MathUtils.degToRad(5);
+const PITCH_LIMIT = THREE.MathUtils.degToRad(3);
+const MODEL_SCALE_FACTOR = 0.8;
+const BASE_MODEL_SIZE = 1.85;
+const FLOOR_Y = -0.865;
 const clamp = (value, min = 0, max = 1) => Math.min(max, Math.max(min, value));
 
 function smoothstep(edge0, edge1, value) {
@@ -50,6 +53,15 @@ function smoothstep(edge0, edge1, value) {
 function queueFrame() {
   if (!renderer || !sceneVisible || frameRequest) return;
   frameRequest = requestAnimationFrame(renderFrame);
+}
+
+function addStudioLight(light) {
+  scene.add(light);
+  studioLights.push({ light, position: light.position.clone() });
+}
+
+function studioLightsAreFixed() {
+  return studioLights.every(({ light, position }) => light.position.equals(position));
 }
 
 function updateSceneProgress() {
@@ -83,7 +95,7 @@ function createRevealMaterial() {
       varying vec3 vWorldPosition;
       void main() {
         float distanceToPointer = distance(vWorldPosition, uPointer);
-        float falloff = 1.0 - smoothstep(0.08, 0.72, distanceToPointer);
+        float falloff = 1.0 - smoothstep(0.05, 0.34, distanceToPointer);
         float alpha = falloff * uReveal;
         if (alpha < 0.025) discard;
         gl_FragColor = vec4(0.9, 0.18, 0.25, alpha);
@@ -115,7 +127,7 @@ function prepareKnight(root) {
       color: "#c8c9cd",
       wireframe: true,
       transparent: true,
-      opacity: 0.075,
+      opacity: 0.004,
       depthWrite: false,
     }));
     wire.renderOrder = 1;
@@ -131,22 +143,34 @@ function prepareKnight(root) {
 
 function pointerMove(event) {
   if (!renderer || reducedMotion.matches || !pointerQuery.matches || event.pointerType !== "mouse") return;
-  const bounds = canvas.getBoundingClientRect();
-  if (!bounds.width || !bounds.height) return;
-  pointerInside = true;
-  pointerNdc.set(((event.clientX - bounds.left) / bounds.width) * 2 - 1, 1 - ((event.clientY - bounds.top) / bounds.height) * 2);
-  raycaster.setFromCamera(pointerNdc, camera);
-  const hit = raycaster.intersectObject(knight, true)[0];
+  if (event.target.closest(".home-header, .hero-actions, .scroll-cue")) {
+    pointerLeave();
+    return;
+  }
+
+  const screenBounds = heroScreen.getBoundingClientRect();
+  if (!screenBounds.width || !screenBounds.height) return;
+  const screenX = ((event.clientX - screenBounds.left) / screenBounds.width) * 2 - 1;
+  const screenY = 1 - ((event.clientY - screenBounds.top) / screenBounds.height) * 2;
+  targetYaw = clamp(screenX * YAW_LIMIT, -YAW_LIMIT, YAW_LIMIT);
+  targetPitch = clamp(-screenY * PITCH_LIMIT, -PITCH_LIMIT, PITCH_LIMIT);
+
+  const canvasBounds = canvas.getBoundingClientRect();
+  const insideCanvas = event.clientX >= canvasBounds.left
+    && event.clientX <= canvasBounds.right
+    && event.clientY >= canvasBounds.top
+    && event.clientY <= canvasBounds.bottom;
+  let hit;
+  if (insideCanvas) {
+    pointerNdc.set(((event.clientX - canvasBounds.left) / canvasBounds.width) * 2 - 1, 1 - ((event.clientY - canvasBounds.top) / canvasBounds.height) * 2);
+    raycaster.setFromCamera(pointerNdc, camera);
+    hit = raycaster.intersectObject(knight, true)[0];
+  }
   if (hit) {
     pointerTarget.copy(hit.point);
-    targetYaw = clamp(pointerNdc.x * 0.075, -0.075, 0.075);
-    targetPitch = clamp(-pointerNdc.y * 0.045, -0.045, 0.045);
-    targetLight = 1;
     targetReveal = 0.9;
   } else {
-    targetYaw = 0;
-    targetPitch = 0;
-    targetLight = 0;
+    pointerTarget.set(0, 0, 0);
     targetReveal = 0;
   }
   frame.dataset.pointerHit = String(Boolean(hit));
@@ -154,10 +178,8 @@ function pointerMove(event) {
 }
 
 function pointerLeave() {
-  pointerInside = false;
   targetYaw = 0;
   targetPitch = 0;
-  targetLight = 0;
   targetReveal = 0;
   pointerTarget.set(0, 0, 0);
   frame.dataset.pointerHit = "false";
@@ -189,9 +211,9 @@ function updateMaterialProgress() {
     material.metalness = 0.16 + polish * 0.34;
     material.roughness = 0.54 - polish * 0.2;
   }
-  for (const material of wireMaterials) material.opacity = 0.012 + structure * 0.085;
+  for (const material of wireMaterials) material.opacity = 0.004 + structure * 0.045;
   modelPivot.scale.setScalar(1 + progress * 0.025);
-  modelPivot.position.y = -0.055 + progress * 0.045;
+  modelPivot.position.y = FLOOR_Y + progress * 0.045;
 }
 
 function renderFrame(timestamp) {
@@ -202,14 +224,9 @@ function renderFrame(timestamp) {
   const smoothing = 1 - Math.exp(-elapsed / 105);
   yaw += (targetYaw - yaw) * smoothing;
   pitch += (targetPitch - pitch) * smoothing;
-  lightAmount += (targetLight - lightAmount) * smoothing;
   revealAmount += (targetReveal - revealAmount) * smoothing;
   pointerWorld.lerp(pointerTarget, smoothing);
   modelPivot.rotation.set(pitch, yaw, 0);
-  if (pointerLight) {
-    pointerLight.position.copy(pointerWorld).add(new THREE.Vector3(0, 0.22, 0.25));
-    pointerLight.intensity = lightAmount * 2.3;
-  }
   for (const material of revealMaterials) {
     material.uniforms.uPointer.value.copy(pointerWorld);
     material.uniforms.uReveal.value = revealAmount;
@@ -217,12 +234,12 @@ function renderFrame(timestamp) {
   updateMaterialProgress();
   renderer.render(scene, camera);
   frame.dataset.modelYaw = yaw.toFixed(4);
-  frame.dataset.pointerLight = lightAmount.toFixed(3);
+  frame.dataset.modelPitch = pitch.toFixed(4);
   frame.dataset.pointerReveal = revealAmount.toFixed(3);
+  frame.dataset.studioLightsFixed = String(studioLightsAreFixed());
 
   const settling = Math.abs(yaw - targetYaw) > 0.001
     || Math.abs(pitch - targetPitch) > 0.001
-    || Math.abs(lightAmount - targetLight) > 0.005
     || Math.abs(revealAmount - targetReveal) > 0.005
     || pointerWorld.distanceToSquared(pointerTarget) > 0.00001;
   if (settling) queueFrame();
@@ -247,18 +264,16 @@ async function startScene() {
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.12;
 
-    scene.add(new THREE.HemisphereLight(0xe7e8eb, 0x101114, 0.86));
+    addStudioLight(new THREE.HemisphereLight(0xe7e8eb, 0x101114, 0.86));
     const key = new THREE.DirectionalLight(0xffffff, 2.7);
     key.position.set(-2.8, 3.4, 4.5);
-    scene.add(key);
+    addStudioLight(key);
     const fill = new THREE.DirectionalLight(0xbec2cd, 0.46);
     fill.position.set(-3.8, 0.7, 1.5);
-    scene.add(fill);
+    addStudioLight(fill);
     const rim = new THREE.DirectionalLight(0xe02c3b, 2.25);
     rim.position.set(3.3, 1.5, -2.4);
-    scene.add(rim);
-    pointerLight = new THREE.PointLight(0xf0263b, 0, 2.7, 2);
-    scene.add(pointerLight);
+    addStudioLight(rim);
     scene.add(modelPivot);
 
     const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
@@ -271,8 +286,10 @@ async function startScene() {
     const bounds = new THREE.Box3().setFromObject(knight);
     const size = bounds.getSize(new THREE.Vector3());
     const center = bounds.getCenter(new THREE.Vector3());
-    const modelScale = 1.85 / Math.max(size.x, size.y, size.z);
+    const modelScale = BASE_MODEL_SIZE * MODEL_SCALE_FACTOR / Math.max(size.x, size.y, size.z);
+    const scaledHeight = size.y * modelScale;
     knight.position.sub(center).multiplyScalar(modelScale);
+    knight.position.y += scaledHeight / 2;
     knight.scale.multiplyScalar(modelScale);
     modelPivot.add(knight);
     prepareKnight(knight);
@@ -285,13 +302,14 @@ async function startScene() {
       multisample: 0,
     });
     reflectiveFloor.rotation.x = -Math.PI / 2;
-    reflectiveFloor.position.y = -0.865;
+    reflectiveFloor.position.y = FLOOR_Y;
     scene.add(reflectiveFloor);
 
     canvas.hidden = false;
     fallback.hidden = true;
     frame.dataset.modelReady = "true";
     frame.dataset.modelSource = "chess-knight-006-cc-by-4.0";
+    frame.dataset.modelScale = MODEL_SCALE_FACTOR.toFixed(2);
     status.textContent = document.documentElement.lang.startsWith("pt")
       ? "Cena 3D ativa. O movimento do ponteiro é opcional; projetos e navegação permanecem disponíveis."
       : "3D scene active. Pointer movement is optional; projects and navigation remain available.";
@@ -306,8 +324,8 @@ async function startScene() {
   }
 }
 
-canvas.addEventListener("pointermove", pointerMove);
-canvas.addEventListener("pointerleave", pointerLeave);
+heroScreen.addEventListener("pointermove", pointerMove);
+heroScreen.addEventListener("pointerleave", pointerLeave);
 canvas.addEventListener("webglcontextlost", (event) => {
   event.preventDefault();
   setStaticFallback("A cena 3D foi pausada; o modelo estático e a navegação continuam disponíveis.");
@@ -321,17 +339,14 @@ reducedMotion.addEventListener("change", () => {
     pitch = 0;
     targetYaw = 0;
     targetPitch = 0;
-    lightAmount = 0;
-    targetLight = 0;
     revealAmount = 0;
     targetReveal = 0;
     pointerWorld.set(0, 0, 0);
     pointerTarget.set(0, 0, 0);
     modelPivot.rotation.set(0, 0, 0);
-    if (pointerLight) pointerLight.intensity = 0;
     for (const material of revealMaterials) material.uniforms.uReveal.value = 0;
     frame.dataset.modelYaw = "0.0000";
-    frame.dataset.pointerLight = "0.000";
+    frame.dataset.modelPitch = "0.0000";
     frame.dataset.pointerReveal = "0.000";
   }
   updateSceneProgress();
