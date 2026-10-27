@@ -21,7 +21,7 @@ function showStaticScene() {
 }
 
 function loadSceneWhenAppropriate() {
-  if (reducedMotion.matches) {
+  if (reducedMotion.matches && !debugMode) {
     if (!sceneModulePromise) showStaticScene();
     return;
   }

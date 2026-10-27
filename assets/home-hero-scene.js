@@ -136,6 +136,39 @@ function createRevealMaterial() {
   });
 }
 
+function createSilhouetteMaterial() {
+  return new THREE.ShaderMaterial({
+    uniforms: {
+      uWhite: { value: new THREE.Color("#e6e9ef") },
+      uRed: { value: new THREE.Color("#ff1230") },
+    },
+    vertexShader: `
+      varying float vWorldSide;
+      void main() {
+        vec3 viewNormal = normalize(normalMatrix * normal);
+        vWorldSide = dot(viewNormal, normalize(mat3(viewMatrix) * vec3(1.0, 0.0, 0.0)));
+        vec4 viewPosition = modelViewMatrix * vec4(position, 1.0);
+        viewPosition.xyz += viewNormal * 0.006;
+        gl_Position = projectionMatrix * viewPosition;
+      }
+    `,
+    fragmentShader: `
+      uniform vec3 uWhite;
+      uniform vec3 uRed;
+      varying float vWorldSide;
+      void main() {
+        vec3 color = uWhite * smoothstep(0.05, 0.45, -vWorldSide)
+          + uRed * smoothstep(0.05, 0.45, vWorldSide);
+        gl_FragColor = vec4(color, 1.0);
+        #include <tonemapping_fragment>
+        #include <colorspace_fragment>
+      }
+    `,
+    side: THREE.BackSide,
+    depthWrite: false,
+  });
+}
+
 async function prepareKnight(root) {
   const meshes = [];
   root.traverse((object) => { if (object.isMesh) meshes.push(object); });
@@ -145,39 +178,50 @@ async function prepareKnight(root) {
     const sources = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
     const materials = sources.map(() => {
       const material = new THREE.MeshStandardMaterial({
-        color: debugMode ? "#66686d" : "#121315",
-        metalness: debugMode ? 0.04 : 0.3,
-        roughness: debugMode ? 0.62 : 0.42,
+        color: "#121315",
+        metalness: 0.3,
+        roughness: 0.42,
       });
       const rimStrength = { value: 0 };
       material.onBeforeCompile = (shader) => {
-        shader.uniforms.uRimColor = { value: new THREE.Color("#ff203b") };
-        shader.uniforms.uRimDirectionWorld = { value: new THREE.Vector3(4, 1.5, 4).normalize() };
+        shader.uniforms.uRedRimColor = { value: new THREE.Color("#ff1230") };
+        shader.uniforms.uWhiteRimColor = { value: new THREE.Color("#e6e9ef") };
         shader.uniforms.uRimStrength = rimStrength;
         shader.fragmentShader = shader.fragmentShader.replace(
           "#include <common>",
           `#include <common>
-          uniform vec3 uRimColor;
-          uniform vec3 uRimDirectionWorld;
+          uniform vec3 uRedRimColor;
+          uniform vec3 uWhiteRimColor;
           uniform float uRimStrength;`,
         );
         shader.fragmentShader = shader.fragmentShader.replace(
           "#include <opaque_fragment>",
-          `float rimEdge = 1.0 - max(dot(normalize(normal), normalize(vViewPosition)), 0.0);
-          float rim = smoothstep(0.72, 0.94, rimEdge);
-          vec3 rimDirectionView = normalize(mat3(viewMatrix) * uRimDirectionWorld);
-          float redSideMask = smoothstep(0.05, 0.55, dot(normalize(normal), rimDirectionView));
-          outgoingLight += uRimColor * rim * redSideMask * uRimStrength;
+          `float rimEdge = 1.0 - abs(dot(normalize(normal), normalize(vViewPosition)));
+          float rim = smoothstep(0.76, 0.94, rimEdge);
+          vec3 worldRightInView = normalize(mat3(viewMatrix) * vec3(1.0, 0.0, 0.0));
+          float worldSide = dot(normalize(normal), worldRightInView);
+          float redSideMask = smoothstep(0.05, 0.65, worldSide);
+          float whiteSideMask = smoothstep(0.05, 0.65, -worldSide);
+          // Gate physical highlights too: neither light may fill the interior.
+          outgoingLight *= rim;
+          outgoingLight += rim * (uRedRimColor * redSideMask * uRimStrength
+            + uWhiteRimColor * whiteSideMask * 0.85);
           #include <opaque_fragment>`,
         );
       };
-      material.customProgramCacheKey = () => "knight-controlled-crimson-rim-v1";
+      material.customProgramCacheKey = () => "knight-two-sided-silhouette-rim-v2";
       rimStrengthUniforms.push(rimStrength);
       return material;
     });
     surfaceMaterials.push(...materials);
     sources.forEach((material) => material.dispose());
     mesh.material = Array.isArray(mesh.material) ? materials : materials[0];
+
+    // The opaque body occludes this thin shell, leaving only its outer contour.
+    const silhouette = new THREE.Mesh(mesh.geometry, createSilhouetteMaterial());
+    silhouette.renderOrder = -1;
+    silhouette.raycast = () => {};
+    mesh.add(silhouette);
 
     if (debugMode) continue;
 
@@ -228,6 +272,11 @@ function projectTrackingCenter() {
 function pointerMove(event) {
   if (!renderer || (reducedMotion.matches && !debugMode) || (!debugMode && (mobileViewport.matches || !pointerQuery.matches)) || event.pointerType !== "mouse") return;
   const bounds = frame.getBoundingClientRect();
+  if (event.clientX < bounds.left || event.clientX > bounds.right
+    || event.clientY < bounds.top || event.clientY > bounds.bottom) {
+    pointerLeave();
+    return;
+  }
   const center = projectTrackingCenter();
   if (!bounds.width || !bounds.height || !center) return;
 
@@ -238,10 +287,11 @@ function pointerMove(event) {
   const dy = event.clientY - center.y;
   const verticalSideDistance = dy < 0 ? center.y - bounds.top : bounds.bottom - center.y;
   const normalizedY = clamp(dy / Math.max(1, verticalSideDistance), -1, 1);
+  const trackingY = clamp(normalizedY / TRACKING_FULL_TILT_AT, -1, 1);
   targetYaw = FRONTAL_YAW + trackingX * MAX_YAW;
-  targetPitch = normalizedY < 0
-    ? normalizedY * LOOK_UP_LIMIT
-    : normalizedY * LOOK_DOWN_LIMIT;
+  targetPitch = trackingY < 0
+    ? trackingY * LOOK_UP_LIMIT
+    : trackingY * LOOK_DOWN_LIMIT;
   frame.dataset.pointerCenterX = center.x.toFixed(1);
   frame.dataset.pointerCenterY = center.y.toFixed(1);
   frame.dataset.pointerNormalizedX = normalizedX.toFixed(3);
@@ -336,7 +386,7 @@ function renderFrame(timestamp) {
   pointerWorld.lerp(pointerTarget, smoothing);
   modelPivot.rotation.set(pitch, yaw, 0);
   const profileAmount = clamp(Math.abs(yaw - FRONTAL_YAW) / MAX_YAW);
-  const rimStrength = smoothstep(0.75, 1, profileAmount) * 1.8;
+  const rimStrength = 0.85 + smoothstep(0.6, 1, profileAmount) * 0.55;
   for (const uniform of rimStrengthUniforms) uniform.value = rimStrength;
   for (const material of revealMaterials) {
     material.uniforms.uPointer.value.copy(pointerWorld);
@@ -389,29 +439,16 @@ async function startScene() {
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.12;
 
-    if (debugMode) {
-      scene.background = new THREE.Color(0x000000);
-      const whiteLight = new THREE.DirectionalLight(0xffffff, 2.1);
-      whiteLight.name = "fixed-white-left-light";
-      whiteLight.position.set(-4, 2, 5);
-      addStudioLight(whiteLight);
-      const redLight = new THREE.DirectionalLight(0xf02a3a, 2.4);
-      redLight.name = "fixed-red-right-light";
-      redLight.position.set(4, 1.5, 4);
-      addStudioLight(redLight);
-    } else {
-      // The studio rig stays in scene space; pointer input rotates only modelPivot.
-      addStudioLight(new THREE.HemisphereLight(0xe7e8eb, 0x101114, 0.45));
-      const key = new THREE.DirectionalLight(0xffffff, 1.6);
-      key.position.set(-2.8, 3.4, -3.8);
-      addStudioLight(key);
-      const fill = new THREE.DirectionalLight(0xbec2cd, 0.22);
-      fill.position.set(-3.8, 0.7, 1.5);
-      addStudioLight(fill);
-      const rim = new THREE.DirectionalLight(0xf02a3a, 1.3);
-      rim.position.set(6.2, 1.7, 3.2);
-      addStudioLight(rim);
-    }
+    if (debugMode) scene.background = new THREE.Color(0x000000);
+    // Both modes use the same fixed rig and silhouette-only material.
+    const whiteLight = new THREE.DirectionalLight(0xffffff, 0.6);
+    whiteLight.name = "fixed-white-left-light";
+    whiteLight.position.set(-4, 2, 5);
+    addStudioLight(whiteLight);
+    const redLight = new THREE.DirectionalLight(0xf02a3a, 0.5);
+    redLight.name = "fixed-red-right-light";
+    redLight.position.set(4, 1.5, 4);
+    addStudioLight(redLight);
     frame.dataset.studioLightCount = String(studioLights.length);
     scene.add(modelPivot);
     if (debugMode) modelPivot.position.y = FLOOR_Y;
@@ -482,8 +519,9 @@ async function startScene() {
   }
 }
 
-frame.addEventListener("pointermove", pointerMove);
-frame.addEventListener("pointerleave", pointerLeave);
+// The copy overlaps the canvas; listen on their shared parent to avoid dead zones.
+heroScreen.addEventListener("pointermove", pointerMove);
+heroScreen.addEventListener("pointerleave", pointerLeave);
 canvas.addEventListener("webglcontextlost", (event) => {
   event.preventDefault();
   setStaticFallback("A cena 3D foi pausada; o modelo estático e a navegação continuam disponíveis.");
