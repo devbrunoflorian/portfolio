@@ -298,7 +298,7 @@ async function startScene() {
       clipBias: 0.003,
       textureWidth: 720,
       textureHeight: 480,
-      color: 0x55565b,
+      color: 0x898a90,
       multisample: 0,
     });
     reflectiveFloor.rotation.x = -Math.PI / 2;

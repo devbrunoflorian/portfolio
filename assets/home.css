@@ -43,7 +43,7 @@
   left: 27%;
   height: 14%;
   content: "";
-  background: radial-gradient(ellipse at center, rgba(181, 183, 188, .13), rgba(162, 27, 41, .08) 30%, transparent 69%);
+  background: radial-gradient(ellipse at center, rgba(181, 183, 188, .16), rgba(162, 27, 41, .1) 30%, transparent 69%);
   filter: blur(16px);
   pointer-events: none;
 }
@@ -307,7 +307,7 @@
   .hero-art { inset: 0; width: 100%; }
   .hero-art::before {
     background:
-      linear-gradient(180deg, #070809 0%, rgba(7, 8, 9, .96) 34%, rgba(7, 8, 9, .82) 47%, rgba(7, 8, 9, .12) 69%, rgba(7, 8, 9, .18) 85%, #070809 100%),
+      linear-gradient(180deg, #070809 0%, rgba(7, 8, 9, .96) 34%, rgba(7, 8, 9, .82) 47%, rgba(7, 8, 9, .12) 69%, rgba(7, 8, 9, .15) 85%, rgba(7, 8, 9, .94) 100%),
       linear-gradient(90deg, rgba(7, 8, 9, .25), transparent 45%, rgba(7, 8, 9, .16));
   }
   .scene-fallback { object-position: 50% 72%; padding: 28% 3% 0; opacity: .68; }
