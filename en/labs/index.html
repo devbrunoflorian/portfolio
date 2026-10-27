@@ -3,22 +3,177 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="Software engineering labs by Bruno Florian." />
-    <meta name="theme-color" content="#0c1018" />
+    <meta name="description" content="A spatial view of the Rate Limiting Lab, its implementation, and its documented boundaries." />
+    <meta name="theme-color" content="#07111c" />
     <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg" />
     <title>Labs | Bruno Florian</title>
     <link rel="stylesheet" href="/assets/site.css" />
+    <link rel="stylesheet" href="/assets/labs.css" />
     <script src="/assets/locale.js" defer></script>
+    <script src="/assets/labs.js" defer></script>
   </head>
-  <body>
+  <body class="labs-body">
     <a class="skip-link" href="#main-content">Skip to content</a>
-    <div class="site-shell">
-      <header class="site-header"><a class="brand" href="/en/" aria-label="Bruno Florian, home">Bruno Florian<span aria-hidden="true">.</span></a><div class="header-actions">
-        <nav class="primary-nav" aria-label="Primary navigation"><a href="/en/">Home</a><a href="/en/labs/" aria-current="page">Labs</a><a href="/en/projects/">Projects</a><a href="/en/about/">About</a><a href="/en/contact/">Contact</a></nav>
-        <nav class="locale-nav" aria-label="Language"><a href="/pt-br/laboratorios/" data-locale-choice="pt-br" lang="pt-BR">PT</a><a href="/en/labs/" data-locale-choice="en" aria-current="page" lang="en">EN</a></nav>
-      </div></header>
-      <main id="main-content" tabindex="-1"><p class="eyebrow">Engineering · Verifiable studies</p><h1>Labs</h1><p class="placeholder-copy">Engineering labs and their evidence will be listed after editorial review.</p><p class="supporting-link"><a href="https://github.com/engineering-proof-labs" target="_blank" rel="noopener noreferrer">Visit Engineering Labs on GitHub</a></p></main>
-      <footer class="site-footer"><span>© 2026 Bruno Florian</span><nav aria-label="External profiles"><a href="https://github.com/devbrunoflorian" target="_blank" rel="noopener noreferrer">GitHub</a><a href="https://github.com/engineering-proof-labs" target="_blank" rel="noopener noreferrer">Engineering Labs</a></nav></footer>
+    <div class="site-shell labs-shell">
+      <header class="site-header labs-header">
+        <a class="brand" href="/en/" aria-label="Bruno Florian, home">Bruno Florian<span aria-hidden="true">.</span></a>
+        <nav class="primary-nav desktop-nav" aria-label="Primary navigation">
+          <a href="/en/">Home</a><a href="/en/about/">About</a><a href="/en/labs/" aria-current="page">Labs</a><a href="/en/projects/">Projects</a><a href="/en/contact/">Contact</a>
+        </nav>
+        <nav class="locale-nav" aria-label="Language">
+          <a href="/pt-br/laboratorios/" data-locale-choice="pt-br" lang="pt-BR">PT</a><a href="/en/labs/" data-locale-choice="en" aria-current="page" lang="en">EN</a>
+        </nav>
+        <details class="mobile-menu">
+          <summary class="menu-toggle"><span class="menu-icon" aria-hidden="true"></span><span>Menu</span></summary>
+          <div class="mobile-menu-panel">
+            <nav class="mobile-nav" aria-label="Primary navigation">
+              <a href="/en/">Home</a><a href="/en/about/">About</a><a href="/en/labs/" aria-current="page">Labs</a><a href="/en/projects/">Projects</a><a href="/en/contact/">Contact</a>
+            </nav>
+            <a class="mobile-github" href="https://github.com/devbrunoflorian" target="_blank" rel="noopener noreferrer">GitHub ↗</a>
+          </div>
+        </details>
+      </header>
+
+      <main id="main-content" class="labs-main" tabindex="-1">
+        <section class="lab-story-stage" data-lab-story style="--lab-panel-count: 5" aria-label="Rate Limiting Lab, explored in five chapters">
+          <div class="lab-story-pin" data-story-pin>
+            <div class="lab-story-track" data-story-track>
+              <section class="lab-story-panel lab-panel-overview" data-story-panel aria-labelledby="labs-title">
+                <div class="lab-panel-inner">
+                  <article class="lab-panel-copy">
+                    <p class="labs-eyebrow"><span>01 / 01</span> Engineering lab</p>
+                    <h1 id="labs-title">Labs<span>.</span></h1>
+                    <p class="labs-lede">One public laboratory, opened across five views of its implementation.</p>
+                    <div class="lab-entry">
+                      <p class="lab-index"><span class="lab-status-dot" aria-hidden="true"></span> Public repository</p>
+                      <h2>Rate Limiting Lab</h2>
+                      <p>A TypeScript and Node.js project that compares four in-memory algorithms and implements a Redis-backed Fixed Window with Lua in Express.</p>
+                      <ul class="lab-stack" aria-label="Verified technologies">
+                        <li>TypeScript</li><li>Node.js</li><li>Redis</li><li>Express</li>
+                      </ul>
+                      <a class="lab-link" href="https://github.com/engineering-proof-labs/rate-limiting-lab" target="_blank" rel="noopener noreferrer">Explore repository <span aria-hidden="true">↗</span></a>
+                    </div>
+                  </article>
+                  <figure class="lab-visual" data-lab-visual>
+                    <div class="lab-scene" data-lab-scene data-story-drag role="img" aria-label="Decorative holographic folder formed from binary characters">
+                      <div class="lab-grid" aria-hidden="true"></div>
+                      <div class="lab-orbit lab-orbit-one" aria-hidden="true"></div>
+                      <div class="lab-orbit lab-orbit-two" aria-hidden="true"></div>
+                      <div class="lab-folder" aria-hidden="true">
+                        <div class="lab-folder-surface"></div>
+                        <canvas class="lab-glyph-canvas" data-lab-canvas aria-hidden="true"></canvas>
+                        <span class="lab-static-bits" aria-hidden="true">0101 1010 0011 0100 1101 0010 0110</span>
+                      </div>
+                      <span class="lab-node lab-node-one" aria-hidden="true"></span>
+                      <span class="lab-node lab-node-two" aria-hidden="true"></span>
+                      <span class="lab-floor-line" aria-hidden="true"></span>
+                      <span class="lab-scene-label" aria-hidden="true">SYSTEM 01 · RATE LIMITING</span>
+                    </div>
+                    <div class="lab-visual-meta">
+                      <figcaption>Conceptual field · decorative, not live telemetry</figcaption>
+                      <button class="lab-motion-toggle" type="button" data-motion-toggle aria-label="Pause decorative motion" aria-pressed="false" hidden>
+                        <span aria-hidden="true">Ⅱ</span><span data-motion-label>Pause motion</span>
+                      </button>
+                    </div>
+                    <p class="lab-scroll-cue" data-scroll-cue>Scroll down to move through the chapters →</p>
+                  </figure>
+                </div>
+              </section>
+
+              <section class="lab-story-panel" data-story-panel aria-labelledby="algorithms-title">
+                <div class="lab-panel-inner lab-panel-detail">
+                  <div class="lab-panel-copy">
+                    <p class="labs-eyebrow"><span>01 / 01</span> Four strategies</p>
+                    <h2 id="algorithms-title">Compare the approaches.</h2>
+                    <p class="lab-lede">The lab implements four process-local strategies so their behavior can be examined side by side.</p>
+                    <ul class="algorithm-list">
+                      <li><span>01</span><strong>Fixed Window</strong><small>In memory</small></li>
+                      <li><span>02</span><strong>Token Bucket</strong><small>In memory</small></li>
+                      <li><span>03</span><strong>Sliding Window Log</strong><small>In memory</small></li>
+                      <li><span>04</span><strong>Sliding Window Counter</strong><small>In memory</small></li>
+                    </ul>
+                  </div>
+                  <div class="lab-diagram lab-algorithm-diagram" data-story-drag aria-hidden="true">
+                    <span class="diagram-coordinate">01 — 04 / MEMORY</span>
+                    <div class="algorithm-columns">
+                      <div><i></i><i></i><i></i><b></b></div>
+                      <div><i></i><b></b><i></i><i></i></div>
+                      <div><i></i><i></i><b></b><i></i></div>
+                      <div><b></b><i></i><i></i><i></i></div>
+                    </div>
+                    <div class="diagram-axis"><span>REQUESTS</span><span>DECISIONS</span></div>
+                  </div>
+                </div>
+              </section>
+
+              <section class="lab-story-panel" data-story-panel aria-labelledby="shared-state-title">
+                <div class="lab-panel-inner lab-panel-detail">
+                  <div class="lab-panel-copy">
+                    <p class="labs-eyebrow"><span>01 / 01</span> Shared state</p>
+                    <h2 id="shared-state-title">One path shares counters.</h2>
+                    <p class="lab-lede">The Redis Fixed Window runs an atomic Lua operation through Express middleware. The other strategies stay local to the process.</p>
+                    <p class="lab-boundary"><span>Implementation boundary</span> Only the Redis-backed Fixed Window coordinates state across application instances.</p>
+                  </div>
+                  <div class="lab-diagram lab-state-diagram" data-story-drag role="img" aria-label="Two Express instances send requests to a shared Redis counter">
+                    <span class="diagram-coordinate">REQUEST PATH / FIXED WINDOW</span>
+                    <div class="state-node state-app state-app-one"><span>01</span><strong>Express</strong><small>Instance A</small></div>
+                    <div class="state-node state-app state-app-two"><span>02</span><strong>Express</strong><small>Instance B</small></div>
+                    <div class="state-links" aria-hidden="true"><i></i><i></i></div>
+                    <div class="state-node state-redis"><span class="redis-mark" aria-hidden="true">R</span><strong>Redis</strong><small>Lua · shared counter</small></div>
+                  </div>
+                </div>
+              </section>
+
+              <section class="lab-story-panel" data-story-panel aria-labelledby="evidence-title">
+                <div class="lab-panel-inner lab-panel-detail">
+                  <div class="lab-panel-copy">
+                    <p class="labs-eyebrow"><span>01 / 01</span> Evidence & limits</p>
+                    <h2 id="evidence-title">A proof has boundaries.</h2>
+                    <p class="lab-lede">The repository documents its tests, decisions, and failure behavior. Read those records alongside the implementation.</p>
+                    <ul class="evidence-links">
+                      <li><a href="https://github.com/engineering-proof-labs/rate-limiting-lab/blob/main/SPEC.md" target="_blank" rel="noopener noreferrer"><span>01</span> Specification <span aria-hidden="true">↗</span></a></li>
+                      <li><a href="https://github.com/engineering-proof-labs/rate-limiting-lab/blob/main/docs/test-matrix.md" target="_blank" rel="noopener noreferrer"><span>02</span> Test matrix <span aria-hidden="true">↗</span></a></li>
+                      <li><a href="https://github.com/engineering-proof-labs/rate-limiting-lab/blob/main/docs/evidence-matrix.md" target="_blank" rel="noopener noreferrer"><span>03</span> Evidence matrix <span aria-hidden="true">↗</span></a></li>
+                    </ul>
+                    <p class="lab-boundary"><span>Documented limits</span> The remaining strategies are process-local. Multi-region coordination and durable Redis failover are outside the implemented guarantee.</p>
+                  </div>
+                  <div class="lab-evidence-visual" data-story-drag aria-hidden="true">
+                    <div class="evidence-sheet"><span>SPEC</span><b>01</b><i></i><i></i><i></i></div>
+                    <div class="evidence-sheet"><span>TESTS</span><b>02</b><i></i><i></i><i></i></div>
+                    <div class="evidence-sheet"><span>LIMITS</span><b>03</b><i></i><i></i><i></i></div>
+                    <p>IMPLEMENTATION <span>→</span> EVIDENCE <span>→</span> BOUNDARIES</p>
+                  </div>
+                </div>
+              </section>
+
+              <section class="lab-story-panel lab-project-handoff" data-story-panel aria-labelledby="next-projects-title">
+                <div class="lab-panel-inner lab-handoff-inner">
+                  <div class="lab-panel-copy">
+                    <p class="labs-eyebrow"><span>02</span> Next page</p>
+                    <h2 id="next-projects-title">Projects<span>.</span></h2>
+                    <p class="lab-lede">Continue from engineering experiments into the project gallery.</p>
+                    <a class="lab-link lab-link-primary" href="/en/projects/">Enter Projects <span aria-hidden="true">→</span></a>
+                  </div>
+                  <div class="handoff-orbit" aria-hidden="true"><span>PROJECTS</span><i></i><b></b></div>
+                </div>
+              </section>
+            </div>
+
+            <nav class="lab-story-controls" data-story-controls aria-label="Lab chapters" hidden>
+              <button type="button" data-story-step="0" aria-label="Show lab overview" aria-current="step">01</button>
+              <button type="button" data-story-step="1" aria-label="Show algorithm comparison">02</button>
+              <button type="button" data-story-step="2" aria-label="Show shared state">03</button>
+              <button type="button" data-story-step="3" aria-label="Show evidence and limits">04</button>
+              <button type="button" data-story-step="4" aria-label="Show the next page">05</button>
+            </nav>
+          </div>
+        </section>
+      </main>
+
+      <footer class="site-footer labs-footer">
+        <span>© 2026 Bruno Florian</span>
+        <nav aria-label="External profiles"><a href="https://github.com/devbrunoflorian" target="_blank" rel="noopener noreferrer">GitHub</a><a href="https://github.com/engineering-proof-labs" target="_blank" rel="noopener noreferrer">Engineering Labs</a></nav>
+      </footer>
     </div>
   </body>
 </html>
