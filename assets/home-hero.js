@@ -115,9 +115,9 @@ function prepareKnight(root) {
   for (const mesh of meshes) {
     const sources = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
     const materials = sources.map(() => new THREE.MeshStandardMaterial({
-      color: "#202126",
-      metalness: 0.16,
-      roughness: 0.54,
+      color: "#121315",
+      metalness: 0.3,
+      roughness: 0.42,
     }));
     surfaceMaterials.push(...materials);
     sources.forEach((material) => material.dispose());
@@ -208,10 +208,10 @@ function updateMaterialProgress() {
   const structure = Math.sin(progress * Math.PI);
   const polish = smoothstep(0.42, 0.92, progress);
   for (const material of surfaceMaterials) {
-    material.metalness = 0.16 + polish * 0.34;
-    material.roughness = 0.54 - polish * 0.2;
+    material.metalness = 0.3 + polish * 0.2;
+    material.roughness = 0.42 - polish * 0.08;
   }
-  for (const material of wireMaterials) material.opacity = 0.004 + structure * 0.045;
+  for (const material of wireMaterials) material.opacity = 0.003 + structure * 0.012;
   modelPivot.scale.setScalar(1 + progress * 0.025);
   modelPivot.position.y = FLOOR_Y + progress * 0.045;
 }
