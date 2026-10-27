@@ -199,20 +199,18 @@ async function prepareKnight(root) {
           "#include <opaque_fragment>",
           `float rimEdge = 1.0 - abs(dot(normalize(normal), normalize(vViewPosition)));
           float rim = smoothstep(0.76, 0.94, rimEdge);
-          float innerGlow = smoothstep(0.55, 0.90, rimEdge) * 0.025;
-          float edgeLight = rim + innerGlow;
           vec3 worldRightInView = normalize(mat3(viewMatrix) * vec3(1.0, 0.0, 0.0));
           float worldSide = dot(normalize(normal), worldRightInView);
           float redSideMask = smoothstep(0.05, 0.65, worldSide);
           float whiteSideMask = smoothstep(0.05, 0.65, -worldSide);
-          // Only a faint falloff enters the surface beside the bright contour.
-          outgoingLight *= edgeLight;
-          outgoingLight += edgeLight * (uRedRimColor * redSideMask * uRimStrength
+          // Gate physical highlights too: neither light may fill the interior.
+          outgoingLight *= rim;
+          outgoingLight += rim * (uRedRimColor * redSideMask * uRimStrength
             + uWhiteRimColor * whiteSideMask * 0.85);
           #include <opaque_fragment>`,
         );
       };
-      material.customProgramCacheKey = () => "knight-two-sided-silhouette-rim-v3";
+      material.customProgramCacheKey = () => "knight-two-sided-silhouette-rim-v2";
       rimStrengthUniforms.push(rimStrength);
       return material;
     });
