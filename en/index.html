@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en" data-content-id="home">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Bruno Florian's software engineering portfolio: projects, labs, and evidence." />
+    <meta name="theme-color" content="#070809" />
+    <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg" />
+    <title>Bruno Florian | Software Engineering</title>
+    <link rel="stylesheet" href="/assets/site.css" />
+    <link rel="stylesheet" href="/assets/home.css" />
+    <script src="/assets/locale.js" defer></script>
+    <script type="importmap">
+      {"imports":{"three":"/assets/vendor/three/build/three.module.js","three/addons/":"/assets/vendor/three/examples/jsm/"}}
+    </script>
+    <script type="module" src="/assets/home-hero.js"></script>
+  </head>
+  <body class="home-page">
+    <a class="skip-link" href="#main-content">Skip to content</a>
+    <main id="main-content" tabindex="-1">
+      <section class="hero-track" id="hero-track" aria-labelledby="hero-title" data-stage="0">
+        <div class="hero-screen">
+          <div class="hero-art" id="scene-frame" role="img" aria-label="Chess Knight 006 by Vijay Saini with white and red lighting and a reflection; decorative scene.">
+            <img class="scene-fallback" id="scene-fallback" src="/assets/models/chess-knight-006-preview.png" alt="" />
+            <canvas id="scene-canvas" hidden aria-hidden="true"></canvas>
+            <div class="scene-grid" aria-hidden="true"></div>
+            <span class="scene-caption" aria-hidden="true"><span id="scene-stage">01 / IDEA</span><span>MODEL UNDER REVIEW</span></span>
+          </div>
+
+          <header class="site-header home-header">
+            <a class="brand" href="/en/" aria-label="Bruno Florian, home">Bruno Florian<span aria-hidden="true">.</span></a>
+            <div class="header-actions">
+              <nav class="primary-nav" aria-label="Primary navigation">
+                <a href="/en/" aria-current="page">Home</a>
+                <a href="/en/labs/">Labs</a>
+                <a href="/en/projects/">Projects</a>
+                <a href="/en/about/">About</a>
+                <a href="/en/contact/">Contact</a>
+              </nav>
+              <nav class="locale-nav" aria-label="Language">
+                <a href="/pt-br/" data-locale-choice="pt-br" lang="pt-BR">PT</a>
+                <a href="/en/" data-locale-choice="en" aria-current="page" lang="en">EN</a>
+              </nav>
+            </div>
+          </header>
+
+          <div class="hero-copy">
+            <p class="eyebrow"><span aria-hidden="true"></span> Software engineering <i aria-hidden="true">·</i> Portfolio</p>
+            <h1 id="hero-title">From thought<br />to <span>form.</span></h1>
+            <p class="intro">I build software with clear implementations, reproducible tests, and documented trade-offs.</p>
+            <div class="hero-actions">
+              <a class="button primary" href="/en/projects/">Explore projects <span aria-hidden="true">→</span></a>
+              <a class="button secondary" href="https://github.com/devbrunoflorian" target="_blank" rel="noopener noreferrer"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 .8a11.2 11.2 0 0 0-3.54 21.83c.56.1.77-.24.77-.54v-2.1c-3.13.68-3.79-1.33-3.79-1.33-.51-1.3-1.25-1.65-1.25-1.65-1.02-.7.08-.69.08-.69 1.13.08 1.72 1.16 1.72 1.16 1 .1.72 1.99 3.5 1.99.5 0 .9-.1 1.21-.27.1-.78.39-1.32.7-1.62-2.5-.29-5.13-1.25-5.13-5.57 0-1.23.44-2.24 1.16-3.03-.12-.29-.5-1.44.11-3 0 0 .95-.3 3.08 1.16a10.7 10.7 0 0 1 5.61 0c2.14-1.45 3.08-1.16 3.08-1.16.62 1.56.23 2.71.12 3 .72.79 1.15 1.8 1.15 3.03 0 4.33-2.63 5.28-5.14 5.56.4.35.75 1.03.75 2.08v3.08c0 .3.2.65.78.54A11.2 11.2 0 0 0 12 .8Z" /></svg> View GitHub</a>
+            </div>
+          </div>
+
+          <div class="hero-side-note" aria-hidden="true"><span>IDEA<br />SYSTEM<br />EXECUTION<br />IMPACT</span><i></i></div>
+          <p class="temporary-note">3D model <a href="https://skfb.ly/pEJVJ" target="_blank" rel="noopener noreferrer">Chess Knight 006</a> by Vijay Saini · <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">CC BY 4.0</a> · optimized and recolored</p>
+          <a class="scroll-cue" href="#work-preview"><span class="scroll-mark" aria-hidden="true"></span> Scroll to explore</a>
+          <p class="scene-status visually-hidden" id="scene-status" role="status" aria-live="polite">Static preview is available. Projects and navigation remain accessible.</p>
+        </div>
+      </section>
+
+      <section class="work-preview" id="work-preview" aria-labelledby="work-title">
+        <div>
+          <p class="eyebrow">Projects and labs</p>
+          <h2 id="work-title">Engineering you can explore.</h2>
+          <p>Projects, labs, and technical evidence are one click away.</p>
+        </div>
+        <div class="preview-links">
+          <a href="/en/projects/">Explore projects <span aria-hidden="true">↗</span></a>
+          <a href="/en/labs/">Explore labs <span aria-hidden="true">↗</span></a>
+        </div>
+      </section>
+    </main>
+    <footer class="site-footer home-footer">
+      <span>© 2026 Bruno Florian</span>
+      <nav aria-label="External profiles"><a href="https://github.com/devbrunoflorian" target="_blank" rel="noopener noreferrer">GitHub</a><a href="https://github.com/engineering-proof-labs" target="_blank" rel="noopener noreferrer">Engineering Labs</a></nav>
+    </footer>
+    <noscript><p class="noscript-note">JavaScript is disabled. The static knight preview and all links remain available.</p></noscript>
+  </body>
+</html>
