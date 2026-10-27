@@ -42,9 +42,10 @@ let knight;
 let reflectiveFloor;
 let frameRequest = 0;
 let sceneVisible = true;
-const FRONTAL_YAW = THREE.MathUtils.degToRad(90);
-const MAX_YAW = THREE.MathUtils.degToRad(35);
-const RESTING_LEFT_YAW = FRONTAL_YAW - MAX_YAW;
+// Asset calibration is separate from pointer yaw: zero always faces the camera.
+const FRONTAL_MODEL_YAW = THREE.MathUtils.degToRad(90);
+const MAX_YAW = THREE.MathUtils.degToRad(90);
+const RESTING_LEFT_YAW = -MAX_YAW;
 const RESTING_PITCH = THREE.MathUtils.degToRad(2);
 const LOOK_UP_LIMIT = THREE.MathUtils.degToRad(15);
 const LOOK_DOWN_LIMIT = THREE.MathUtils.degToRad(20);
@@ -198,18 +199,20 @@ async function prepareKnight(root) {
           "#include <opaque_fragment>",
           `float rimEdge = 1.0 - abs(dot(normalize(normal), normalize(vViewPosition)));
           float rim = smoothstep(0.76, 0.94, rimEdge);
+          float innerGlow = smoothstep(0.55, 0.90, rimEdge) * 0.025;
+          float edgeLight = rim + innerGlow;
           vec3 worldRightInView = normalize(mat3(viewMatrix) * vec3(1.0, 0.0, 0.0));
           float worldSide = dot(normalize(normal), worldRightInView);
           float redSideMask = smoothstep(0.05, 0.65, worldSide);
           float whiteSideMask = smoothstep(0.05, 0.65, -worldSide);
-          // Gate physical highlights too: neither light may fill the interior.
-          outgoingLight *= rim;
-          outgoingLight += rim * (uRedRimColor * redSideMask * uRimStrength
+          // Only a faint falloff enters the surface beside the bright contour.
+          outgoingLight *= edgeLight;
+          outgoingLight += edgeLight * (uRedRimColor * redSideMask * uRimStrength
             + uWhiteRimColor * whiteSideMask * 0.85);
           #include <opaque_fragment>`,
         );
       };
-      material.customProgramCacheKey = () => "knight-two-sided-silhouette-rim-v2";
+      material.customProgramCacheKey = () => "knight-two-sided-silhouette-rim-v3";
       rimStrengthUniforms.push(rimStrength);
       return material;
     });
@@ -260,7 +263,7 @@ function projectTrackingCenter() {
   const bounds = frame.getBoundingClientRect();
   if (!bounds.width || !bounds.height || !knight) return null;
   camera.updateMatrixWorld(true);
-  trackingRestQuaternion.setFromAxisAngle(verticalAxis, FRONTAL_YAW);
+  trackingRestQuaternion.setFromAxisAngle(verticalAxis, FRONTAL_MODEL_YAW);
   trackingRestMatrix.compose(modelPivot.position, trackingRestQuaternion, modelPivot.scale);
   trackingCenterWorld.copy(trackingCenterLocal).applyMatrix4(trackingRestMatrix).project(camera);
   return {
@@ -288,7 +291,7 @@ function pointerMove(event) {
   const verticalSideDistance = dy < 0 ? center.y - bounds.top : bounds.bottom - center.y;
   const normalizedY = clamp(dy / Math.max(1, verticalSideDistance), -1, 1);
   const trackingY = clamp(normalizedY / TRACKING_FULL_TILT_AT, -1, 1);
-  targetYaw = FRONTAL_YAW + trackingX * MAX_YAW;
+  targetYaw = trackingX * MAX_YAW;
   targetPitch = trackingY < 0
     ? trackingY * LOOK_UP_LIMIT
     : trackingY * LOOK_DOWN_LIMIT;
@@ -384,8 +387,8 @@ function renderFrame(timestamp) {
   pitch += (targetPitch - pitch) * smoothing;
   revealAmount += (targetReveal - revealAmount) * smoothing;
   pointerWorld.lerp(pointerTarget, smoothing);
-  modelPivot.rotation.set(pitch, yaw, 0);
-  const profileAmount = clamp(Math.abs(yaw - FRONTAL_YAW) / MAX_YAW);
+  modelPivot.rotation.set(pitch, FRONTAL_MODEL_YAW + yaw, 0);
+  const profileAmount = clamp(Math.abs(yaw) / MAX_YAW);
   const rimStrength = 0.85 + smoothstep(0.6, 1, profileAmount) * 0.55;
   for (const uniform of rimStrengthUniforms) uniform.value = rimStrength;
   for (const material of revealMaterials) {
@@ -451,7 +454,7 @@ async function startScene() {
     addStudioLight(redLight);
     frame.dataset.studioLightCount = String(studioLights.length);
     scene.add(modelPivot);
-    if (debugMode) modelPivot.position.y = FLOOR_Y;
+    modelPivot.position.y = FLOOR_Y;
 
     const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
     const gltf = await loader.loadAsync("/assets/models/chess-knight-006-web.glb");
@@ -539,7 +542,7 @@ reducedMotion.addEventListener("change", () => {
     targetReveal = 0;
     pointerWorld.set(0, 0, 0);
     pointerTarget.set(0, 0, 0);
-    modelPivot.rotation.set(RESTING_PITCH, RESTING_LEFT_YAW, 0);
+    modelPivot.rotation.set(RESTING_PITCH, FRONTAL_MODEL_YAW + RESTING_LEFT_YAW, 0);
     for (const material of revealMaterials) material.uniforms.uReveal.value = 0;
     frame.dataset.modelYaw = yaw.toFixed(4);
     frame.dataset.modelPitch = pitch.toFixed(4);
