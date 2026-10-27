@@ -51,10 +51,10 @@ let progress = 0;
 let lastFrameAt = 0;
 
 const REST_YAW = 0;
-// The model faces the camera at 90 degrees; the offset range keeps both tracked poses forward-facing.
+// Pointer tracking centers on the frontal pose and stays within the forward-facing arc.
 const TRACKING_CENTER_YAW = THREE.MathUtils.degToRad(90);
-const TRACKING_YAW_RANGE = THREE.MathUtils.degToRad(18);
-const TRACKING_PITCH_LIMIT = THREE.MathUtils.degToRad(7);
+const TRACKING_YAW_RANGE = THREE.MathUtils.degToRad(35);
+const TRACKING_PITCH_LIMIT = THREE.MathUtils.degToRad(12);
 const TRACKING_FULL_TILT_AT = 0.75;
 const TRACKING_HEAD_BAND = [0.58, 0.88];
 const LOW_POLY_WIRE_VERTEX_BUDGET = 1100;
@@ -100,7 +100,7 @@ function createRevealMaterial() {
     uniforms: {
       uPointer: { value: new THREE.Vector3() },
       uReveal: { value: 0 },
-      uBaseOpacity: { value: 0.22 },
+      uBaseOpacity: { value: 0.38 },
     },
     vertexShader: `
       varying vec3 vWorldPosition;
@@ -123,7 +123,7 @@ function createRevealMaterial() {
         float localizedReveal = falloff * uReveal;
         float alpha = uBaseOpacity + localizedReveal * (0.88 - uBaseOpacity);
         if (alpha < 0.025) discard;
-        vec3 color = mix(vec3(0.52, 0.55, 0.60), vec3(0.9, 0.18, 0.25), localizedReveal);
+        vec3 color = mix(vec3(0.70, 0.73, 0.78), vec3(0.95, 0.12, 0.20), localizedReveal);
         gl_FragColor = vec4(color, alpha);
         #include <tonemapping_fragment>
         #include <colorspace_fragment>
@@ -380,14 +380,15 @@ async function startScene() {
     // The studio rig stays in scene space; pointer input rotates only modelPivot.
     addStudioLight(new THREE.HemisphereLight(0xe7e8eb, 0x101114, 0.86));
     const key = new THREE.DirectionalLight(0xffffff, 2.7);
+    // Fixed behind-left; light travels across the knight toward the right/front.
     key.position.set(-2.8, 3.4, -3.8);
     addStudioLight(key);
     const fill = new THREE.DirectionalLight(0xbec2cd, 0.46);
     fill.position.set(-3.8, 0.7, 1.5);
     addStudioLight(fill);
-    const rim = new THREE.DirectionalLight(0xe02c3b, 3.1);
-    // Fixed on the scene's right/back side; never parent this light to the model.
-    rim.position.set(3.8, 1.5, -2.4);
+    const rim = new THREE.DirectionalLight(0xf02a3a, 3.1);
+    // Fixed on the reader's right/front; light travels toward the left/back, never with the model.
+    rim.position.set(6.2, 1.7, 3.2);
     addStudioLight(rim);
     scene.add(modelPivot);
 
