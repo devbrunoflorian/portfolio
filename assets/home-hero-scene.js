@@ -145,7 +145,7 @@ async function prepareKnight(root) {
     const sources = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
     const materials = sources.map(() => {
       const material = new THREE.MeshStandardMaterial({
-        color: debugMode ? "#c5c7ca" : "#121315",
+        color: debugMode ? "#66686d" : "#121315",
         metalness: debugMode ? 0.04 : 0.3,
         roughness: debugMode ? 0.62 : 0.42,
       });
@@ -226,7 +226,7 @@ function projectTrackingCenter() {
 }
 
 function pointerMove(event) {
-  if (!renderer || reducedMotion.matches || (!debugMode && (mobileViewport.matches || !pointerQuery.matches)) || event.pointerType !== "mouse") return;
+  if (!renderer || (reducedMotion.matches && !debugMode) || (!debugMode && (mobileViewport.matches || !pointerQuery.matches)) || event.pointerType !== "mouse") return;
   const bounds = frame.getBoundingClientRect();
   const center = projectTrackingCenter();
   if (!bounds.width || !bounds.height || !center) return;
@@ -336,7 +336,7 @@ function renderFrame(timestamp) {
   pointerWorld.lerp(pointerTarget, smoothing);
   modelPivot.rotation.set(pitch, yaw, 0);
   const profileAmount = clamp(Math.abs(yaw - FRONTAL_YAW) / MAX_YAW);
-  const rimStrength = smoothstep(0.6, 1, profileAmount) * 3.2;
+  const rimStrength = smoothstep(0.75, 1, profileAmount) * 1.8;
   for (const uniform of rimStrengthUniforms) uniform.value = rimStrength;
   for (const material of revealMaterials) {
     material.uniforms.uPointer.value.copy(pointerWorld);
@@ -391,24 +391,24 @@ async function startScene() {
 
     if (debugMode) {
       scene.background = new THREE.Color(0x000000);
-      const whiteLight = new THREE.DirectionalLight(0xffffff, 3.4);
+      const whiteLight = new THREE.DirectionalLight(0xffffff, 2.1);
       whiteLight.name = "fixed-white-left-light";
       whiteLight.position.set(-4, 2, 5);
       addStudioLight(whiteLight);
-      const redLight = new THREE.DirectionalLight(0xf02a3a, 4);
+      const redLight = new THREE.DirectionalLight(0xf02a3a, 2.4);
       redLight.name = "fixed-red-right-light";
       redLight.position.set(4, 1.5, 4);
       addStudioLight(redLight);
     } else {
       // The studio rig stays in scene space; pointer input rotates only modelPivot.
-      addStudioLight(new THREE.HemisphereLight(0xe7e8eb, 0x101114, 0.86));
-      const key = new THREE.DirectionalLight(0xffffff, 2.7);
+      addStudioLight(new THREE.HemisphereLight(0xe7e8eb, 0x101114, 0.45));
+      const key = new THREE.DirectionalLight(0xffffff, 1.6);
       key.position.set(-2.8, 3.4, -3.8);
       addStudioLight(key);
-      const fill = new THREE.DirectionalLight(0xbec2cd, 0.46);
+      const fill = new THREE.DirectionalLight(0xbec2cd, 0.22);
       fill.position.set(-3.8, 0.7, 1.5);
       addStudioLight(fill);
-      const rim = new THREE.DirectionalLight(0xf02a3a, 3.1);
+      const rim = new THREE.DirectionalLight(0xf02a3a, 1.3);
       rim.position.set(6.2, 1.7, 3.2);
       addStudioLight(rim);
     }
