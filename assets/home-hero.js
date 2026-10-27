@@ -2,7 +2,11 @@ const frame = document.querySelector("#scene-frame");
 const status = document.querySelector("#scene-status");
 const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
 const isPortuguese = document.documentElement.lang.toLowerCase().startsWith("pt");
+const debugMode = new URLSearchParams(location.search).has("knight-debug");
 let sceneModulePromise;
+
+document.body.classList.toggle("knight-debug", debugMode);
+frame.dataset.debugMode = String(debugMode);
 
 function showStaticScene() {
   frame.dataset.sceneState = "poster";

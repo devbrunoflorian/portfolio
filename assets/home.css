@@ -470,3 +470,55 @@
   .hero-actions .button { transition: none; }
   .hero-actions .button:hover { transform: none; }
 }
+
+.home-page.knight-debug {
+  min-height: 100svh;
+  overflow: hidden;
+  background: #000;
+}
+
+.home-page.knight-debug .skip-link,
+.home-page.knight-debug .home-header,
+.home-page.knight-debug .hero-copy,
+.home-page.knight-debug .hero-side-note,
+.home-page.knight-debug .temporary-note,
+.home-page.knight-debug .scroll-cue,
+.home-page.knight-debug .scene-caption,
+.home-page.knight-debug .scene-grid,
+.home-page.knight-debug .scene-status,
+.home-page.knight-debug .work-preview,
+.home-page.knight-debug .site-footer,
+.home-page.knight-debug .noscript-note {
+  display: none !important;
+}
+
+.home-page.knight-debug .hero-track,
+.home-page.knight-debug .hero-screen {
+  position: relative;
+  inset: auto;
+  width: 100%;
+  height: 100svh;
+  min-height: 0;
+  overflow: hidden;
+  background: #000;
+}
+
+.home-page.knight-debug .hero-screen::before,
+.home-page.knight-debug .hero-art::before,
+.home-page.knight-debug .hero-poster {
+  display: none !important;
+}
+
+.home-page.knight-debug .hero-art {
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  background: #000;
+  cursor: crosshair;
+}
+
+.home-page.knight-debug .hero-screen #scene-canvas {
+  opacity: 1;
+  transition: none;
+  touch-action: none;
+}
