@@ -12,7 +12,9 @@ const status = document.querySelector("#scene-status");
 const stageLabel = document.querySelector("#scene-stage");
 const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
 const pointerQuery = matchMedia("(pointer: fine)");
-const stageNames = ["IDEIA", "SISTEMA", "EXECUÇÃO", "IMPACTO"];
+const stageNames = document.documentElement.lang.startsWith("pt")
+  ? ["IDEIA", "ESTRUTURA", "FORMA"]
+  : ["IDEA", "STRUCTURE", "FORM"];
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(32, 1, 0.1, 40);
 const raycaster = new THREE.Raycaster();
