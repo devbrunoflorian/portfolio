@@ -51,11 +51,11 @@ let progress = 0;
 let lastFrameAt = 0;
 
 const REST_YAW = 0;
-// This model faces the camera at 90 degrees; 30-degree limits keep both tracked poses forward-facing.
+// The model faces the camera at 90 degrees; the offset range keeps both tracked poses forward-facing.
 const TRACKING_CENTER_YAW = THREE.MathUtils.degToRad(90);
 const TRACKING_YAW_RANGE = THREE.MathUtils.degToRad(18);
 const TRACKING_PITCH_LIMIT = THREE.MathUtils.degToRad(7);
-const TRACKING_RANGE_RATIO = 0.72;
+const TRACKING_FULL_TILT_AT = 0.75;
 const TRACKING_HEAD_BAND = [0.58, 0.88];
 const LOW_POLY_WIRE_VERTEX_BUDGET = 1100;
 const MODEL_SCALE_FACTOR = 0.8;
@@ -223,16 +223,21 @@ function pointerMove(event) {
     return;
   }
 
-  const screenBounds = heroScreen.getBoundingClientRect();
-  if (!screenBounds.width || !screenBounds.height) return;
+  const canvasBounds = canvas.getBoundingClientRect();
+  if (!canvasBounds.width || !canvasBounds.height) return;
   const axis = projectTrackingAxis();
   if (!axis) return;
-  const rangeX = Math.max(1, Math.min(axis.x - screenBounds.left, screenBounds.right - axis.x) * TRACKING_RANGE_RATIO);
-  const rangeY = Math.max(1, Math.min(axis.y - screenBounds.top, screenBounds.bottom - axis.y) * TRACKING_RANGE_RATIO);
-  const normalizedX = clamp((event.clientX - axis.x) / rangeX, -1, 1);
-  const normalizedY = clamp((event.clientY - axis.y) / rangeY, -1, 1);
+  const horizontalSpan = event.clientX < axis.x
+    ? Math.max(1, axis.x - canvasBounds.left)
+    : Math.max(1, canvasBounds.right - axis.x);
+  const verticalSpan = event.clientY < axis.y
+    ? Math.max(1, axis.y - canvasBounds.top)
+    : Math.max(1, canvasBounds.bottom - axis.y);
+  const normalizedX = clamp((event.clientX - axis.x) / horizontalSpan, -1, 1);
+  const normalizedY = clamp((event.clientY - axis.y) / verticalSpan, -1, 1);
+  const trackingProgress = clamp(normalizedX / TRACKING_FULL_TILT_AT, -1, 1);
   targetYaw = clamp(
-    TRACKING_CENTER_YAW + normalizedX * TRACKING_YAW_RANGE,
+    TRACKING_CENTER_YAW + trackingProgress * TRACKING_YAW_RANGE,
     TRACKING_CENTER_YAW - TRACKING_YAW_RANGE,
     TRACKING_CENTER_YAW + TRACKING_YAW_RANGE,
   );
@@ -242,7 +247,6 @@ function pointerMove(event) {
   frame.dataset.pointerNormalizedX = normalizedX.toFixed(3);
   frame.dataset.pointerNormalizedY = normalizedY.toFixed(3);
 
-  const canvasBounds = canvas.getBoundingClientRect();
   const insideCanvas = event.clientX >= canvasBounds.left
     && event.clientX <= canvasBounds.right
     && event.clientY >= canvasBounds.top
