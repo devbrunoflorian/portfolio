@@ -3,7 +3,7 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { Reflector } from "three/addons/objects/Reflector.js";
 import { MeshoptDecoder } from "three/addons/libs/meshopt_decoder.module.js";
 import { SimplifyModifier } from "three/addons/modifiers/SimplifyModifier.js";
-import { createSpatialEnvironment } from "./home-environment-scene.js";
+import { createSpatialEnvironment } from "./home-environment-scene.js?v=pbr-obsidian-1";
 import { homeEnvironment } from "./home-environment.js";
 
 const frame = document.querySelector("#scene-frame");
@@ -62,7 +62,8 @@ let revealAmount = 0;
 let progress = 0;
 let lastFrameAt = 0;
 
-const LOW_POLY_WIRE_VERTEX_BUDGET = 1100;
+const LOW_POLY_FACET_VERTEX_BUDGET = 1100;
+const EDGE_THRESHOLD_ANGLE_DEG = 24;
 const MODEL_SCALE_FACTOR = 0.8;
 const BASE_MODEL_SIZE = 1.85;
 const FLOOR_Y = -0.865;
@@ -107,7 +108,10 @@ function createRevealMaterial() {
     uniforms: {
       uPointer: { value: new THREE.Vector3() },
       uReveal: { value: 0 },
-      uBaseOpacity: { value: 0.38 },
+      uBaseOpacity: { value: 0.11 },
+      uRestingColor: { value: new THREE.Color("#7e848e") },
+      uRevealColor: { value: new THREE.Color("#a8adb4") },
+      uAccentColor: { value: new THREE.Color("#e62035") },
     },
     vertexShader: `
       varying vec3 vWorldPosition;
@@ -115,7 +119,7 @@ function createRevealMaterial() {
         vec4 worldPosition = modelMatrix * vec4(position, 1.0);
         vWorldPosition = worldPosition.xyz;
         vec4 viewPosition = viewMatrix * worldPosition;
-        viewPosition.xyz += normalize(-viewPosition.xyz) * 0.001;
+        viewPosition.xyz += normalize(-viewPosition.xyz) * 0.0012;
         gl_Position = projectionMatrix * viewPosition;
       }
     `,
@@ -123,14 +127,17 @@ function createRevealMaterial() {
       uniform vec3 uPointer;
       uniform float uReveal;
       uniform float uBaseOpacity;
+      uniform vec3 uRestingColor;
+      uniform vec3 uRevealColor;
+      uniform vec3 uAccentColor;
       varying vec3 vWorldPosition;
       void main() {
         float distanceToPointer = distance(vWorldPosition, uPointer);
-        float falloff = 1.0 - smoothstep(0.05, 0.34, distanceToPointer);
+        float falloff = 1.0 - smoothstep(0.04, 0.32, distanceToPointer);
         float localizedReveal = falloff * uReveal;
-        float alpha = uBaseOpacity + localizedReveal * (0.88 - uBaseOpacity);
-        if (alpha < 0.025) discard;
-        vec3 color = mix(vec3(0.70, 0.73, 0.78), vec3(0.95, 0.12, 0.20), localizedReveal);
+        float alpha = uBaseOpacity + localizedReveal * (0.50 - uBaseOpacity);
+        if (alpha < 0.015) discard;
+        vec3 color = mix(uRestingColor, mix(uRevealColor, uAccentColor, 0.40), localizedReveal);
         gl_FragColor = vec4(color, alpha);
         #include <tonemapping_fragment>
         #include <colorspace_fragment>
@@ -181,12 +188,31 @@ async function prepareKnight(root) {
   const simplifier = new SimplifyModifier();
 
   for (const mesh of meshes) {
+    const wireSource = mesh.geometry.clone();
+    wireSource.deleteAttribute("normal");
+    wireSource.deleteAttribute("uv");
+    const vertexCount = wireSource.getAttribute("position").count;
+    const targetVertices = Math.min(LOW_POLY_FACET_VERTEX_BUDGET, Math.max(400, Math.floor(vertexCount * 0.02)));
+    let lowPolyGeometry = wireSource;
+
+    if (vertexCount > targetVertices) {
+      lowPolyGeometry = await simplifier.modify(wireSource, vertexCount - targetVertices);
+      wireSource.dispose();
+    }
+    lowPolyGeometry.computeVertexNormals();
+
+    // The base sculpture receives the low-poly faceted geometry with flatShading
+    // so individual polygon planes define the horse through lighting.
+    mesh.geometry.dispose();
+    mesh.geometry = lowPolyGeometry;
+
     const sources = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
     const materials = sources.map(() => {
       const material = new THREE.MeshStandardMaterial({
-        color: "#121315",
-        metalness: 0.3,
-        roughness: 0.42,
+        color: "#121418",
+        metalness: 0.32,
+        roughness: 0.36,
+        flatShading: true,
       });
       const rimStrength = { value: 0 };
       material.onBeforeCompile = (shader) => {
@@ -206,16 +232,16 @@ async function prepareKnight(root) {
           float rim = smoothstep(0.76, 0.94, rimEdge);
           vec3 worldRightInView = normalize(mat3(viewMatrix) * vec3(1.0, 0.0, 0.0));
           float worldSide = dot(normalize(normal), worldRightInView);
-          float redSideMask = smoothstep(0.05, 0.65, worldSide);
-          float whiteSideMask = smoothstep(0.05, 0.65, -worldSide);
-          // Gate physical highlights too: neither light may fill the interior.
-          outgoingLight *= rim;
+          float redSideMask = smoothstep(0.05, 0.45, worldSide);
+          float whiteSideMask = smoothstep(0.05, 0.45, -worldSide);
+          // Preserve 70-80% dark mass while allowing frontal fill light to reveal facet planes
+          outgoingLight = outgoingLight * mix(0.85, 1.0, rim);
           outgoingLight += rim * (uRedRimColor * redSideMask * uRimStrength
             + uWhiteRimColor * whiteSideMask * 0.85);
           #include <opaque_fragment>`,
         );
       };
-      material.customProgramCacheKey = () => "knight-two-sided-silhouette-rim-v2";
+      material.customProgramCacheKey = () => "knight-two-sided-silhouette-rim-v4";
       rimStrengthUniforms.push(rimStrength);
       return material;
     });
@@ -224,28 +250,18 @@ async function prepareKnight(root) {
     mesh.material = Array.isArray(mesh.material) ? materials : materials[0];
 
     // The opaque body occludes this thin shell, leaving only its outer contour.
-    const silhouette = new THREE.Mesh(mesh.geometry, createSilhouetteMaterial());
+    const silhouette = new THREE.Mesh(lowPolyGeometry, createSilhouetteMaterial());
     silhouette.renderOrder = -1;
     silhouette.raycast = () => {};
     mesh.add(silhouette);
 
     if (debugMode) continue;
 
-    const wireSource = mesh.geometry.clone();
-    wireSource.deleteAttribute("normal");
-    wireSource.deleteAttribute("uv");
-    const vertexCount = wireSource.getAttribute("position").count;
-    const targetVertices = Math.min(LOW_POLY_WIRE_VERTEX_BUDGET, Math.max(400, Math.floor(vertexCount * 0.02)));
-    let lowPolyGeometry = wireSource;
-
-    if (vertexCount > targetVertices) {
-      lowPolyGeometry = await simplifier.modify(wireSource, vertexCount - targetVertices);
-      wireSource.dispose();
-    }
-
-    const wireGeometry = new THREE.WireframeGeometry(lowPolyGeometry);
-    lowPolyGeometry.dispose();
-    const wireframe = new THREE.LineSegments(wireGeometry, createRevealMaterial());
+    // Use selective EdgesGeometry (~24 deg threshold) instead of full WireframeGeometry.
+    // Suppresses 60-80% of internal triangulation lines, keeping only meaningful structural creases:
+    // silhouette contours, cheek/jaw transitions, neck contours, selected mane blocks, chest, pedestal edges.
+    const edgeGeometry = new THREE.EdgesGeometry(lowPolyGeometry, EDGE_THRESHOLD_ANGLE_DEG);
+    const wireframe = new THREE.LineSegments(edgeGeometry, createRevealMaterial());
     wireframe.renderOrder = 1;
     wireframe.raycast = () => {};
     mesh.add(wireframe);
@@ -370,11 +386,18 @@ function resizeScene() {
 
 function updateMaterialProgress() {
   if (debugMode || mobileViewport.matches) return;
-  const structure = Math.sin(progress * Math.PI);
   const polish = smoothstep(0.42, 0.92, progress);
   for (const material of surfaceMaterials) {
-    material.metalness = 0.3 + polish * 0.2;
-    material.roughness = 0.42 - polish * 0.08;
+    material.metalness = 0.28 + polish * 0.18;
+    material.roughness = 0.40 - polish * 0.08;
+  }
+  // Narrative progression across stages:
+  // IDEA: construction edges (~0.18 opacity)
+  // STRUCTURE: balanced wireframe supporting sculptural facets (~0.11 opacity)
+  // FORM: polished faceted sculpture, minimal wireframe (~0.04 opacity)
+  const scrollWireframeOpacity = THREE.MathUtils.lerp(0.18, 0.04, progress);
+  for (const material of revealMaterials) {
+    material.uniforms.uBaseOpacity.value = scrollWireframeOpacity;
   }
   modelPivot.scale.setScalar(1 + progress * 0.025);
   modelPivot.position.y = FLOOR_Y + progress * 0.045;
@@ -445,21 +468,27 @@ async function startScene() {
     }
 
     renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: "low-power" });
-    renderer.setClearColor(0x000000, debugMode ? 1 : 0);
+    renderer.setClearColor(0x050608, 1);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.12;
 
-    if (debugMode) scene.background = new THREE.Color(0x000000);
+    scene.background = new THREE.Color(0x050608);
     // Both modes use the same fixed rig and silhouette-only material.
-    const whiteLight = new THREE.DirectionalLight(0xffffff, 0.6);
+    const whiteLight = new THREE.DirectionalLight(0xffffff, 0.65);
     whiteLight.name = "fixed-white-left-light";
     whiteLight.position.set(-4, 2, 5);
     addStudioLight(whiteLight);
-    const redLight = new THREE.DirectionalLight(0xf02a3a, 0.5);
+    const redLight = new THREE.DirectionalLight(0xf02a3a, 0.55);
     redLight.name = "fixed-red-right-light";
     redLight.position.set(4, 1.5, 4);
     addStudioLight(redLight);
+    // Neutral frontal fill light: broad, soft, positioned front-left-above (-1.0, 2.4, 4.6)
+    // Recovers cheek, muzzle, neck, chest, and pedestal facets while keeping deep black shadows
+    const fillLight = new THREE.DirectionalLight(0xdbe2ec, 0.85);
+    fillLight.name = "fixed-neutral-fill-light";
+    fillLight.position.set(-1.0, 2.4, 4.6);
+    addStudioLight(fillLight);
     frame.dataset.studioLightCount = String(studioLights.length);
     scene.add(modelPivot);
     modelPivot.position.y = FLOOR_Y;
@@ -517,6 +546,8 @@ async function startScene() {
     frame.dataset.sceneState = reducedMotion.matches && !debugMode ? "poster" : "loading";
     frame.dataset.modelSource = "chess-knight-006-cc-by-4.0";
     frame.dataset.modelScale = MODEL_SCALE_FACTOR.toFixed(2);
+    frame.dataset.wireframeMode = "edges-threshold-24";
+    frame.dataset.facetShading = "flat";
     status.textContent = reducedMotion.matches && !debugMode
       ? document.documentElement.lang.startsWith("pt")
         ? "Cena 3D pausada pela preferência de movimento reduzido. A cena estática e a navegação continuam disponíveis."

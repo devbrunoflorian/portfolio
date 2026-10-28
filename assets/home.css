@@ -193,7 +193,8 @@
 .home-header .locale-nav a:hover { color: #fff; }
 .home-header .desktop-nav a[aria-current="page"] { color: #fff; text-decoration: underline; text-decoration-color: var(--home-red); text-underline-offset: 8px; }
 .home-header .locale-nav { gap: 8px; padding-left: clamp(14px, 2vw, 30px); border-left-color: rgba(255, 255, 255, .25); }
-.home-header .locale-nav a:not([aria-current="page"]) { color: rgba(244, 244, 245, .46); }
+.home-header .locale-nav a[aria-current="page"] { color: #ff1230; font-weight: 600; text-decoration: none; }
+.home-header .locale-nav a:not([aria-current="page"]) { color: rgba(244, 244, 245, .40); }
 .home-header .mobile-menu { display: none; }
 
 .hero-copy {
@@ -203,6 +204,14 @@
   left: max(5vw, calc((100vw - 1500px) / 2));
   width: min(600px, 46vw);
   transform: translateY(-43%);
+  pointer-events: none;
+}
+
+.hero-copy a,
+.hero-copy h1,
+.hero-copy p,
+.hero-copy .hero-actions {
+  pointer-events: auto;
 }
 
 .hero-copy .eyebrow {
@@ -262,9 +271,9 @@
   position: absolute;
   z-index: 3;
   top: 20%;
-  right: max(8.3vw, calc((100vw - 1500px) / 2 + 72px));
+  right: clamp(28px, 2.5vw, 48px);
   color: rgba(228, 228, 230, .61);
-  font-size: 10px;
+  font-size: 9.5px;
   letter-spacing: .23em;
   line-height: 2;
   pointer-events: none;
@@ -274,8 +283,20 @@
 .hero-track[data-stage="1"] [data-scene-state="1"],
 .hero-track[data-stage="2"] [data-scene-state="2"] { color: rgba(246, 246, 247, .95); }
 .hero-side-note i { display: block; width: 20px; height: 2px; margin-top: 12px; background: var(--home-red); }
-.temporary-note { position: absolute; z-index: 3; right: max(5vw, calc((100vw - 1500px) / 2)); bottom: 5%; margin: 0; color: rgba(228, 228, 230, .68); font-size: 10px; letter-spacing: .08em; }
-.temporary-note a { color: inherit; text-underline-offset: 2px; }
+.temporary-note {
+  position: absolute;
+  z-index: 4;
+  left: max(5vw, calc((100vw - 1500px) / 2));
+  bottom: 2.2%;
+  max-width: min(340px, 32vw);
+  margin: 0;
+  color: rgba(228, 228, 230, .44);
+  font-size: 8.5px;
+  line-height: 1.4;
+  letter-spacing: .06em;
+}
+.temporary-note a { color: rgba(228, 228, 230, .62); text-underline-offset: 2px; }
+.temporary-note a:hover { color: #ff1230; }
 
 .scroll-cue {
   position: absolute;
@@ -399,7 +420,7 @@
   .hero-actions .button.secondary svg { width: 17px; height: 17px; }
   .hero-side-note { top: auto; right: 18px; bottom: 25%; display: block; font-size: 8px; letter-spacing: .12em; line-height: 1.5; }
   .hero-side-note i { margin-top: 7px; }
-  .temporary-note { right: 22px; bottom: 11%; left: auto; max-width: 190px; text-align: right; font-size: 9px; letter-spacing: .04em; }
+  .temporary-note { left: 22px; right: auto; bottom: 1%; max-width: 260px; text-align: left; font-size: 8px; letter-spacing: .04em; }
   .scroll-cue { bottom: 3%; left: 22px; gap: 10px; font-size: 11px; }
   .scroll-mark { width: 18px; height: 30px; }
   .scroll-mark::after { left: 7px; }
