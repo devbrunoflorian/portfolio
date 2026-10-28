@@ -3,20 +3,21 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { Reflector } from "three/addons/objects/Reflector.js";
 import { MeshoptDecoder } from "three/addons/libs/meshopt_decoder.module.js";
 import { SimplifyModifier } from "three/addons/modifiers/SimplifyModifier.js";
-import { createSpatialEnvironment } from "./home-environment-scene.js?v=pbr-obsidian-1";
-import { homeEnvironment } from "./home-environment.js";
+import { createSpatialEnvironment } from "./home-environment-scene.js?v=mobile-compose-1";
+import { homeEnvironment } from "./home-environment.js?v=mobile-compose-1";
+import { mobileViewport, revealMobileCopy, updateMobileProgress } from "./home-mobile.js?v=mobile-compose-1";
 
 const frame = document.querySelector("#scene-frame");
 const canvas = document.querySelector("#scene-canvas");
 const fallback = document.querySelector("#scene-fallback");
 const track = document.querySelector("#hero-track");
 const heroScreen = document.querySelector(".hero-screen");
+const heroCopy = document.querySelector(".hero-copy");
 const status = document.querySelector("#scene-status");
 const stageLabel = document.querySelector("#scene-stage");
 const poster = document.querySelector("#hero-poster");
 const posterImage = document.querySelector("#hero-poster-image");
 const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
-const mobileViewport = matchMedia("(max-width: 640px)");
 const pointerQuery = matchMedia("(pointer: fine)");
 const stageNames = document.documentElement.lang.startsWith("pt")
   ? ["IDEIA", "ESTRUTURA", "FORMA"]
@@ -49,6 +50,7 @@ let sceneVisible = true;
 const FRONTAL_MODEL_YAW = THREE.MathUtils.degToRad(90);
 const MAX_YAW = THREE.MathUtils.degToRad(90);
 const RESTING_LEFT_YAW = -MAX_YAW;
+const MOBILE_RESTING_YAW = THREE.MathUtils.degToRad(-68);
 const RESTING_PITCH = THREE.MathUtils.degToRad(2);
 const LOOK_UP_LIMIT = THREE.MathUtils.degToRad(15);
 const LOOK_DOWN_LIMIT = THREE.MathUtils.degToRad(20);
@@ -90,8 +92,25 @@ function studioLightsAreFixed() {
   ));
 }
 
+function activeSceneDescription() {
+  const portuguese = document.documentElement.lang.startsWith("pt");
+  if (mobileViewport.matches && !debugMode) {
+    return portuguese
+      ? "Cena 3D ativa. O cavalo permanece em pose fixa enquanto o ambiente acompanha a rolagem."
+      : "3D scene active. The knight stays fixed while the environment follows scrolling.";
+  }
+  return portuguese
+    ? "Cena 3D ativa. O movimento do ponteiro é opcional; projetos e navegação permanecem disponíveis."
+    : "3D scene active. Pointer movement is optional; projects and navigation remain available.";
+}
+
 function updateSceneProgress() {
   if (debugMode || reducedMotion.matches) return;
+  if (mobileViewport.matches) {
+    updateMobileProgress();
+    queueFrame();
+    return;
+  }
   const extent = Math.max(1, track.offsetHeight - innerHeight);
   progress = clamp(-track.getBoundingClientRect().top / extent);
   const stage = Math.min(stageNames.length - 1, Math.floor(progress * stageNames.length));
@@ -347,7 +366,7 @@ function pointerMove(event) {
 }
 
 function pointerLeave() {
-  targetYaw = RESTING_LEFT_YAW;
+  targetYaw = mobileViewport.matches && !debugMode ? MOBILE_RESTING_YAW : RESTING_LEFT_YAW;
   targetPitch = RESTING_PITCH;
   targetReveal = 0;
   pointerTarget.set(0, 0, 0);
@@ -370,22 +389,41 @@ function resizeScene() {
   if (!renderer) return;
   const width = Math.max(1, frame.clientWidth);
   const height = Math.max(1, frame.clientHeight);
-  const maxPixelRatio = Math.sqrt(1_800_000 / (width * height));
-  const pixelRatio = Math.min(window.devicePixelRatio || 1, 1.5, maxPixelRatio);
+  const isMobile = mobileViewport.matches && !debugMode;
+  const maxPixelRatio = Math.sqrt((isMobile ? 650_000 : 1_800_000) / (width * height));
+  const pixelRatio = Math.min(window.devicePixelRatio || 1, isMobile ? 1.25 : 1.5, maxPixelRatio);
   renderer.setPixelRatio(1);
   renderer.setSize(Math.round(width * pixelRatio), Math.round(height * pixelRatio), false);
   camera.aspect = width / height;
-  const isMobile = width <= 640;
-  camera.position.set(0, isMobile ? 0.95 : 0.12, isMobile ? 7.5 : 4.55);
-  camera.lookAt(0, isMobile ? 0.92 : -0.2, 0);
+  camera.position.set(0, isMobile ? 0.1 : 0.12, isMobile ? 3.5 : 4.55);
+  camera.lookAt(0, isMobile ? -0.17 : -0.2, 0);
   camera.updateProjectionMatrix();
+  if (reflectiveFloor) {
+    const target = reflectiveFloor.getRenderTarget();
+    target.setSize(isMobile ? 320 : 720, isMobile ? 320 : 480);
+    reflectiveFloor.material.uniforms.color.value.set(isMobile ? 0x73747a : 0x898a90);
+    reflectiveFloor.material.uniforms.uMobileBlur.value = isMobile ? 1.25 : 0;
+    reflectiveFloor.material.uniforms.uReflectionTexel.value.set(1 / target.width, 1 / target.height);
+  }
+  frame.dataset.poseMode = isMobile ? "static-mobile" : "pointer-desktop";
+  if (!reducedMotion.matches) status.textContent = activeSceneDescription();
   frame.dataset.bufferWidth = String(canvas.width);
   frame.dataset.bufferHeight = String(canvas.height);
+  updateSceneProgress();
   queueFrame();
 }
 
 function updateMaterialProgress() {
-  if (debugMode || mobileViewport.matches) return;
+  if (debugMode) return;
+  if (mobileViewport.matches) {
+    modelPivot.scale.setScalar(1);
+    modelPivot.position.y = FLOOR_Y;
+    for (const material of surfaceMaterials) {
+      material.metalness = 0.32;
+      material.roughness = 0.36;
+    }
+    return;
+  }
   const polish = smoothstep(0.42, 0.92, progress);
   for (const material of surfaceMaterials) {
     material.metalness = 0.28 + polish * 0.18;
@@ -406,6 +444,14 @@ function updateMaterialProgress() {
 function renderFrame(timestamp) {
   frameRequest = 0;
   if (!renderer || !knight || !sceneVisible) return;
+  if (mobileViewport.matches && !debugMode) {
+    const copyBounds = heroCopy.getBoundingClientRect();
+    const sceneBounds = frame.getBoundingClientRect();
+    if (copyBounds.top <= sceneBounds.top && copyBounds.right > sceneBounds.left + 1) {
+      lastFrameAt = 0;
+      return;
+    }
+  }
   const elapsed = lastFrameAt ? Math.min(80, timestamp - lastFrameAt) : 16;
   lastFrameAt = timestamp;
   const smoothing = 1 - Math.exp(-elapsed / 105);
@@ -413,11 +459,18 @@ function renderFrame(timestamp) {
   pitch += (targetPitch - pitch) * smoothing;
   revealAmount += (targetReveal - revealAmount) * smoothing;
   pointerWorld.lerp(pointerTarget, smoothing);
+  if (mobileViewport.matches && !debugMode) {
+    yaw = targetYaw = MOBILE_RESTING_YAW;
+    pitch = targetPitch = RESTING_PITCH;
+    revealAmount = targetReveal = 0;
+    pointerWorld.set(0, 0, 0);
+  }
   modelPivot.rotation.set(pitch, FRONTAL_MODEL_YAW + yaw, 0);
   const profileAmount = clamp(Math.abs(yaw) / MAX_YAW);
-  const rimStrength = 0.85 + smoothstep(0.6, 1, profileAmount) * 0.55;
+  const rimStrength = mobileViewport.matches && !debugMode ? 1.4 : 0.85 + smoothstep(0.6, 1, profileAmount) * 0.55;
   for (const uniform of rimStrengthUniforms) uniform.value = rimStrength;
   for (const material of revealMaterials) {
+    material.uniforms.uBaseOpacity.value = mobileViewport.matches && !debugMode ? 0.25 : 0.38;
     material.uniforms.uPointer.value.copy(pointerWorld);
     material.uniforms.uReveal.value = revealAmount;
   }
@@ -431,6 +484,7 @@ function renderFrame(timestamp) {
   if (frame.dataset.sceneState === "loading") {
     frame.dataset.sceneState = "live";
     heroScreen.classList.add("scene-live");
+    revealMobileCopy();
   }
   frame.dataset.modelYaw = yaw.toFixed(4);
   frame.dataset.modelPitch = pitch.toFixed(4);
@@ -445,6 +499,8 @@ function renderFrame(timestamp) {
 }
 
 function setStaticFallback(message) {
+  revealMobileCopy();
+  homeEnvironment?.setActive(false);
   if (renderer) {
     renderer.dispose();
     renderer = null;
@@ -522,6 +578,22 @@ async function startScene() {
       });
       reflectiveFloor.rotation.x = -Math.PI / 2;
       reflectiveFloor.position.y = FLOOR_Y;
+      reflectiveFloor.material.uniforms.uMobileBlur = { value: 0 };
+      reflectiveFloor.material.uniforms.uReflectionTexel = { value: new THREE.Vector2(1 / 720, 1 / 480) };
+      reflectiveFloor.material.fragmentShader = reflectiveFloor.material.fragmentShader.replace(
+        "uniform vec3 color;",
+        "uniform vec3 color;\nuniform float uMobileBlur;\nuniform vec2 uReflectionTexel;",
+      ).replace("vec4 base = texture2DProj( tDiffuse, vUv );", `
+        vec4 base = texture2DProj(tDiffuse, vUv);
+        if (uMobileBlur > 0.0) {
+          vec2 offset = uReflectionTexel * uMobileBlur * vUv.w;
+          base *= 0.4;
+          base += texture2DProj(tDiffuse, vUv + vec4(offset.x, 0.0, 0.0, 0.0)) * 0.15;
+          base += texture2DProj(tDiffuse, vUv - vec4(offset.x, 0.0, 0.0, 0.0)) * 0.15;
+          base += texture2DProj(tDiffuse, vUv + vec4(0.0, offset.y, 0.0, 0.0)) * 0.15;
+          base += texture2DProj(tDiffuse, vUv - vec4(0.0, offset.y, 0.0, 0.0)) * 0.15;
+        }
+      `);
       const renderReflectionWithoutWireOverlay = reflectiveFloor.onBeforeRender;
       reflectiveFloor.onBeforeRender = function (...args) {
         for (const wireframe of wireframes) wireframe.visible = false;
@@ -535,7 +607,7 @@ async function startScene() {
     }
 
     if (!debugMode) {
-      spatialEnvironment = createSpatialEnvironment(scene, FLOOR_Y);
+      spatialEnvironment = createSpatialEnvironment(scene, FLOOR_Y, renderer, camera);
       homeEnvironment?.setActive(true);
     }
 
@@ -578,15 +650,16 @@ window.addEventListener("resize", resizeScene, { passive: true });
 reducedMotion.addEventListener("change", () => {
   if (reducedMotion.matches) {
     pointerLeave();
-    yaw = RESTING_LEFT_YAW;
+    const restingYaw = mobileViewport.matches && !debugMode ? MOBILE_RESTING_YAW : RESTING_LEFT_YAW;
+    yaw = restingYaw;
     pitch = RESTING_PITCH;
-    targetYaw = RESTING_LEFT_YAW;
+    targetYaw = restingYaw;
     targetPitch = RESTING_PITCH;
     revealAmount = 0;
     targetReveal = 0;
     pointerWorld.set(0, 0, 0);
     pointerTarget.set(0, 0, 0);
-    modelPivot.rotation.set(RESTING_PITCH, FRONTAL_MODEL_YAW + RESTING_LEFT_YAW, 0);
+    modelPivot.rotation.set(RESTING_PITCH, FRONTAL_MODEL_YAW + restingYaw, 0);
     for (const material of revealMaterials) material.uniforms.uReveal.value = 0;
     frame.dataset.modelYaw = yaw.toFixed(4);
     frame.dataset.modelPitch = pitch.toFixed(4);
@@ -605,9 +678,7 @@ reducedMotion.addEventListener("change", () => {
   } else if (renderer && knight) {
     canvas.hidden = false;
     frame.dataset.sceneState = "loading";
-    status.textContent = document.documentElement.lang.startsWith("pt")
-      ? "Cena 3D ativa. O movimento do ponteiro é opcional; projetos e navegação permanecem disponíveis."
-      : "3D scene active. Pointer movement is optional; projects and navigation remain available.";
+    status.textContent = activeSceneDescription();
   } else if (!renderer) {
     startScene();
   }
@@ -615,7 +686,10 @@ reducedMotion.addEventListener("change", () => {
   queueFrame();
 });
 mobileViewport.addEventListener("change", () => {
-  if (mobileViewport.matches && !debugMode) pointerLeave();
+  if (!debugMode) {
+    pointerLeave();
+    resizeScene();
+  }
 });
 new IntersectionObserver(([entry]) => {
   sceneVisible = entry.isIntersecting;
