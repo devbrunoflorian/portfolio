@@ -1,4 +1,4 @@
-import { homeEnvironment, mobileViewport } from "./home-environment.js?v=mobile-compose-1";
+import { homeEnvironment, mobileViewport } from "./home-environment.js?v=pbr-tight-1";
 
 export { mobileViewport };
 const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
