@@ -1,3 +1,5 @@
+import { initializeMobileHome, revealMobileCopy } from "./home-mobile.js?v=mobile-compose-1";
+
 const frame = document.querySelector("#scene-frame");
 const status = document.querySelector("#scene-status");
 const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
@@ -7,8 +9,10 @@ let sceneModulePromise;
 
 document.body.classList.toggle("knight-debug", debugMode);
 frame.dataset.debugMode = String(debugMode);
+initializeMobileHome();
 
 function showStaticScene() {
+  revealMobileCopy();
   frame.dataset.sceneState = "poster";
   frame.dataset.modelReady = "false";
   status.textContent = reducedMotion.matches
@@ -28,7 +32,8 @@ function loadSceneWhenAppropriate() {
 
   if (sceneModulePromise) return;
   frame.dataset.sceneState = "loading";
-  sceneModulePromise = import("./home-hero-scene.js?v=pbr-obsidian-1").catch((error) => {
+  sceneModulePromise = import("./home-hero-scene.js?v=mobile-compose-1").catch((error) => {
+    revealMobileCopy();
     sceneModulePromise = null;
     frame.dataset.sceneState = "poster";
     status.textContent = isPortuguese

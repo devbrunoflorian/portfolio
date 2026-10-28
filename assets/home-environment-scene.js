@@ -1,5 +1,22 @@
 import * as THREE from "three";
 
+function projectedPathLength(geometry, camera, width, height, scaleX = 1) {
+  const positions = geometry.attributes.position;
+  const previous = new THREE.Vector3();
+  const current = new THREE.Vector3();
+  let length = 0;
+  for (let index = 0; index < positions.count; index++) {
+    current.fromBufferAttribute(positions, index);
+    current.x *= scaleX;
+    current.project(camera);
+    current.x *= width / 2;
+    current.y *= height / 2;
+    if (index) length += Math.hypot(current.x - previous.x, current.y - previous.y);
+    previous.copy(current);
+  }
+  return length;
+}
+
 /**
  * Procedural Multi-Ring Crystalline Monolith Geometry Generator
  * Generates unique faceted gemstone columns with multiple irregular vertical rings,
@@ -107,7 +124,7 @@ function createMultiRingMonolithGeometry(config) {
   return geo;
 }
 
-export function createSpatialEnvironment(scene, floorY) {
+export function createSpatialEnvironment(scene, floorY, renderer, camera) {
   const group = new THREE.Group();
   group.name = "computational-environment";
   scene.add(group);
@@ -489,6 +506,7 @@ export function createSpatialEnvironment(scene, floorY) {
         uTime: { value: 0 },
         uPeriod: { value: [13, 19, 23, 17, 21][index] },
         uOffset: { value: [0, 6, 14, 4, 10][index] },
+        uEnabled: { value: 1 },
       },
       vertexShader: `
         attribute float aAlong;
@@ -502,8 +520,10 @@ export function createSpatialEnvironment(scene, floorY) {
         uniform float uTime;
         uniform float uPeriod;
         uniform float uOffset;
+        uniform float uEnabled;
         varying float vAlong;
         void main() {
+          if (uEnabled < 0.5) discard;
           float phase = mod(uTime + uOffset, uPeriod) / 3.0;
           if (phase > 1.0) discard;
           
@@ -528,37 +548,66 @@ export function createSpatialEnvironment(scene, floorY) {
   });
 
   let limited = false;
+  let mobileMode = false;
+  const mobileColumns = [4, 5, 6, 7];
   let startedAt = null;
   let nextEventAt = 9200;
   let eventStart = null;
   let eventIndex = 0;
   let activeMeshIndex = 0;
   const quietGaps = [14200, 19500, 12400, 23100, 16800];
+  let activeMobilePulse = -1;
+  let mobilePulseStartedAt = 0;
+  let nextMobilePulseAt = null;
+  let mobilePulseTurn = 0;
+  let calibratedWidth = 0;
+  let calibratedHeight = 0;
+  const mobilePulseDurations = [];
 
   return {
     group,
-    setLimited(value) {
-      if (limited === value) return;
+    setLimited(value, mobile = false) {
+      if (limited === value && mobileMode === mobile) return;
+      if (mobileMode !== mobile) calibratedWidth = calibratedHeight = 0;
       limited = value;
+      mobileMode = mobile;
       monolithMeshes.forEach((mesh, index) => {
-        mesh.visible = value ? index < 6 : true;
+        mesh.visible = mobile ? mobileColumns.includes(index) : value ? index < 6 : true;
       });
       guides.visible = !value;
       foregroundGroup.visible = !value;
       pulses.forEach((pulse, index) => {
-        pulse.visible = !value || index === 1;
+        pulse.visible = !value || index === 1 || (mobile && index === 2);
       });
       grid.material.opacity = value ? 0.05 : 0.10;
+      group.scale.x = mobile ? 0.72 : 1;
     },
     update(timestamp, environment) {
       if (!environment) return;
-      this.setLimited(environment.limited);
+      this.setLimited(environment.limited, Boolean(environment.mobile));
+      environment.element.dataset.monolithCount = String(monolithMeshes.filter((mesh) => mesh.visible).length);
       if (startedAt === null) startedAt = timestamp;
       const time = timestamp - startedAt;
+      if (mobileMode && renderer && camera) {
+        const { clientWidth: width, clientHeight: height } = renderer.domElement;
+        if (width && height && (width !== calibratedWidth || height !== calibratedHeight)) {
+          camera.updateMatrixWorld(true);
+          const referenceSpeed = projectedPathLength(pulses[1].geometry, camera, width, height, 0.72) * 1.18 / 3;
+          if (referenceSpeed > 0) {
+            pulses.forEach((pulse, index) => {
+              mobilePulseDurations[index] = projectedPathLength(pulse.geometry, camera, width, height, 0.72) * 1.18 / referenceSpeed;
+            });
+          }
+          calibratedWidth = width;
+          calibratedHeight = height;
+        }
+      }
 
       // Depth 3 Parallax for background blocks and grid
-      group.position.x = environment.pointer.x * (limited ? 0 : 0.035);
-      group.position.z = environment.pointer.y * (limited ? 0 : 0.025);
+      const progression = environment.progress ?? 0;
+      group.position.x = mobileMode ? environment.pointer.x * 0.16 : environment.pointer.x * (limited ? 0 : 0.035);
+      group.position.y = mobileMode ? (progression - 0.5) * 0.055 : 0;
+      group.position.z = mobileMode ? environment.pointer.y * 0.12 : environment.pointer.y * (limited ? 0 : 0.025);
 
       // Depth 5 Parallax for subtle foreground fragments
       foregroundGroup.position.x = environment.pointer.x * (limited ? 0 : 0.08);
@@ -566,14 +615,45 @@ export function createSpatialEnvironment(scene, floorY) {
 
       // Update pulse uniforms
       const signalRate = environment.phase?.signalRate ?? 0.75;
-      for (const pulse of pulseMaterials) {
-        pulse.uniforms.uTime.value = (time / 1000) * signalRate;
+      if (mobileMode) {
+        if (nextMobilePulseAt === null) nextMobilePulseAt = time + 1300;
+        if (!environment.animating) {
+          activeMobilePulse = -1;
+          nextMobilePulseAt = time + 1300;
+        } else if (activeMobilePulse < 0 && time >= nextMobilePulseAt) {
+          activeMobilePulse = [1, 2][mobilePulseTurn % 2];
+          mobilePulseTurn++;
+          mobilePulseStartedAt = time;
+          pulseMaterials[activeMobilePulse].uniforms.uOffset.value = 0;
+          pulseMaterials[activeMobilePulse].uniforms.uPeriod.value = 6;
+        }
+        const mobilePulseDuration = mobilePulseDurations[activeMobilePulse] ?? 3;
+        if (activeMobilePulse >= 0 && time - mobilePulseStartedAt >= mobilePulseDuration * 1000) {
+          activeMobilePulse = -1;
+          nextMobilePulseAt = time + (7000 + Math.random() * 6000) * (1 + (environment.phase?.coherence ?? 0.75) * 0.7);
+        }
+        pulseMaterials.forEach((pulse, index) => {
+          const active = index === activeMobilePulse;
+          pulse.uniforms.uEnabled.value = active ? 1 : 0;
+          if (active) pulse.uniforms.uTime.value = (time - mobilePulseStartedAt) / mobilePulseDuration * 3 / 1000;
+        });
+        environment.element.dataset.activeSignal = String(activeMobilePulse);
+      } else {
+        const periods = [13, 19, 23, 17, 21];
+        const offsets = [0, 6, 14, 4, 10];
+        pulseMaterials.forEach((pulse, index) => {
+          pulse.uniforms.uEnabled.value = 1;
+          pulse.uniforms.uPeriod.value = periods[index];
+          pulse.uniforms.uOffset.value = offsets[index];
+          pulse.uniforms.uTime.value = (time / 1000) * signalRate;
+        });
+        environment.element.dataset.activeSignal = "-1";
       }
 
       // Glitch language (Section 16): occasional, restrained mesh displacement & reconstruction
       const coherence = environment.phase?.coherence ?? 0.75;
-      if (!limited && eventStart === null && time >= nextEventAt) {
-        activeMeshIndex = [4, 1, 5, 8, 0, 7][eventIndex % 6];
+      if ((!limited || mobileMode) && eventStart === null && time >= nextEventAt) {
+        activeMeshIndex = mobileMode ? mobileColumns[eventIndex % mobileColumns.length] : [4, 1, 5, 8, 0, 7][eventIndex % 6];
         eventStart = time;
         eventIndex++;
       }
@@ -582,15 +662,17 @@ export function createSpatialEnvironment(scene, floorY) {
         const age = time - eventStart;
         const mesh = monolithMeshes[activeMeshIndex];
         if (mesh) {
-          if (age > 260 || limited) {
+          if (age > 260 || (limited && !mobileMode)) {
             // Reconstruct cleanly to original resting state
             mesh.position.copy(mesh.userData.basePosition);
             mesh.rotation.copy(mesh.userData.baseRotation);
             eventStart = null;
-            nextEventAt = time + quietGaps[eventIndex % quietGaps.length] / coherence;
+            nextEventAt = mobileMode
+              ? time + 22000 + Math.random() * 14000
+              : time + quietGaps[eventIndex % quietGaps.length] / coherence;
           } else {
             // Brief 260ms subtle crystalline shear / displacement
-            const offset = Math.sin((age / 260) * Math.PI) * 0.045;
+            const offset = Math.sin((age / 260) * Math.PI) * (mobileMode ? 0.022 : 0.045);
             mesh.position.x = mesh.userData.basePosition.x + offset;
             mesh.rotation.y = mesh.userData.baseRotation.y + offset * 0.75;
           }
