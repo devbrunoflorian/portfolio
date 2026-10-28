@@ -88,7 +88,7 @@ function createEnvironment() {
 
     <!-- Technical Text Systems: Loose Spatial Typography (NO GLASS PANELS) -->
     <div class="environment-labels">
-      
+
       <!-- GROUP A: ANALYZE / DESIGN / COMPOSE / ITERATE (Left Module) -->
       <section class="computational-system system-group-a" data-module="a" aria-label="System A: Synthesis">
         <div class="system-bracket" aria-hidden="true">
