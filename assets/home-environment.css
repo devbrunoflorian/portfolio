@@ -26,13 +26,13 @@
   inset: 6% 0 10% 24%;
   overflow: hidden;
   background:
-    radial-gradient(ellipse at 55% 82%, rgba(86, 88, 94, 0.08), transparent 42%),
-    radial-gradient(ellipse at 88% 76%, rgba(200, 24, 38, 0.02), transparent 22%);
+    radial-gradient(ellipse at 61% 80% in oklab, rgba(99, 99, 104, 0.055), transparent 46%),
+    radial-gradient(ellipse at 88% 76% in oklab, rgba(200, 24, 38, 0.025), transparent 25%);
   transform: translate(calc(var(--environment-x) * 0.08), calc(var(--environment-y) * 0.08));
 }
 
 .environment-grain {
-  opacity: 0.12;
+  opacity: 0.07;
   mask-image: linear-gradient(90deg, transparent, #000 32%);
 }
 
@@ -43,7 +43,8 @@
   inset: 0;
   width: 100%;
   height: 100%;
-  opacity: 0.65;
+  opacity: 0.46;
+  filter: blur(1.2px);
   mask-image: linear-gradient(90deg, transparent 28%, #000 50%);
 }
 
@@ -87,6 +88,64 @@
 .construction-anchors {
   color: #ff1230;
   opacity: 0.85;
+}
+
+.construction-neon {
+  color: #ff1535;
+  opacity: 0;
+  filter: drop-shadow(0 0 1.5px rgba(255, 18, 48, 0.65));
+}
+
+.construction-neon.is-signal-active {
+  opacity: 1;
+}
+
+.neon-rail {
+  stroke: currentColor;
+  stroke-width: 0.65;
+  stroke-linecap: round;
+  stroke-dasharray: 0.15 0.85;
+  opacity: 0;
+}
+
+.neon-runner {
+  fill: #ff4961;
+  stroke: none;
+  offset-path: var(--signal-path);
+  offset-rotate: 0deg;
+  opacity: 0;
+  transform: scale(0.7);
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.hero-screen.scene-live .scene-grid::before,
+.hero-screen.scene-live .scene-grid::after {
+  display: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .construction-neon.is-signal-active .neon-rail {
+    animation: neon-rail-travel var(--signal-duration) linear 1 both;
+  }
+
+  .construction-neon.is-signal-active .neon-runner {
+    animation: neon-head-travel var(--signal-duration) linear 1 both;
+  }
+}
+
+@keyframes neon-rail-travel {
+  0% { stroke-dashoffset: 0.15; opacity: 0; }
+  5% { opacity: 0.85; }
+  94% { opacity: 0.85; }
+  100% { stroke-dashoffset: -0.85; opacity: 0; }
+}
+
+@keyframes neon-head-travel {
+  0% { offset-distance: 0%; opacity: 0; }
+  5% { opacity: 1; }
+  94% { opacity: 1; }
+  100% { offset-distance: 100%; opacity: 0; }
 }
 
 /* =============================================================
