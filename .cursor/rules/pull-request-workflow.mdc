@@ -1,12 +1,8 @@
 ---
-description: Require a pull request for each completed project change
+description: Apply the shared portfolio agent workflow
 alwaysApply: true
 ---
 
-# Pull request workflow
+# Shared workflow
 
-- For any task that changes project files, work on a focused branch based on the latest `main`; do not commit directly to `main`.
-- Finish the task by pushing the branch and opening a pull request targeting `main`. Keep the PR limited to the task and exclude unrelated or in-progress work from other branches or agents.
-- Before opening the PR, review its diff and run the relevant project checks. Include the checks and their results in the PR description; state clearly when a check was skipped or blocked.
-- Do not merge the PR unless the user explicitly asks. Provide the PR link and a concise summary when handing the task back.
-- Read-only tasks or tasks that produce no project-file changes do not need a PR. If pushing or opening a PR is blocked, explain the blocker and leave the task marked incomplete.
+Follow the repository-root `AGENTS.md` as the source of truth for task ownership, worktree isolation, verification, and pull-request handoff. Keep this rule as a pointer so the workflow stays consistent across agents.
