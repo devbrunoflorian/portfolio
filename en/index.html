@@ -9,40 +9,57 @@
     <title>Bruno Florian | Software Engineering</title>
     <link rel="stylesheet" href="/assets/site.css" />
     <link rel="stylesheet" href="/assets/home.css" />
+    <link rel="stylesheet" href="/assets/home-environment.css" />
     <script src="/assets/locale.js" defer></script>
     <script type="importmap">
       {"imports":{"three":"/assets/vendor/three/build/three.module.js","three/addons/":"/assets/vendor/three/examples/jsm/"}}
     </script>
+    <script type="module" src="/assets/home-environment.js"></script>
     <script type="module" src="/assets/home-hero.js"></script>
   </head>
   <body class="home-page">
     <a class="skip-link" href="#main-content">Skip to content</a>
+    <header class="site-header home-header">
+      <a class="brand" href="/en/" aria-label="Bruno Florian, home">Bruno Florian<span aria-hidden="true">.</span></a>
+      <nav class="primary-nav desktop-nav" aria-label="Primary navigation">
+        <a href="/en/" aria-current="page">Home</a>
+        <a href="/en/about/">About</a>
+        <a href="/en/labs/">Labs</a>
+        <a href="/en/projects/">Projects</a>
+        <a href="/en/contact/">Contact</a>
+      </nav>
+      <nav class="locale-nav" aria-label="Language">
+        <a href="/pt-br/" data-locale-choice="pt-br" lang="pt-BR">PT</a>
+        <a href="/en/" data-locale-choice="en" aria-current="page" lang="en">EN</a>
+      </nav>
+      <details class="mobile-menu">
+        <summary class="menu-toggle"><span class="menu-icon" aria-hidden="true"></span><span>Menu</span></summary>
+        <div class="mobile-menu-panel">
+          <nav class="mobile-nav" aria-label="Primary navigation">
+            <a href="/en/" aria-current="page">Home</a>
+            <a href="/en/about/">About</a>
+            <a href="/en/labs/">Labs</a>
+            <a href="/en/projects/">Projects</a>
+            <a href="/en/contact/">Contact</a>
+          </nav>
+          <a class="mobile-github" href="https://github.com/devbrunoflorian" target="_blank" rel="noopener noreferrer">GitHub ↗</a>
+        </div>
+      </details>
+    </header>
     <main id="main-content" tabindex="-1">
       <section class="hero-track" id="hero-track" aria-labelledby="hero-title" data-stage="0">
         <div class="hero-screen">
-          <div class="hero-art" id="scene-frame" role="img" aria-label="Chess Knight 006 by Vijay Saini with white and red lighting and a reflection; decorative scene.">
-            <img class="scene-fallback" id="scene-fallback" src="/assets/models/chess-knight-006-preview.png" alt="" />
+          <div class="hero-art" id="scene-frame" data-scene-state="poster" data-model-ready="false" role="img" aria-label="Chess Knight 006 by Vijay Saini with white and red lighting and a reflection; decorative scene.">
+            <picture class="hero-poster" id="hero-poster" aria-hidden="true">
+              <source type="image/webp" media="(max-width: 640px)" srcset="/assets/models/chess-knight-006-poster-mobile.webp" />
+              <source type="image/webp" srcset="/assets/models/chess-knight-006-poster-desktop.webp" />
+              <img id="hero-poster-image" src="/assets/models/chess-knight-006-preview.png" alt="" fetchpriority="high" decoding="async" width="1094" height="900" />
+            </picture>
+            <img class="scene-fallback" id="scene-fallback" alt="" hidden />
             <canvas id="scene-canvas" hidden aria-hidden="true"></canvas>
             <div class="scene-grid" aria-hidden="true"></div>
             <span class="scene-caption" aria-hidden="true"><span id="scene-stage">01 / IDEA</span><span>MODEL UNDER REVIEW</span></span>
           </div>
-
-          <header class="site-header home-header">
-            <a class="brand" href="/en/" aria-label="Bruno Florian, home">Bruno Florian<span aria-hidden="true">.</span></a>
-            <div class="header-actions">
-              <nav class="primary-nav" aria-label="Primary navigation">
-                <a href="/en/" aria-current="page">Home</a>
-                <a href="/en/labs/">Labs</a>
-                <a href="/en/projects/">Projects</a>
-                <a href="/en/about/">About</a>
-                <a href="/en/contact/">Contact</a>
-              </nav>
-              <nav class="locale-nav" aria-label="Language">
-                <a href="/pt-br/" data-locale-choice="pt-br" lang="pt-BR">PT</a>
-                <a href="/en/" data-locale-choice="en" aria-current="page" lang="en">EN</a>
-              </nav>
-            </div>
-          </header>
 
           <div class="hero-copy">
             <p class="eyebrow"><span aria-hidden="true"></span> Software engineering <i aria-hidden="true">·</i> Portfolio</p>
@@ -54,7 +71,7 @@
             </div>
           </div>
 
-          <div class="hero-side-note" aria-hidden="true"><span>IDEA<br />SYSTEM<br />EXECUTION<br />IMPACT</span><i></i></div>
+          <div class="hero-side-note" aria-hidden="true"><span><span data-scene-state="0">01&nbsp; IDEA</span><br /><span data-scene-state="1">02&nbsp; STRUCTURE</span><br /><span data-scene-state="2">03&nbsp; FORM</span></span><i></i></div>
           <p class="temporary-note">3D model <a href="https://skfb.ly/pEJVJ" target="_blank" rel="noopener noreferrer">Chess Knight 006</a> by Vijay Saini · <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">CC BY 4.0</a> · optimized and recolored</p>
           <a class="scroll-cue" href="#work-preview"><span class="scroll-mark" aria-hidden="true"></span> Scroll to explore</a>
           <p class="scene-status visually-hidden" id="scene-status" role="status" aria-live="polite">Static preview is available. Projects and navigation remain accessible.</p>
