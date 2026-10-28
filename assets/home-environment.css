@@ -91,6 +91,39 @@
   letter-spacing: 0.22em;
 }
 
+/* Base Interactive Hit Box for all technical nodes */
+[data-kinetic] {
+  pointer-events: auto;
+  cursor: crosshair;
+  position: relative;
+  user-select: none;
+  outline: none;
+  transition: filter 160ms ease, opacity 160ms ease, transform 160ms ease;
+}
+
+/* Padded invisible interaction zone (~10px all around) */
+[data-kinetic]::before {
+  content: "";
+  position: absolute;
+  inset: -8px -12px;
+  pointer-events: auto;
+}
+
+/* Near-state proximity cue */
+[data-kinetic].is-proximate {
+  filter: drop-shadow(0 0 5px rgba(229, 43, 61, 0.35));
+}
+
+[data-kinetic]:hover,
+[data-kinetic]:focus-visible {
+  filter: drop-shadow(0 0 8px rgba(229, 43, 61, 0.65));
+}
+
+[data-kinetic]:focus-visible {
+  outline: 1px dotted rgba(229, 43, 61, 0.7);
+  outline-offset: 4px;
+}
+
 .technical-label {
   position: absolute;
   display: grid;
@@ -102,9 +135,15 @@
   color: #72767d;
   letter-spacing: 0.25em;
   font-weight: 500;
+  transition: color 180ms ease;
 }
 
-/* ANALYZE cascade */
+[data-kinetic]:hover .technical-caption,
+[data-kinetic].is-active .technical-caption {
+  color: #a2a6ad;
+}
+
+/* 1. ANALYZE cascade */
 .label-analyze {
   left: 43%;
   top: 19%;
@@ -120,20 +159,33 @@
   font-size: 7.5px;
   color: #55585f;
   letter-spacing: 0.2em;
+  transition: color 140ms ease;
 }
 
 .analyze-stack .bin-corrupt {
   font-size: 8px;
   color: #83868d;
+  transition: color 140ms ease;
 }
 
 .analyze-stack .bin-resolved {
   font-size: 9px;
   color: #e52b3d;
   font-weight: 600;
+  text-shadow: 0 0 8px rgba(229, 43, 61, 0.3);
 }
 
-/* DESIGN reveal with cursive handwriting */
+.label-analyze:hover .bin-line,
+.label-analyze.is-active .bin-line {
+  color: #8b8f97;
+}
+
+.label-analyze:hover .bin-resolved,
+.label-analyze.is-active .bin-resolved {
+  text-shadow: 0 0 12px rgba(229, 43, 61, 0.85);
+}
+
+/* 2. DESIGN reveal with cursive handwriting */
 .label-design {
   left: 41%;
   top: 41%;
@@ -152,7 +204,14 @@
   stroke-width: 1.15;
   stroke-linecap: round;
   stroke-linejoin: round;
-  opacity: 0.85;
+  opacity: 0.88;
+  transition: opacity 160ms ease, filter 160ms ease;
+}
+
+.label-design:hover svg,
+.label-design.is-active svg {
+  opacity: 1;
+  filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.5));
 }
 
 .design-cross {
@@ -160,9 +219,11 @@
   font-size: 13px;
   font-weight: 300;
   line-height: 1;
+  display: inline-block;
+  transition: transform 180ms ease, color 180ms ease;
 }
 
-/* BUILD assembly */
+/* 3. BUILD assembly */
 .label-build {
   left: 45%;
   top: 64%;
@@ -178,15 +239,23 @@
   font-size: 7.5px;
   color: #55585f;
   letter-spacing: 0.2em;
+  opacity: 0.28;
+  transition: opacity 160ms ease, color 160ms ease, transform 160ms ease;
 }
 
 .build-assembly .build-resolved {
   font-size: 9px;
   color: #e52b3d;
   font-weight: 600;
+  transition: color 160ms ease, text-shadow 160ms ease;
 }
 
-/* ITERATE */
+.label-build.is-active .build-resolved,
+.label-build:hover .build-resolved {
+  text-shadow: 0 0 10px rgba(229, 43, 61, 0.8);
+}
+
+/* 4. ITERATE */
 .label-iterate {
   left: 77%;
   top: 38%;
@@ -196,6 +265,7 @@
   font-size: 9px;
   color: #c0c0c3;
   letter-spacing: 0.22em;
+  transition: color 160ms ease;
 }
 
 .iterate-bar {
@@ -210,15 +280,25 @@
   width: 44px;
   height: 1.5px;
   background: linear-gradient(90deg, #e52b3d 0% 30%, rgba(120, 120, 120, 0.26) 30%);
+  transition: width 200ms ease;
 }
 
 .iterate-coord {
   font-size: 7px;
   color: #6d7076;
   letter-spacing: 0.18em;
+  transition: color 160ms ease;
 }
 
-/* Right side group */
+.label-iterate:hover .iterate-title {
+  color: #ffffff;
+}
+
+.label-iterate:hover .iterate-coord {
+  color: #a4a7ae;
+}
+
+/* 5. Right side column: SYSTEM & EXECUTION */
 .label-side-group {
   left: 83%;
   top: 55%;
@@ -231,9 +311,16 @@
   font-size: 8.5px;
   color: #82858b;
   letter-spacing: 0.22em;
+  display: block;
+  transition: color 160ms ease;
 }
 
-/* IMPACT */
+.label-side-group .side-item:hover,
+.label-side-group .side-item.is-active {
+  color: #f0f0f2;
+}
+
+/* 6. IMPACT */
 .label-impact {
   left: 91%;
   top: 48%;
@@ -245,14 +332,21 @@
   height: 1px;
   background: linear-gradient(90deg, rgba(229, 43, 61, 0.65), rgba(180, 180, 180, 0.2));
   margin-bottom: 4px;
+  transition: width 160ms ease, background 160ms ease;
 }
 
-.label-impact span[data-word] {
+.label-impact .impact-word {
   font-size: 9px;
   color: #d2d2d5;
+  transition: color 160ms ease;
 }
 
-/* Lower supporting group: THINK, SYSTEM, EXECUTION, IMPROVE */
+.label-impact:hover .impact-word {
+  color: #ffffff;
+  text-shadow: 0 0 8px rgba(255, 255, 255, 0.6);
+}
+
+/* 7. Lower supporting group: THINK, SYSTEM, EXECUTION, IMPROVE */
 .environment-lower {
   position: absolute;
   top: 74%;
@@ -268,6 +362,8 @@
   flex-direction: column;
   align-items: center;
   gap: 5px;
+  padding: 6px 10px;
+  margin: -6px -10px;
 }
 
 .lower-marker {
@@ -275,6 +371,22 @@
   height: 3px;
   background: #e52b3d;
   box-shadow: 0 0 6px rgba(229, 43, 61, 0.75);
+  transition: transform 160ms ease, box-shadow 160ms ease;
+}
+
+.lower-word {
+  transition: color 160ms ease;
+}
+
+.lower-item:hover .lower-marker,
+.lower-item.is-active .lower-marker {
+  transform: scale(1.6);
+  box-shadow: 0 0 10px rgba(229, 43, 61, 1.0);
+}
+
+.lower-item:hover .lower-word,
+.lower-item.is-active .lower-word {
+  color: #ffffff;
 }
 
 /* Phase state changes (Section 9: IDEA -> STRUCTURE -> FORM) */
@@ -392,5 +504,12 @@
   }
   .hero-environment .environment-fallback {
     display: block;
+  }
+  [data-kinetic] {
+    cursor: default;
+  }
+  [data-kinetic]:hover,
+  [data-kinetic]:focus-visible {
+    filter: none;
   }
 }
