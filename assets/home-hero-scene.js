@@ -3,6 +3,8 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { Reflector } from "three/addons/objects/Reflector.js";
 import { MeshoptDecoder } from "three/addons/libs/meshopt_decoder.module.js";
 import { SimplifyModifier } from "three/addons/modifiers/SimplifyModifier.js";
+import { createSpatialEnvironment } from "./home-environment-scene.js";
+import { homeEnvironment } from "./home-environment.js";
 
 const frame = document.querySelector("#scene-frame");
 const canvas = document.querySelector("#scene-canvas");
@@ -40,6 +42,7 @@ const rimStrengthUniforms = [];
 let renderer;
 let knight;
 let reflectiveFloor;
+let spatialEnvironment;
 let frameRequest = 0;
 let sceneVisible = true;
 // Asset calibration is separate from pointer yaw: zero always faces the camera.
@@ -94,6 +97,8 @@ function updateSceneProgress() {
   track.dataset.stage = String(stage);
   frame.dataset.progress = progress.toFixed(3);
   stageLabel.textContent = `${String(stage + 1).padStart(2, "0")} / ${stageNames[stage]}`;
+  const stagePhases = ["idea", "structure", "form"];
+  homeEnvironment?.setPhase?.(stagePhases[stage] || "structure");
   queueFrame();
 }
 
@@ -394,6 +399,11 @@ function renderFrame(timestamp) {
     material.uniforms.uReveal.value = revealAmount;
   }
   updateMaterialProgress();
+  if (spatialEnvironment && homeEnvironment) {
+    spatialEnvironment.update(timestamp, homeEnvironment);
+    homeEnvironment.update(timestamp, elapsed);
+    homeEnvironment.setAnchor(projectTrackingCenter(), frame.getBoundingClientRect());
+  }
   renderer.render(scene, camera);
   if (frame.dataset.sceneState === "loading") {
     frame.dataset.sceneState = "live";
@@ -408,7 +418,7 @@ function renderFrame(timestamp) {
     || Math.abs(pitch - targetPitch) > 0.001
     || Math.abs(revealAmount - targetReveal) > 0.005
     || pointerWorld.distanceToSquared(pointerTarget) > 0.00001;
-  if (settling) queueFrame();
+  if (settling || (spatialEnvironment && !reducedMotion.matches && sceneVisible)) queueFrame();
 }
 
 function setStaticFallback(message) {
@@ -493,6 +503,11 @@ async function startScene() {
         }
       };
       scene.add(reflectiveFloor);
+    }
+
+    if (!debugMode) {
+      spatialEnvironment = createSpatialEnvironment(scene, FLOOR_Y);
+      homeEnvironment?.setActive(true);
     }
 
     poster.hidden = debugMode;

@@ -1,0 +1,396 @@
+/* HOME HERO COMPUTATIONAL ENVIRONMENT STYLES */
+
+.hero-environment {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  --environment-x: 0px;
+  --environment-y: 0px;
+  --knight-axis-x: 62%;
+  --knight-axis-y: 45%;
+}
+
+/* Layer A: Distant Horizon */
+.environment-horizon {
+  position: absolute;
+  z-index: 0;
+  inset: 6% 0 10% 24%;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse at 55% 82%, rgba(86, 88, 94, 0.12), transparent 42%),
+    radial-gradient(ellipse at 88% 76%, rgba(200, 24, 38, 0.04), transparent 22%);
+  transform: translate(calc(var(--environment-x) * 0.08), calc(var(--environment-y) * 0.08));
+}
+
+.environment-grain {
+  opacity: 0.14;
+  mask-image: linear-gradient(90deg, transparent, #000 32%);
+}
+
+/* Fallback 2D grid: shown before WebGL initializes */
+.environment-fallback {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.65;
+  mask-image: linear-gradient(90deg, transparent 28%, #000 50%);
+}
+
+.hero-environment[data-spatial="true"] .environment-fallback {
+  display: none;
+}
+
+/* Layer B: Golden Ratio and Construction Geometry (SVG) */
+.construction-map {
+  position: absolute;
+  z-index: 1;
+  left: var(--knight-axis-x);
+  top: var(--knight-axis-y);
+  width: min(670px, 52vw);
+  height: min(760px, 88svh);
+  overflow: visible;
+  color: #d6d4cd;
+  stroke: currentColor;
+  stroke-width: 0.65;
+  transform: translate(calc(-50% + var(--environment-x) * 0.35), calc(-50% + var(--environment-y) * 0.35));
+  mask-image: linear-gradient(90deg, transparent, #000 16%, #000 94%, transparent);
+}
+
+.construction-secondary {
+  opacity: 0.11;
+}
+
+.construction-primary {
+  opacity: 0.30;
+}
+
+.construction-primary .spiral-path {
+  stroke-width: 0.85;
+  opacity: 0.95;
+}
+
+.construction-ticks {
+  opacity: 0.22;
+}
+
+.construction-anchors {
+  color: #e52b3d;
+  opacity: 0.85;
+}
+
+/* Section 6: Technical Text System */
+.environment-labels {
+  position: absolute;
+  z-index: 3;
+  inset: 0;
+  transform: translate(calc(var(--environment-x) * 0.65), calc(var(--environment-y) * 0.65));
+  color: #b8b8ba;
+  font: 9px/1.65 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace;
+  letter-spacing: 0.22em;
+}
+
+.technical-label {
+  position: absolute;
+  display: grid;
+  gap: 5px;
+}
+
+.technical-caption {
+  font-size: 8px;
+  color: #72767d;
+  letter-spacing: 0.25em;
+  font-weight: 500;
+}
+
+/* ANALYZE cascade */
+.label-analyze {
+  left: 43%;
+  top: 19%;
+}
+
+.analyze-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.analyze-stack .bin-line {
+  font-size: 7.5px;
+  color: #55585f;
+  letter-spacing: 0.2em;
+}
+
+.analyze-stack .bin-corrupt {
+  font-size: 8px;
+  color: #83868d;
+}
+
+.analyze-stack .bin-resolved {
+  font-size: 9px;
+  color: #e52b3d;
+  font-weight: 600;
+}
+
+/* DESIGN reveal with cursive handwriting */
+.label-design {
+  left: 41%;
+  top: 41%;
+}
+
+.design-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.design-row svg {
+  width: 120px;
+  height: 42px;
+  stroke: #dedcd6;
+  stroke-width: 1.15;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.85;
+}
+
+.design-cross {
+  color: #e52b3d;
+  font-size: 13px;
+  font-weight: 300;
+  line-height: 1;
+}
+
+/* BUILD assembly */
+.label-build {
+  left: 45%;
+  top: 64%;
+}
+
+.build-assembly {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.build-assembly .build-step {
+  font-size: 7.5px;
+  color: #55585f;
+  letter-spacing: 0.2em;
+}
+
+.build-assembly .build-resolved {
+  font-size: 9px;
+  color: #e52b3d;
+  font-weight: 600;
+}
+
+/* ITERATE */
+.label-iterate {
+  left: 77%;
+  top: 38%;
+}
+
+.label-iterate .iterate-title {
+  font-size: 9px;
+  color: #c0c0c3;
+  letter-spacing: 0.22em;
+}
+
+.iterate-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 3px;
+}
+
+.iterate-track {
+  display: block;
+  width: 44px;
+  height: 1.5px;
+  background: linear-gradient(90deg, #e52b3d 0% 30%, rgba(120, 120, 120, 0.26) 30%);
+}
+
+.iterate-coord {
+  font-size: 7px;
+  color: #6d7076;
+  letter-spacing: 0.18em;
+}
+
+/* Right side group */
+.label-side-group {
+  left: 83%;
+  top: 55%;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.label-side-group .side-item {
+  font-size: 8.5px;
+  color: #82858b;
+  letter-spacing: 0.22em;
+}
+
+/* IMPACT */
+.label-impact {
+  left: 91%;
+  top: 48%;
+}
+
+.impact-guide {
+  display: block;
+  width: 32px;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(229, 43, 61, 0.65), rgba(180, 180, 180, 0.2));
+  margin-bottom: 4px;
+}
+
+.label-impact span[data-word] {
+  font-size: 9px;
+  color: #d2d2d5;
+}
+
+/* Lower supporting group: THINK, SYSTEM, EXECUTION, IMPROVE */
+.environment-lower {
+  position: absolute;
+  top: 74%;
+  right: 6%;
+  display: flex;
+  gap: clamp(16px, 2.8vw, 44px);
+  font-size: 8.5px;
+  color: #94969b;
+}
+
+.lower-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+}
+
+.lower-marker {
+  width: 3px;
+  height: 3px;
+  background: #e52b3d;
+  box-shadow: 0 0 6px rgba(229, 43, 61, 0.75);
+}
+
+/* Phase state changes (Section 9: IDEA -> STRUCTURE -> FORM) */
+.hero-environment[data-phase="idea"] .construction-primary {
+  opacity: 0.16;
+  stroke-dasharray: 45 16;
+}
+
+.hero-environment[data-phase="idea"] .construction-ticks {
+  opacity: 0.10;
+}
+
+.hero-environment[data-phase="form"] .construction-secondary {
+  opacity: 0.05;
+}
+
+.hero-environment[data-phase="form"] .construction-ticks {
+  opacity: 0.15;
+}
+
+.hero-environment[data-quality="reduced"] .environment-grain {
+  display: none;
+}
+
+/* Responsive adaptation (Section 11) */
+@media (max-width: 1100px) {
+  .label-side-group {
+    display: none;
+  }
+  .label-analyze {
+    left: 45%;
+  }
+  .label-design {
+    left: 45%;
+  }
+  .label-build {
+    left: 47%;
+  }
+  .label-impact {
+    left: 88%;
+  }
+  .environment-labels {
+    font-size: 8px;
+  }
+}
+
+@media (max-width: 840px) {
+  .label-analyze,
+  .label-design,
+  .label-build,
+  .label-impact {
+    display: none;
+  }
+  .environment-lower {
+    gap: 20px;
+  }
+}
+
+@media (max-width: 640px) {
+  .environment-horizon {
+    inset: 44% 0 2% 0%;
+  }
+  .environment-grain {
+    display: none;
+  }
+  .construction-map {
+    top: var(--knight-axis-y, 72%);
+    left: 50%;
+    width: 108vw;
+    height: 50svh;
+    opacity: 0.45;
+    mask-image: linear-gradient(transparent, #000 22%, #000 78%, transparent);
+  }
+  .construction-secondary,
+  .construction-ticks {
+    display: none;
+  }
+  .environment-labels {
+    transform: none;
+  }
+  .technical-label {
+    display: none;
+  }
+  .environment-lower {
+    top: auto;
+    bottom: 20%;
+    right: auto;
+    left: 7%;
+    flex-direction: column;
+    gap: 10px;
+    font-size: 7.5px;
+    opacity: 0.70;
+  }
+  .environment-lower > :nth-child(2),
+  .environment-lower > :nth-child(3) {
+    display: none;
+  }
+  .environment-fallback {
+    inset: 44% -40% 0;
+    width: 180%;
+    height: 56%;
+    opacity: 0.38;
+    mask-image: linear-gradient(transparent, #000 30%);
+  }
+}
+
+/* Reduced Motion (Section 14) */
+@media (prefers-reduced-motion: reduce) {
+  .environment-horizon,
+  .environment-labels {
+    transform: none;
+  }
+  .construction-map {
+    transform: translate(-50%, -50%);
+  }
+  .hero-environment .environment-fallback {
+    display: block;
+  }
+}
