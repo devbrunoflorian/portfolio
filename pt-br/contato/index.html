@@ -3,22 +3,74 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="Contato e canais públicos de Bruno Florian." />
-    <meta name="theme-color" content="#0c1018" />
+    <meta name="description" content="Perfis públicos de engenharia e canais de Bruno Florian." />
+    <meta name="theme-color" content="#080b0d" />
     <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg" />
     <title>Contato | Bruno Florian</title>
     <link rel="stylesheet" href="/assets/site.css" />
+    <link rel="stylesheet" href="/assets/contact.css" />
     <script src="/assets/locale.js" defer></script>
+    <script src="/assets/contact.js" defer></script>
   </head>
-  <body>
+  <body class="contact-body">
     <a class="skip-link" href="#main-content">Pular para o conteúdo</a>
-    <div class="site-shell">
-      <header class="site-header"><a class="brand" href="/pt-br/" aria-label="Bruno Florian, início">Bruno Florian<span aria-hidden="true">.</span></a><div class="header-actions">
-        <nav class="primary-nav" aria-label="Navegação principal"><a href="/pt-br/">Início</a><a href="/pt-br/sobre/">Sobre</a><a href="/pt-br/laboratorios/">Laboratórios</a><a href="/pt-br/projetos/">Projetos</a><a href="/pt-br/contato/" aria-current="page">Contato</a></nav>
-        <nav class="locale-nav" aria-label="Idioma"><a href="/en/contact/" data-locale-choice="en" lang="en">EN</a><a href="/pt-br/contato/" data-locale-choice="pt-br" aria-current="page" lang="pt-BR">PT</a></nav>
-      </div></header>
-      <main id="main-content" tabindex="-1"><p class="eyebrow">Contato</p><h1>Contato</h1><p class="placeholder-copy">Os canais e destinos de contato aguardam confirmação do proprietário.</p><p class="supporting-link"><a href="https://github.com/devbrunoflorian" target="_blank" rel="noopener noreferrer">Acessar o perfil público no GitHub</a></p></main>
-      <footer class="site-footer"><span>© 2026 Bruno Florian</span><nav aria-label="Perfis externos"><a href="https://github.com/devbrunoflorian" target="_blank" rel="noopener noreferrer">GitHub</a><a href="https://github.com/engineering-proof-labs" target="_blank" rel="noopener noreferrer">Engineering Labs</a></nav></footer>
+    <div class="site-shell contact-shell">
+      <header class="site-header contact-header">
+        <a class="brand" href="/pt-br/" aria-label="Bruno Florian, início">Bruno Florian<span aria-hidden="true">.</span></a>
+        <div class="header-actions">
+          <nav class="primary-nav" aria-label="Navegação principal">
+            <a href="/pt-br/">Início</a><a href="/pt-br/sobre/">Sobre</a><a href="/pt-br/laboratorios/">Laboratórios</a><a href="/pt-br/projetos/">Projetos</a><a href="/pt-br/contato/" aria-current="page">Contato</a>
+          </nav>
+          <nav class="locale-nav" aria-label="Idioma">
+            <a href="/en/contact/" data-locale-choice="en" lang="en">EN</a><a href="/pt-br/contato/" data-locale-choice="pt-br" aria-current="page" lang="pt-BR">PT</a>
+          </nav>
+        </div>
+      </header>
+
+      <main id="main-content" class="contact-main" tabindex="-1">
+        <section class="contact-hero" aria-labelledby="contact-title">
+          <div class="contact-intro">
+            <p class="contact-kicker"><span aria-hidden="true">05</span> Rotas públicas · conexão</p>
+            <h1 id="contact-title">Vamos nos conectar<span>.</span></h1>
+            <p class="contact-lede">Explore o perfil público e o trabalho de engenharia por destinos verificados.</p>
+          </div>
+
+          <div class="contact-stage" data-contact-stage data-motion-paused="false">
+            <div class="contact-stage-glow" aria-hidden="true"></div>
+            <canvas class="contact-particle-canvas" data-contact-canvas aria-hidden="true"></canvas>
+
+            <a class="contact-node contact-node-profile" href="https://github.com/devbrunoflorian" target="_blank" rel="noopener noreferrer" data-contact-node="profile" aria-label="Abrir o perfil público de Bruno Florian no GitHub em uma nova aba">
+              <span class="contact-node-index">01 / PERFIL PÚBLICO</span>
+              <span class="contact-mark contact-mark-github" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M12 .8a11.2 11.2 0 0 0-3.54 21.83c.56.1.77-.24.77-.54v-2.1c-3.13.68-3.79-1.33-3.79-1.33-.51-1.3-1.25-1.65-1.25-1.65-1.02-.7.08-.69.08-.69 1.13.08 1.72 1.16 1.72 1.16 1 .1.72 1.99 3.5 1.99.5 0 .9-.1 1.21-.27.1-.78.39-1.32.7-1.62-2.5-.29-5.13-1.25-5.13-5.57 0-1.23.44-2.24 1.16-3.03-.12-.29-.5-1.44.11-3 0 0 .95-.3 3.08 1.16a10.7 10.7 0 0 1 5.61 0c2.14-1.45 3.08-1.16 3.08-1.16.62 1.56.23 2.71.12 3 .72.79 1.15 1.8 1.15 3.03 0 4.33-2.63 5.28-5.14 5.56.4.35.75 1.03.75 2.08v3.08c0 .3.2.65.78.54A11.2 11.2 0 0 0 12 .8Z" /></svg>
+              </span>
+              <span class="contact-node-title">Perfil no GitHub</span>
+              <span class="contact-node-detail">Código e projetos públicos</span>
+              <span class="contact-node-arrow" aria-hidden="true">↗</span>
+            </a>
+
+            <a class="contact-node contact-node-labs" href="https://github.com/engineering-proof-labs" target="_blank" rel="noopener noreferrer" data-contact-node="labs" aria-label="Abrir a organização pública Engineering Proof Labs em uma nova aba">
+              <span class="contact-node-index">02 / ENGINEERING LABS</span>
+              <span class="contact-mark contact-mark-labs" aria-hidden="true"><i></i><i></i><i></i></span>
+              <span class="contact-node-title">Engineering Proof Labs</span>
+              <span class="contact-node-detail">Experimentos públicos de engenharia</span>
+              <span class="contact-node-arrow" aria-hidden="true">↗</span>
+            </a>
+          </div>
+
+          <div class="contact-stage-meta">
+            <p>Somente destinos públicos já presentes no portfólio têm links ativos.</p>
+            <button class="contact-motion-toggle" type="button" data-contact-motion-toggle aria-label="Pausar movimento decorativo" hidden>
+              <span aria-hidden="true">Ⅱ</span><span data-contact-motion-label>Pausar movimento</span>
+            </button>
+          </div>
+        </section>
+      </main>
+
+      <footer class="site-footer contact-footer">
+        <span>© 2026 Bruno Florian</span>
+        <nav aria-label="Perfis externos"><a href="https://github.com/devbrunoflorian" target="_blank" rel="noopener noreferrer">GitHub</a><a href="https://github.com/engineering-proof-labs" target="_blank" rel="noopener noreferrer">Engineering Labs</a></nav>
+      </footer>
     </div>
   </body>
 </html>
