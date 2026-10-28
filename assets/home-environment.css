@@ -1,12 +1,14 @@
 /* HOME HERO COMPUTATIONAL ENVIRONMENT STYLES
-   Three compact computational systems placed intentionally around the knight:
+   Loose spatial typography suspended in architectural space:
    - System A (Left): ANALYZE / DESIGN / COMPOSE / ITERATE
    - System B (Right): CONCEPT / SYSTEM / EXECUTION / IMPACT
-   - System C (Lower): THINK -> SHIP -> BUILD -> IMPROVE
+   - System C (Lower): THINK  SHIP  BUILD  IMPROVE
+   NO glass UI panels, NO dashboard cards.
 */
 
 .hero-environment {
   position: absolute;
+  z-index: 5;
   inset: 0;
   pointer-events: none;
   --environment-x: 0px;
@@ -22,13 +24,13 @@
   inset: 6% 0 10% 24%;
   overflow: hidden;
   background:
-    radial-gradient(ellipse at 55% 82%, rgba(86, 88, 94, 0.12), transparent 42%),
-    radial-gradient(ellipse at 88% 76%, rgba(200, 24, 38, 0.04), transparent 22%);
+    radial-gradient(ellipse at 55% 82%, rgba(86, 88, 94, 0.08), transparent 42%),
+    radial-gradient(ellipse at 88% 76%, rgba(200, 24, 38, 0.02), transparent 22%);
   transform: translate(calc(var(--environment-x) * 0.08), calc(var(--environment-y) * 0.08));
 }
 
 .environment-grain {
-  opacity: 0.14;
+  opacity: 0.12;
   mask-image: linear-gradient(90deg, transparent, #000 32%);
 }
 
@@ -64,11 +66,11 @@
 }
 
 .construction-secondary {
-  opacity: 0.11;
+  opacity: 0.09;
 }
 
 .construction-primary {
-  opacity: 0.30;
+  opacity: 0.26;
 }
 
 .construction-primary .spiral-path {
@@ -77,7 +79,7 @@
 }
 
 .construction-ticks {
-  opacity: 0.22;
+  opacity: 0.18;
 }
 
 .construction-anchors {
@@ -86,7 +88,7 @@
 }
 
 /* =============================================================
-   TECHNICAL LABELS SYSTEM: THREE COMPACT COMPUTATIONAL SYSTEMS
+   TECHNICAL LABELS SYSTEM: LOOSE SPATIAL TYPOGRAPHY
    ============================================================= */
 
 .environment-labels {
@@ -95,71 +97,60 @@
   inset: 0;
   pointer-events: none;
   transform: translate(calc(var(--environment-x) * 0.65), calc(var(--environment-y) * 0.65));
-  font: 9px/1.6 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace;
+  font: 9px/1.65 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace;
   letter-spacing: 0.22em;
 }
 
-/* Base style for each of the 3 computational systems */
+/* Base style for loose spatial systems (NO PANELS, NO GLASS) */
 .computational-system {
   position: absolute;
   display: flex;
   flex-direction: column;
-  background: rgba(8, 10, 13, 0.45);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border: 1px solid rgba(85, 90, 100, 0.18);
-  border-left: 2px solid rgba(130, 135, 145, 0.35);
-  padding: 10px 14px 12px;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  padding: 0;
   pointer-events: auto;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
-  transition: border-color 220ms ease, box-shadow 220ms ease;
 }
 
-.computational-system:hover,
-.computational-system.is-active {
-  border-color: rgba(140, 145, 155, 0.35);
-  border-left-color: #ff1230;
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55), 0 0 16px rgba(255, 18, 48, 0.12);
-}
-
+/* Subtle architectural CAD cue: thin hairline guide with coordinate tag */
 .system-bracket {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 8px;
-  padding-bottom: 5px;
-  border-bottom: 1px solid rgba(85, 90, 100, 0.16);
+  gap: 8px;
+  margin-bottom: 6px;
+  opacity: 0.6;
 }
 
 .bracket-tag {
   font-size: 7px;
-  font-weight: 600;
-  color: #656972;
+  font-weight: 500;
+  color: #555860;
   letter-spacing: 0.26em;
 }
 
 .system-status-indicator {
-  width: 4px;
-  height: 4px;
+  width: 3px;
+  height: 3px;
   border-radius: 50%;
-  background: #555860;
-  transition: background 200ms ease, box-shadow 200ms ease;
+  background: #3e4148;
+  transition: background 240ms ease, box-shadow 240ms ease;
 }
 
-.computational-system:hover .system-status-indicator,
-.computational-system.is-active .system-status-indicator {
+.computational-system.has-active .system-status-indicator {
   background: #ff1230;
   box-shadow: 0 0 6px #ff1230;
 }
 
-/* Base Interactive Hit Box for nodes inside systems */
+/* Interactive Hit Box for nodes inside systems */
 .system-node {
   position: relative;
   cursor: crosshair;
   user-select: none;
   outline: none;
-  padding: 5px 0;
+  padding: 4px 0;
   transition: filter 160ms ease, opacity 160ms ease, transform 160ms ease;
 }
 
@@ -167,12 +158,12 @@
 .system-node::before {
   content: "";
   position: absolute;
-  inset: -6px -10px;
+  inset: -6px -12px;
   pointer-events: auto;
 }
 
 .system-node.is-proximate {
-  filter: drop-shadow(0 0 5px rgba(255, 18, 48, 0.35));
+  filter: drop-shadow(0 0 4px rgba(255, 18, 48, 0.3));
 }
 
 .system-node:focus-visible {
@@ -183,7 +174,7 @@
 /* Captions: default subtle gray */
 .node-caption {
   font-size: 7.5px;
-  color: #6d717a;
+  color: #62656e;
   letter-spacing: 0.25em;
   font-weight: 500;
   display: block;
@@ -192,8 +183,9 @@
 }
 
 .system-node:hover .node-caption,
-.system-node.is-active .node-caption {
-  color: #a0a4ae;
+.system-node.is-active .node-caption,
+.system-node.is-resolved .node-caption {
+  color: #8c909a;
 }
 
 /* -------------------------------------------------------------
@@ -202,11 +194,18 @@
 .system-group-a {
   left: clamp(34%, 38vw, 42%);
   top: clamp(100px, 18vh, 160px);
-  width: 170px;
+  width: 165px;
   gap: 8px;
+  border-left: 1px solid rgba(255, 255, 255, 0.06);
+  padding-left: 10px;
+  transition: border-left-color 240ms ease;
 }
 
-/* 1. ANALYZE (Single line binary slots) */
+.system-group-a.has-active {
+  border-left-color: rgba(255, 18, 48, 0.28);
+}
+
+/* 1. ANALYZE (Single line binary slots resolving to crimson letters) */
 .node-analyze .analyze-slot-line {
   display: flex;
   gap: 5px;
@@ -217,59 +216,64 @@
 
 .analyze-slot-line .slot {
   color: #555860;
-  transition: color 120ms ease, text-shadow 120ms ease, transform 120ms ease;
+  transition: color 100ms ease, text-shadow 100ms ease;
 }
 
 .analyze-slot-line .slot.is-resolved {
   color: #ff1230;
-  text-shadow: 0 0 10px rgba(255, 18, 48, 0.85);
-  transform: scale(1.08);
+  text-shadow: 0 0 8px rgba(255, 18, 48, 0.8);
 }
 
 .node-analyze.is-resolved .slot {
   color: #ff1230;
-  text-shadow: 0 0 12px rgba(255, 18, 48, 0.9);
+  text-shadow: 0 0 10px rgba(255, 18, 48, 0.85);
 }
 
-/* 2. DESIGN (Cursive script reveal with SVG handwriting) */
+/* 2. DESIGN (Continuous cursive handwriting SVG path) */
 .design-script-wrap {
   display: flex;
   align-items: center;
   gap: 6px;
-  height: 34px;
+  height: 32px;
 }
 
 .design-script-svg {
-  width: 110px;
-  height: 34px;
-  stroke: #dedcd6;
-  stroke-width: 1.2;
+  width: 120px;
+  height: 32px;
+  stroke: #c8c7c2;
+  stroke-width: 1.25;
   stroke-linecap: round;
   stroke-linejoin: round;
-  opacity: 0.85;
-  transition: opacity 180ms ease, filter 220ms ease;
+  opacity: 0;
+  transition: stroke 240ms ease, filter 240ms ease;
 }
 
-.node-design.is-active .design-script-svg,
 .node-design.is-drawn .design-script-svg {
   opacity: 1;
-  filter: drop-shadow(0 0 8px rgba(255, 18, 48, 0.75));
+  stroke: #ff3a4d;
+  filter: drop-shadow(0 0 6px rgba(255, 18, 48, 0.75));
 }
 
 .design-marker {
   font-size: 13px;
-  color: #ff1230;
+  color: #555860;
   font-weight: 300;
-  opacity: 0.6;
-  transition: transform 220ms ease, opacity 220ms ease;
+  opacity: 0.5;
+  transition: transform 200ms ease, color 200ms ease, opacity 200ms ease;
 }
 
 .design-marker.is-flashing {
+  color: #ff1230;
   opacity: 1;
-  text-shadow: 0 0 10px #ff1230;
+  text-shadow: 0 0 8px #ff1230;
 }
 
-/* 3. COMPOSE (Architectural vertical drop) */
+.node-design.is-drawn .design-marker {
+  color: #ff1230;
+  opacity: 0.85;
+}
+
+/* 3. COMPOSE (Architectural weighted drop) */
 .compose-drop-stage {
   display: flex;
   gap: 2px;
@@ -279,9 +283,9 @@
 }
 
 .compose-drop-stage .drop-letter {
-  color: #727680;
+  color: #656972;
   display: inline-block;
-  transition: color 180ms ease, text-shadow 180ms ease, transform 140ms cubic-bezier(0.2, 0, 0.2, 1);
+  transition: color 180ms ease, text-shadow 180ms ease, transform 160ms cubic-bezier(0.25, 0.1, 0.25, 1);
 }
 
 .node-compose.is-resolved .drop-letter {
@@ -289,7 +293,7 @@
   text-shadow: 0 0 10px rgba(255, 18, 48, 0.8);
 }
 
-/* 4. ITERATE (Connected to COMPOSE) */
+/* 4. ITERATE (Connected to COMPOSE with subtle looping) */
 .iterate-row {
   display: flex;
   align-items: center;
@@ -298,12 +302,11 @@
 
 .iterate-cycle-indicator {
   font-size: 8px;
-  color: #656972;
+  color: #555860;
   transition: transform 300ms ease, color 200ms ease;
 }
 
-.node-iterate.is-active .iterate-cycle-indicator {
-  transform: rotate(180deg);
+.node-iterate.is-looping .iterate-cycle-indicator {
   color: #ff1230;
 }
 
@@ -319,21 +322,25 @@
   height: 10px;
   stroke: #ff1230;
   stroke-width: 1;
-  opacity: 0.7;
+  opacity: 0.5;
 }
 
 .iterate-coord {
   font-size: 7.5px;
-  color: #656972;
+  color: #5a5d66;
   letter-spacing: 0.18em;
   transition: color 180ms ease;
+}
+
+.node-iterate.is-looping .iterate-coord {
+  color: #9296a0;
 }
 
 .iterate-crimson-dot {
   width: 3.5px;
   height: 3.5px;
   border-radius: 50%;
-  background: #444750;
+  background: #3e4148;
   transition: background 200ms ease, box-shadow 200ms ease;
 }
 
@@ -349,8 +356,15 @@
 .system-group-b {
   left: clamp(74%, 78vw, 82%);
   top: clamp(110px, 20vh, 180px);
-  width: 165px;
+  width: 160px;
   gap: 9px;
+  border-left: 1px solid rgba(255, 255, 255, 0.06);
+  padding-left: 10px;
+  transition: border-left-color 240ms ease;
+}
+
+.system-group-b.has-active {
+  border-left-color: rgba(255, 18, 48, 0.28);
 }
 
 /* 1. CONCEPT (Neon circuit power-up) */
@@ -373,12 +387,12 @@
 
 .circuit-char.is-glowing {
   color: #ff1230;
-  text-shadow: 0 0 12px #ff1230, 0 0 4px #ffffff;
+  text-shadow: 0 0 10px #ff1230;
 }
 
 .node-concept.is-resolved .circuit-char {
   color: #ff3a4d;
-  text-shadow: 0 0 6px rgba(255, 18, 48, 0.45);
+  text-shadow: 0 0 6px rgba(255, 18, 48, 0.4);
 }
 
 /* 2. SYSTEM (Ordered grid binary resolution) */
@@ -392,12 +406,12 @@
 
 .system-grid-line .sys-slot {
   color: #555860;
-  transition: color 120ms ease, text-shadow 120ms ease;
+  transition: color 100ms ease, text-shadow 100ms ease;
 }
 
 .system-grid-line .sys-slot.is-resolved {
   color: #ff1230;
-  text-shadow: 0 0 10px rgba(255, 18, 48, 0.85);
+  text-shadow: 0 0 9px rgba(255, 18, 48, 0.85);
 }
 
 /* 3. EXECUTION (Mechanical segmented mask scanline) */
@@ -407,7 +421,7 @@
   align-items: center;
   justify-content: space-between;
   overflow: hidden;
-  padding: 2px 0;
+  padding: 1px 0;
 }
 
 .execution-scanline {
@@ -416,7 +430,7 @@
   bottom: 0;
   width: 2px;
   background: linear-gradient(180deg, #ffffff, #ff1230);
-  box-shadow: 0 0 8px #ff1230;
+  box-shadow: 0 0 6px #ff1230;
   pointer-events: none;
   opacity: 0;
 }
@@ -430,12 +444,12 @@
 
 .exec-seg {
   color: #555860;
-  transition: color 160ms ease, opacity 160ms ease;
+  transition: color 160ms ease;
 }
 
 .exec-seg.is-unmasked {
   color: #e6e9ef;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .execution-marker {
@@ -446,14 +460,14 @@
 
 .execution-marker.is-confirmed {
   color: #ff1230;
-  transform: scale(1.2);
+  transform: scale(1.15);
   text-shadow: 0 0 6px #ff1230;
 }
 
 /* 4. IMPACT (Visual punch scale) */
 .node-impact {
   position: relative;
-  padding-top: 6px;
+  padding-top: 4px;
 }
 
 .impact-flash-line {
@@ -462,7 +476,7 @@
   background: #ff1230;
   transform-origin: left;
   transform: scaleX(0);
-  margin-bottom: 3px;
+  margin-bottom: 2px;
 }
 
 .impact-content {
@@ -473,22 +487,22 @@
 
 .impact-word {
   font-size: 8.5px;
-  color: #656972;
+  color: #62656e;
   letter-spacing: 0.22em;
   transition: color 160ms ease, font-size 160ms ease;
 }
 
 .impact-point {
   font-size: 6px;
-  color: #555860;
+  color: #4b4e56;
   transition: color 160ms ease;
 }
 
 .node-impact.is-resolved .impact-word {
   color: #ffffff;
-  font-size: 9.5px;
+  font-size: 9.2px;
   font-weight: 600;
-  text-shadow: 0 0 8px rgba(255, 255, 255, 0.5);
+  text-shadow: 0 0 6px rgba(255, 255, 255, 0.45);
 }
 
 .node-impact.is-resolved .impact-point {
@@ -502,21 +516,20 @@
 .system-group-c {
   right: clamp(4%, 7vw, 10%);
   bottom: clamp(28px, 6.5vh, 52px);
-  min-width: 310px;
+  min-width: 300px;
 }
 
 .chain-flow {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
+  gap: 12px;
 }
 
 .chain-step {
+  position: relative;
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 2px;
+  align-items: center;
+  gap: 6px;
   padding: 4px 6px;
   cursor: crosshair;
   transition: transform 160ms ease;
@@ -531,23 +544,24 @@
 
 .chain-num {
   font-size: 6.5px;
-  color: #50545c;
+  color: #484b54;
   letter-spacing: 0.2em;
+  transition: color 180ms ease;
 }
 
 .chain-word {
   font-size: 8.5px;
-  color: #656972;
+  color: #60636d;
   letter-spacing: 0.2em;
-  transition: color 180ms ease, text-shadow 180ms ease, transform 180ms ease;
+  transition: color 180ms ease, text-shadow 180ms ease;
 }
 
 .chain-connector {
-  font-size: 8px;
-  color: #444750;
+  font-size: 7.5px;
+  color: #3b3d44;
 }
 
-/* Milestone highlight */
+/* Individual activation for each step in Group C */
 .chain-step.is-active .chain-num {
   color: #ff1230;
 }
@@ -555,74 +569,77 @@
 .chain-step.is-active .chain-word {
   color: #ffffff;
   font-weight: 600;
-  transform: scale(1.06);
-  text-shadow: 0 0 10px rgba(255, 18, 48, 0.95);
-}
-
-.chain-step.is-passed .chain-word {
-  color: #b0b4bd;
-}
-
-.chain-step.is-passed .chain-num {
-  color: #727680;
+  text-shadow: 0 0 8px rgba(255, 18, 48, 0.85);
 }
 
 /* -------------------------------------------------------------
-   FINAL CHAIN REACTION: H1 LIGHT SWEEP & COORDINATED RESET
+   FINAL CONDITION: H1 SPECULAR LIGHT SWEEP & TERMINAL HACK RESET
    ------------------------------------------------------------- */
 
-/* Controlled illumination sweep across H1: "FROM THOUGHT TO FORM" */
-#hero-title.h1-light-sweep {
-  position: relative;
-  background: linear-gradient(
-    110deg,
-    #ffffff 20%,
-    #ff4a5a 45%,
-    #ffffff 55%,
-    #ffffff 80%
+/* Narrow specular light sweep constrained strictly inside the H1 glyphs */
+#hero-title.h1-specular-sweep {
+  background-image: linear-gradient(
+    105deg,
+    #f5f5f6 0%,
+    #f5f5f6 38%,
+    #ffffff 48%,
+    #ffffff 52%,
+    #f5f5f6 62%,
+    #f5f5f6 100%
   );
-  background-size: 250% 100%;
+  background-size: 200% 100%;
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
-  animation: h1-sweep-pass 650ms cubic-bezier(0.2, 0.8, 0.25, 1) forwards;
+  animation: h1-glyph-sweep 650ms cubic-bezier(0.2, 0.8, 0.25, 1) forwards;
 }
 
-@keyframes h1-sweep-pass {
+#hero-title.h1-specular-sweep span {
+  background-image: linear-gradient(
+    105deg,
+    #e12b3b 0%,
+    #e12b3b 38%,
+    #ffa4ac 49%,
+    #ffffff 51%,
+    #e12b3b 62%,
+    #e12b3b 100%
+  );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: h1-glyph-sweep 650ms cubic-bezier(0.2, 0.8, 0.25, 1) forwards;
+}
+
+@keyframes h1-glyph-sweep {
   0% {
-    background-position: 100% 0;
+    background-position: 120% 0;
   }
   100% {
-    background-position: -50% 0;
+    background-position: -20% 0;
   }
 }
 
-/* Coordinated "hack reconstruction" terminal glitch across all systems */
+/* Coordinated "hack reconstruction" terminal glitch across systems */
 .hero-environment.is-glitching-reconstruction .computational-system {
-  animation: terminal-hack-jitter 380ms steps(3, end) forwards;
-  border-color: rgba(255, 18, 48, 0.7);
-  box-shadow: 0 0 18px rgba(255, 18, 48, 0.4);
+  animation: terminal-hack-jitter 350ms steps(3, end) forwards;
 }
 
 @keyframes terminal-hack-jitter {
   0% {
     transform: translate(0, 0);
-    filter: blur(0);
   }
   25% {
-    transform: translate(-2px, 1px);
-    filter: blur(0.4px);
+    transform: translate(-1.5px, 0.5px);
   }
   50% {
-    transform: translate(2px, -1px);
-    filter: blur(0.6px);
+    transform: translate(1.5px, -0.5px);
   }
   75% {
-    transform: translate(-1px, -1px);
-    filter: blur(0.2px);
+    transform: translate(-0.5px, -0.5px);
   }
   100% {
     transform: translate(0, 0);
-    filter: blur(0);
   }
 }
 
@@ -654,15 +671,15 @@
 @media (max-width: 1200px) {
   .system-group-a {
     left: 40%;
-    width: 155px;
+    width: 150px;
   }
   .system-group-b {
     left: 77%;
-    width: 150px;
+    width: 145px;
   }
   .system-group-c {
     right: 5%;
-    min-width: 290px;
+    min-width: 280px;
   }
 }
 
@@ -677,7 +694,7 @@
   .system-group-c {
     right: 4%;
     bottom: 8%;
-    min-width: 270px;
+    min-width: 260px;
   }
 }
 
@@ -696,7 +713,6 @@
     right: 50%;
     transform: translateX(50%);
     bottom: 6%;
-    min-width: 280px;
-    padding: 8px 12px;
+    min-width: 270px;
   }
 }
