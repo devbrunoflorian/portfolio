@@ -8,4 +8,8 @@ Optimized GLB SHA-256: `76bd343db745a8a75290016e639ff1993a6ee912889baf6b4beb1b51
 
 Public attribution appears beside the hero and links to the source and license: “Chess Knight 006” by Vijay Saini, CC BY 4.0; optimized and recolored for the portfolio. The model remains a current placeholder pending the owner's final artistic review.
 
-The static preview keeps the Home understandable when JavaScript, WebGL, or model loading is unavailable.
+`chess-knight-006-poster-desktop.webp` and `chess-knight-006-poster-mobile.webp` are responsive static captures of the opening scene rendered from the optimized derivative. They preserve the resting left-facing pose, fixed studio lights, low-poly wire overlay, and floor reflection, and keep the Home visually complete before WebGL is ready or when WebGL is unavailable. Both posters are derivative imagery under the same CC BY 4.0 attribution above.
+
+At runtime, Three.js `SimplifyModifier` creates a separate low-poly geometry overlay (about 1,100 target vertices) from the optimized model. The original optimized mesh remains the dark, lit sculpture; only the reduced overlay supplies the visible construction lines. This keeps the facets coherent instead of drawing every edge from the dense source mesh. The floor reflection keeps the lit sculpture and omits the overlay so its reflection remains clean.
+
+`chess-knight-006-preview.png` remains a simpler emergency image fallback if a poster asset itself fails to load.
