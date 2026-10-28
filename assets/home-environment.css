@@ -229,48 +229,67 @@
   text-shadow: 0 0 10px rgba(255, 18, 48, 0.85);
 }
 
-/* 2. DESIGN (Continuous cursive handwriting SVG path) */
-.design-script-wrap {
+/* 2. DESIGN (Clean technical presentation - cursive experiment removed) */
+.design-tech-row {
   display: flex;
   align-items: center;
   gap: 6px;
-  height: 32px;
 }
 
-.design-script-svg {
-  width: 120px;
-  height: 32px;
-  stroke: #c8c7c2;
-  stroke-width: 1.25;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  opacity: 0;
-  transition: stroke 240ms ease, filter 240ms ease;
+.design-word {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  color: #555860;
+  transition: color 140ms ease, text-shadow 140ms ease;
 }
 
-.node-design.is-drawn .design-script-svg {
-  opacity: 1;
-  stroke: #ff3a4d;
-  filter: drop-shadow(0 0 6px rgba(255, 18, 48, 0.75));
+.node-design.is-resolved .design-word {
+  color: #ff1230;
+  text-shadow: 0 0 8px rgba(255, 18, 48, 0.85);
 }
 
 .design-marker {
-  font-size: 13px;
+  font-size: 11px;
   color: #555860;
   font-weight: 300;
-  opacity: 0.5;
-  transition: transform 200ms ease, color 200ms ease, opacity 200ms ease;
+  transition: transform 180ms ease, color 180ms ease;
 }
 
-.design-marker.is-flashing {
+.node-design.is-resolved .design-marker {
   color: #ff1230;
-  opacity: 1;
-  text-shadow: 0 0 8px #ff1230;
+  text-shadow: 0 0 6px #ff1230;
 }
 
-.node-design.is-drawn .design-marker {
-  color: #ff1230;
-  opacity: 0.85;
+.design-tech-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.design-rule {
+  display: block;
+  width: 0px;
+  height: 1px;
+  background: #ff1230;
+  box-shadow: 0 0 6px rgba(255, 18, 48, 0.6);
+  transition: width 320ms cubic-bezier(0.2, 0.8, 0.25, 1);
+}
+
+.node-design.is-resolved .design-rule {
+  width: 58px;
+}
+
+.design-coord {
+  font-size: 7px;
+  color: #484b54;
+  letter-spacing: 0.18em;
+  transition: color 180ms ease;
+}
+
+.node-design.is-resolved .design-coord {
+  color: #8c909a;
 }
 
 /* 3. COMPOSE (Architectural weighted drop) */

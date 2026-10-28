@@ -110,16 +110,15 @@ function createEnvironment() {
           </div>
         </div>
 
-        <!-- 2. DESIGN (Continuous cursive handwriting SVG path) -->
+        <!-- 2. DESIGN (Clean technical presentation - cursive experiment removed) -->
         <div class="system-node node-design" data-kinetic="design" tabindex="0" role="button" aria-label="Design computational node">
-          <span class="node-caption">DESIGN</span>
-          <div class="design-script-wrap">
-            <svg class="design-script-svg" viewBox="0 0 140 48" fill="none">
-              <!-- Ordered, continuous cursive pen stroke tracing 'Design' from left to right -->
-              <path class="design-script-path" d="M 14,10 C 12,20 11,30 11,35 C 11,37 13,38 16,36 C 22,32 32,19 32,11 C 32,5 24,4 16,6 C 12,7 10,9 10,12 C 10,20 20,35 25,35 C 28,35 31,29 34,23 C 37,17 42,19 41,23 C 40,27 36,35 43,35 C 47,35 50,31 52,25 C 54,19 59,21 59,25 C 59,30 56,35 63,35 C 66,35 69,29 71,23 C 72,18 75,23 74,28 C 73,33 76,35 80,35 C 84,35 87,30 89,24 C 86,20 81,20 81,25 C 81,31 87,32 89,27 C 91,22 91,15 91,25 C 91,35 88,45 83,45 C 79,45 80,40 87,35 C 92,31 96,35 100,35 C 103,35 105,29 106,23 C 107,18 111,23 111,28 C 111,33 115,35 120,35 C 125,35 129,29 133,25" />
-              <circle class="design-dot" cx="74" cy="16" r="1.4" fill="currentColor" opacity="0" />
-            </svg>
+          <div class="design-tech-row">
+            <span class="tech-word design-word">DESIGN</span>
             <span class="design-marker" aria-hidden="true">+</span>
+          </div>
+          <div class="design-tech-line" aria-hidden="true">
+            <span class="design-rule"></span>
+            <span class="design-coord">01.02</span>
           </div>
         </div>
 
@@ -247,9 +246,6 @@ function createEnvironment() {
   const nodeAnalyze = element.querySelector(".node-analyze");
   const analyzeSlots = Array.from(element.querySelectorAll(".analyze-slot-line .slot"));
   const nodeDesign = element.querySelector(".node-design");
-  const designPath = element.querySelector(".design-script-path");
-  const designDot = element.querySelector(".design-dot");
-  const designMarker = element.querySelector(".design-marker");
   const nodeCompose = element.querySelector(".node-compose");
   const composeLetters = Array.from(element.querySelectorAll(".compose-drop-stage .drop-letter"));
   const nodeIterate = element.querySelector(".node-iterate");
@@ -274,27 +270,36 @@ function createEnvironment() {
   const groupC = element.querySelector(".system-group-c");
   const chainSteps = Array.from(element.querySelectorAll(".chain-flow .chain-step"));
 
-  // Track persistent activation states (Rule 3 & 23: ACTIVATED STATES REMAIN ACTIVE UNTIL GLOBAL RESET)
-  const systemState = {
-    analyze: false,
-    design: false,
-    compose: false,
-    iterate: false,
-    concept: false,
-    system: false,
-    execution: false,
-    impact: false,
+  // Track persistent activation states for all 12 elements across all 3 families (Rules 3, 4, 5)
+  const interactionState = {
+    synthesis: {
+      analyze: false,
+      design: false,
+      compose: false,
+      iterate: false,
+    },
+    realization: {
+      concept: false,
+      system: false,
+      execution: false,
+      impact: false,
+    },
+    cadence: {
+      think: false,
+      ship: false,
+      build: false,
+      improve: false,
+    },
   };
 
-  // Group C independent activation flags (Rule 12 & 13)
-  const cadenceState = {
-    think: false,
-    ship: false,
-    build: false,
-    improve: false,
-  };
-
-  let isCadenceResetting = false;
+  let isGlobalResetting = false;
+  let analyzeCycleTimer = null;
+  let analyzeResolveTimer = null;
+  let systemCycleTimer = null;
+  let systemResolveTimer = null;
+  let conceptTimers = [];
+  let composeTimers = [];
+  let execTimers = [];
   let iterateInterval = null;
   let iterateCoordIndex = 4;
 
@@ -307,20 +312,28 @@ function createEnvironment() {
   let limited = (navigator.hardwareConcurrency || 4) <= 4 || navigator.connection?.saveData === true;
   element.dataset.quality = limited ? "reduced" : "full";
 
-  // Initialize handwriting stroke
-  let designPathLength = 380;
-  if (designPath) {
-    try {
-      designPathLength = Math.ceil(designPath.getTotalLength()) || 380;
-    } catch {
-      designPathLength = 380;
-    }
-    designPath.style.strokeDasharray = `${designPathLength}`;
-    designPath.style.strokeDashoffset = `${designPathLength}`;
-  }
   if (iterateLoopPath) {
     iterateLoopPath.style.strokeDasharray = "64";
     iterateLoopPath.style.strokeDashoffset = "64";
+  }
+
+  // Check if ALL 12 required interactions have been activated (Rule 3 & 9)
+  function checkAllFamiliesCompleted() {
+    const s = interactionState.synthesis;
+    const r = interactionState.realization;
+    const c = interactionState.cadence;
+    return Boolean(
+      s.analyze && s.design && s.compose && s.iterate &&
+      r.concept && r.system && r.execution && r.impact &&
+      c.think && c.ship && c.build && c.improve
+    );
+  }
+
+  function onInteractionComplete() {
+    if (isGlobalResetting) return;
+    if (checkAllFamiliesCompleted()) {
+      setTimeout(triggerGlobalCompletionSequence, 320);
+    }
   }
 
   /* -------------------------------------------------------------
@@ -328,82 +341,76 @@ function createEnvironment() {
   ------------------------------------------------------------- */
 
   // 1. ANALYZE: Single line slot-by-slot binary search -> locks in crimson
-  let analyzeInterval = null;
   const analyzeWord = "ANALYZE";
+  const initialAnalyzeBinary = ["0", "1", "0", "1", "0", "1", "1"];
 
   function triggerAnalyze() {
-    if (reducedMotion.matches || systemState.analyze) return;
+    if (reducedMotion.matches || interactionState.synthesis.analyze || isGlobalResetting) return;
 
     nodeAnalyze?.classList.add("is-active");
     groupA?.classList.add("has-active");
 
+    if (analyzeCycleTimer) clearInterval(analyzeCycleTimer);
+    if (analyzeResolveTimer) clearInterval(analyzeResolveTimer);
+
     let resolvedCount = 0;
-    const slotCycleInterval = setInterval(() => {
+    analyzeCycleTimer = setInterval(() => {
       // Rapid cycling for unresolved slots
       for (let i = resolvedCount; i < analyzeSlots.length; i++) {
         analyzeSlots[i].textContent = Math.random() > 0.5 ? "1" : "0";
       }
     }, 45);
 
-    analyzeInterval = setInterval(() => {
+    analyzeResolveTimer = setInterval(() => {
       if (resolvedCount < analyzeSlots.length) {
         const slot = analyzeSlots[resolvedCount];
         slot.textContent = analyzeWord[resolvedCount];
         slot.classList.add("is-resolved");
         resolvedCount++;
       } else {
-        clearInterval(slotCycleInterval);
-        clearInterval(analyzeInterval);
-        analyzeInterval = null;
-        systemState.analyze = true;
+        clearInterval(analyzeCycleTimer);
+        clearInterval(analyzeResolveTimer);
+        analyzeCycleTimer = null;
+        analyzeResolveTimer = null;
+
+        interactionState.synthesis.analyze = true;
         nodeAnalyze?.classList.add("is-resolved");
         nodeAnalyze?.classList.remove("is-active");
-        // PERSISTENT: stays resolved in crimson until global reset
+
+        onInteractionComplete();
       }
     }, 140);
   }
 
-  // 2. DESIGN: Genuine continuous cursive SVG handwriting stroke left-to-right
-  let designAnim = null;
-
+  // 2. DESIGN: Clean technical presentation (restrained construction rule & marker flash)
   function triggerDesign() {
-    if (reducedMotion.matches || systemState.design || !designPath) return;
+    if (reducedMotion.matches || interactionState.synthesis.design || isGlobalResetting) return;
 
     nodeDesign?.classList.add("is-active");
     groupA?.classList.add("has-active");
-    designPath.style.opacity = "1";
 
-    if (designAnim) designAnim.cancel();
-    designAnim = designPath.animate(
-      [
-        { strokeDashoffset: `${designPathLength}` },
-        { strokeDashoffset: "0" },
-      ],
-      { duration: 1150, easing: "cubic-bezier(0.35, 0, 0.25, 1)", fill: "forwards" }
-    );
+    const marker = nodeDesign?.querySelector(".design-marker");
+    if (marker) {
+      marker.animate(
+        [
+          { transform: "scale(1.6)", color: "#ffffff", opacity: 1 },
+          { transform: "scale(1.0)", color: "#ff1230", opacity: 0.9 },
+        ],
+        { duration: 240, easing: "ease-out" }
+      );
+    }
 
-    designAnim.onfinish = () => {
-      systemState.design = true;
-      nodeDesign?.classList.add("is-drawn");
+    setTimeout(() => {
+      interactionState.synthesis.design = true;
+      nodeDesign?.classList.add("is-resolved");
       nodeDesign?.classList.remove("is-active");
-      if (designDot) designDot.style.opacity = "1";
-      if (designMarker) {
-        designMarker.classList.add("is-flashing");
-        designMarker.animate(
-          [
-            { transform: "scale(1.8)", color: "#ffffff", opacity: 1 },
-            { transform: "scale(1.0)", color: "#ff1230", opacity: 0.9 },
-          ],
-          { duration: 240, easing: "ease-out" }
-        );
-      }
-      // PERSISTENT: stays drawn until global reset
-    };
+      onInteractionComplete();
+    }, 280);
   }
 
   // 3. COMPOSE: Weighted architectural drop assembling letters -> turns crimson on landing
   function triggerCompose() {
-    if (reducedMotion.matches || systemState.compose || !composeLetters.length) return;
+    if (reducedMotion.matches || interactionState.synthesis.compose || isGlobalResetting || !composeLetters.length) return;
 
     nodeCompose?.classList.add("is-active");
     groupA?.classList.add("has-active");
@@ -413,56 +420,55 @@ function createEnvironment() {
       letter.style.opacity = "0.25";
     });
 
+    composeTimers.forEach(clearTimeout);
+    composeTimers = [];
+
     const stepDelay = 75;
     composeLetters.forEach((letter, index) => {
-      setTimeout(() => {
+      const t = setTimeout(() => {
         letter.style.transform = "translateY(0)";
         letter.style.opacity = "1";
 
         if (index === composeLetters.length - 1) {
-          systemState.compose = true;
+          interactionState.synthesis.compose = true;
           nodeCompose?.classList.add("is-resolved");
           nodeCompose?.classList.remove("is-active");
 
-          // When COMPOSE lands, displace ITERATE downward and start its process!
-          triggerIterateDisplaced();
-          // PERSISTENT: stays dropped in crimson until global reset
+          // Displace ITERATE vertically, but DO NOT auto-complete it (Rule 4)!
+          nodeIterate?.animate(
+            [
+              { transform: "translateY(0)" },
+              { transform: "translateY(4px)" },
+              { transform: "translateY(0)" },
+            ],
+            { duration: 250, easing: "cubic-bezier(0.25, 0.1, 0.25, 1)" }
+          );
+
+          onInteractionComplete();
         }
       }, index * stepDelay);
+      composeTimers.push(t);
     });
   }
 
-  // 4. ITERATE: Physically connected to COMPOSE, continuous subtle cyclic loop
-  function triggerIterateDisplaced() {
-    nodeIterate?.animate(
-      [
-        { transform: "translateY(0)" },
-        { transform: "translateY(5px)" },
-        { transform: "translateY(0)" },
-      ],
-      { duration: 280, easing: "cubic-bezier(0.25, 0.1, 0.25, 1)" }
-    );
-    startIterateLoop();
-  }
+  // 4. ITERATE: Requires its own interaction to complete (Rule 4), then loops subtly
+  function triggerIterate() {
+    if (reducedMotion.matches || interactionState.synthesis.iterate || isGlobalResetting) return;
 
-  function startIterateLoop() {
-    if (systemState.iterate) return;
-    systemState.iterate = true;
+    interactionState.synthesis.iterate = true;
     groupA?.classList.add("has-active");
     nodeIterate?.classList.add("is-looping", "is-resolved");
     if (iterateCrimsonDot) iterateCrimsonDot.classList.add("is-active");
 
     function runCycle() {
-      if (!systemState.iterate || isCadenceResetting) return;
+      if (!interactionState.synthesis.iterate || isGlobalResetting) return;
 
-      // Coordinate increments subtly
       iterateCoordIndex++;
       if (iterateCoordIndex > 12) iterateCoordIndex = 4;
       if (iterateCoord) {
         iterateCoord.textContent = `↳ 02.${String(iterateCoordIndex).padStart(2, "0")}`;
       }
 
-      // Loop trace draws
       if (iterateLoopPath) {
         iterateLoopPath.animate(
           [
@@ -477,7 +483,8 @@ function createEnvironment() {
     runCycle();
     if (iterateInterval) clearInterval(iterateInterval);
     iterateInterval = setInterval(runCycle, 2200);
-    // PERSISTENT: continues looping subtly until global reset
+
+    onInteractionComplete();
   }
 
   /* -------------------------------------------------------------
@@ -486,65 +493,76 @@ function createEnvironment() {
 
   // 5. CONCEPT: Neon circuit power-up letter by letter
   function triggerConcept() {
-    if (reducedMotion.matches || systemState.concept || !conceptChars.length) return;
+    if (reducedMotion.matches || interactionState.realization.concept || isGlobalResetting || !conceptChars.length) return;
 
     nodeConcept?.classList.add("is-active");
     groupB?.classList.add("has-active");
 
+    conceptTimers.forEach(clearTimeout);
+    conceptTimers = [];
+
     const stepDelay = 90;
     conceptChars.forEach((charEl, idx) => {
-      setTimeout(() => {
+      const t1 = setTimeout(() => {
         charEl.classList.add("is-powered", "is-glowing");
-        setTimeout(() => charEl.classList.remove("is-glowing"), 180);
+        const t2 = setTimeout(() => charEl.classList.remove("is-glowing"), 180);
+        conceptTimers.push(t2);
 
         if (idx === conceptChars.length - 1) {
-          systemState.concept = true;
+          interactionState.realization.concept = true;
           nodeConcept?.classList.add("is-resolved");
           nodeConcept?.classList.remove("is-active");
-          // PERSISTENT: stays powered on until global reset
+          onInteractionComplete();
         }
       }, idx * stepDelay);
+      conceptTimers.push(t1);
     });
   }
 
   // 6. SYSTEM: Ordered binary grid resolution -> locks in crimson
-  let systemInterval = null;
   const systemWord = "SYSTEM";
+  const initialSystemBinary = ["1", "0", "1", "0", "1", "1"];
 
   function triggerSystem() {
-    if (reducedMotion.matches || systemState.system) return;
+    if (reducedMotion.matches || interactionState.realization.system || isGlobalResetting) return;
 
     nodeSystem?.classList.add("is-active");
     groupB?.classList.add("has-active");
 
+    if (systemCycleTimer) clearInterval(systemCycleTimer);
+    if (systemResolveTimer) clearInterval(systemResolveTimer);
+
     let resolvedCount = 0;
-    const cycleInterval = setInterval(() => {
+    systemCycleTimer = setInterval(() => {
       for (let i = resolvedCount; i < systemSlots.length; i++) {
         systemSlots[i].textContent = Math.random() > 0.5 ? "1" : "0";
       }
-    }, 50);
+    }, 45);
 
-    systemInterval = setInterval(() => {
+    systemResolveTimer = setInterval(() => {
       if (resolvedCount < systemSlots.length) {
         const slot = systemSlots[resolvedCount];
         slot.textContent = systemWord[resolvedCount];
         slot.classList.add("is-resolved");
         resolvedCount++;
       } else {
-        clearInterval(cycleInterval);
-        clearInterval(systemInterval);
-        systemInterval = null;
-        systemState.system = true;
+        clearInterval(systemCycleTimer);
+        clearInterval(systemResolveTimer);
+        systemCycleTimer = null;
+        systemResolveTimer = null;
+
+        interactionState.realization.system = true;
         nodeSystem?.classList.add("is-resolved");
         nodeSystem?.classList.remove("is-active");
-        // PERSISTENT: stays resolved in crimson until global reset
+
+        onInteractionComplete();
       }
     }, 130);
   }
 
   // 7. EXECUTION: Mechanical scan line unmasking segments + checkmark confirmation
   function triggerExecution() {
-    if (reducedMotion.matches || systemState.execution) return;
+    if (reducedMotion.matches || interactionState.realization.execution || isGlobalResetting) return;
 
     nodeExecution?.classList.add("is-active");
     groupB?.classList.add("has-active");
@@ -559,22 +577,27 @@ function createEnvironment() {
       );
     }
 
+    execTimers.forEach(clearTimeout);
+    execTimers = [];
+
     execSegments.forEach((seg, idx) => {
-      setTimeout(() => seg.classList.add("is-unmasked"), idx * 95);
+      const t = setTimeout(() => seg.classList.add("is-unmasked"), idx * 95);
+      execTimers.push(t);
     });
 
-    setTimeout(() => {
+    const tFinal = setTimeout(() => {
       if (execMarker) execMarker.classList.add("is-confirmed");
-      systemState.execution = true;
+      interactionState.realization.execution = true;
       nodeExecution?.classList.add("is-resolved");
       nodeExecution?.classList.remove("is-active");
-      // PERSISTENT: stays completed with silver text and crimson 01 ✓ until global reset
+      onInteractionComplete();
     }, 320);
+    execTimers.push(tFinal);
   }
 
   // 8. IMPACT: Punch scale 0.82 -> 1.12 -> 1.0 (210ms) + crimson impulse
   function triggerImpact() {
-    if (reducedMotion.matches || systemState.impact) return;
+    if (reducedMotion.matches || interactionState.realization.impact || isGlobalResetting) return;
 
     nodeImpact?.classList.add("is-active");
     groupB?.classList.add("has-active");
@@ -600,20 +623,20 @@ function createEnvironment() {
     }
 
     setTimeout(() => {
-      systemState.impact = true;
+      interactionState.realization.impact = true;
       nodeImpact?.classList.add("is-resolved");
       nodeImpact?.classList.remove("is-active");
-      // PERSISTENT: stays active and slightly larger until global reset
+      onInteractionComplete();
     }, 210);
   }
 
   /* -------------------------------------------------------------
-     GROUP C: INDIVIDUAL ACTIVATION & FINAL GLOBAL CONDITION
+     GROUP C: INDIVIDUAL ACTIVATION
   ------------------------------------------------------------- */
   function activateCadenceStep(stepName) {
-    if (reducedMotion.matches || isCadenceResetting || cadenceState[stepName]) return;
+    if (reducedMotion.matches || isGlobalResetting || interactionState.cadence[stepName]) return;
 
-    cadenceState[stepName] = true;
+    interactionState.cadence[stepName] = true;
     groupC?.classList.add("has-active");
 
     const stepEl = element.querySelector(`.chain-step[data-step="${stepName}"]`);
@@ -629,26 +652,25 @@ function createEnvironment() {
       );
     }
 
-    // FINAL CONDITION (Rules 13 & 14): Triggers ONLY when all four equal true!
-    if (cadenceState.think && cadenceState.ship && cadenceState.build && cadenceState.improve) {
-      setTimeout(triggerGlobalCompletionEffect, 320);
-    }
+    onInteractionComplete();
   }
 
-  // 14 & 15. GLOBAL COMPLETION: H1 Specular Sweep + Coordinated Hack Reset
-  function triggerGlobalCompletionEffect() {
-    if (isCadenceResetting) return;
-    isCadenceResetting = true;
+  /* -------------------------------------------------------------
+     GLOBAL COMPLETION SEQUENCE & COUCH HACK RESET (Rules 9, 10, 11)
+  ------------------------------------------------------------- */
+  function triggerGlobalCompletionSequence() {
+    if (isGlobalResetting) return;
+    isGlobalResetting = true;
 
-    // 1. Narrow specular light sweep constrained strictly inside the glyph shapes (Rule 14)
+    // 1. Restrained H1 glyph specular sweep (~650ms, strictly inside typography)
     if (heroTitle) {
       heroTitle.classList.remove("h1-specular-sweep");
-      void heroTitle.offsetWidth; // trigger reflow
+      void heroTitle.offsetWidth; // force reflow
       heroTitle.classList.add("h1-specular-sweep");
-      setTimeout(() => heroTitle.classList.remove("h1-specular-sweep"), 700);
+      setTimeout(() => heroTitle.classList.remove("h1-specular-sweep"), 650);
     }
 
-    // 2. Coordinated hack glitch across technical systems (Rule 15, ~350ms)
+    // 2. Coordinated hack glitch across technical systems (~350ms)
     setTimeout(() => {
       element.classList.add("is-glitching-reconstruction");
 
@@ -665,58 +687,61 @@ function createEnvironment() {
         });
       }, 120);
 
-      // 3. Clear all persistent states and return all systems to dormant gray
+      // 3. Complete programmatic reset: return all systems to fresh dormant states
       setTimeout(() => {
         element.classList.remove("is-glitching-reconstruction");
         resetAllSystems();
-        isCadenceResetting = false;
+        isGlobalResetting = false;
       }, 350);
-    }, 480);
+    }, 450);
   }
 
   function resetAllSystems() {
-    // Clear persistent flags
-    Object.keys(systemState).forEach((key) => { systemState[key] = false; });
-    Object.keys(cadenceState).forEach((key) => { cadenceState[key] = false; });
+    // 1. Clear all active timers
+    if (analyzeCycleTimer) { clearInterval(analyzeCycleTimer); analyzeCycleTimer = null; }
+    if (analyzeResolveTimer) { clearInterval(analyzeResolveTimer); analyzeResolveTimer = null; }
+    if (systemCycleTimer) { clearInterval(systemCycleTimer); systemCycleTimer = null; }
+    if (systemResolveTimer) { clearInterval(systemResolveTimer); systemResolveTimer = null; }
+    if (iterateInterval) { clearInterval(iterateInterval); iterateInterval = null; }
+    conceptTimers.forEach(clearTimeout); conceptTimers = [];
+    composeTimers.forEach(clearTimeout); composeTimers = [];
+    execTimers.forEach(clearTimeout); execTimers = [];
 
-    if (iterateInterval) clearInterval(iterateInterval);
-    iterateInterval = null;
+    // 2. Clear all 12 persistent flags across all 3 families
+    Object.keys(interactionState.synthesis).forEach((k) => { interactionState.synthesis[k] = false; });
+    Object.keys(interactionState.realization).forEach((k) => { interactionState.realization[k] = false; });
+    Object.keys(interactionState.cadence).forEach((k) => { interactionState.cadence[k] = false; });
 
+    // 3. Remove active group highlight states
     groupA?.classList.remove("has-active");
     groupB?.classList.remove("has-active");
     groupC?.classList.remove("has-active");
 
-    // Reset ANALYZE
+    // 4. Reset ANALYZE: full return to dormant unresolved binary
     nodeAnalyze?.classList.remove("is-resolved", "is-active");
     analyzeSlots.forEach((slot, i) => {
       slot.classList.remove("is-resolved");
-      slot.textContent = (i % 2 === 0 ? "0" : "1");
+      slot.textContent = initialAnalyzeBinary[i];
     });
 
-    // Reset DESIGN
-    if (designAnim) designAnim.cancel();
-    nodeDesign?.classList.remove("is-drawn", "is-active");
-    if (designPath) {
-      designPath.style.strokeDashoffset = `${designPathLength}`;
-      designPath.style.opacity = "0";
-    }
-    if (designDot) designDot.style.opacity = "0";
-    if (designMarker) designMarker.classList.remove("is-flashing");
+    // 5. Reset DESIGN
+    nodeDesign?.classList.remove("is-resolved", "is-active");
 
-    // Reset COMPOSE
+    // 6. Reset COMPOSE
     nodeCompose?.classList.remove("is-resolved", "is-active");
     composeLetters.forEach((letter) => {
       letter.style.transform = "";
       letter.style.opacity = "";
     });
 
-    // Reset ITERATE
+    // 7. Reset ITERATE
     nodeIterate?.classList.remove("is-looping", "is-resolved", "is-active");
     if (iterateCrimsonDot) iterateCrimsonDot.classList.remove("is-active");
     if (iterateLoopPath) iterateLoopPath.style.strokeDashoffset = "64";
     if (iterateCoord) iterateCoord.textContent = "↳ 02.04";
+    iterateCoordIndex = 4;
 
-    // Reset CONCEPT
+    // 8. Reset CONCEPT
     nodeConcept?.classList.remove("is-resolved", "is-active");
     const conceptWord = "CONCEPT";
     conceptChars.forEach((c, idx) => {
@@ -724,24 +749,24 @@ function createEnvironment() {
       c.textContent = conceptWord[idx];
     });
 
-    // Reset SYSTEM
+    // 9. Reset SYSTEM: full return to dormant unresolved binary
     nodeSystem?.classList.remove("is-resolved", "is-active");
     systemSlots.forEach((slot, i) => {
       slot.classList.remove("is-resolved");
-      slot.textContent = (i % 2 === 0 ? "1" : "0");
+      slot.textContent = initialSystemBinary[i];
     });
 
-    // Reset EXECUTION
+    // 10. Reset EXECUTION
     nodeExecution?.classList.remove("is-resolved", "is-active");
     execSegments.forEach((seg) => seg.classList.remove("is-unmasked"));
     if (execMarker) execMarker.classList.remove("is-confirmed");
     if (execScanline) execScanline.style.transform = "translateX(-100%)";
 
-    // Reset IMPACT
+    // 11. Reset IMPACT
     nodeImpact?.classList.remove("is-resolved", "is-active");
     if (impactFlashLine) impactFlashLine.style.transform = "scaleX(0)";
 
-    // Reset GROUP C
+    // 12. Reset CADENCE
     const chainWords = ["THINK", "SHIP", "BUILD", "IMPROVE"];
     chainSteps.forEach((s, idx) => {
       s.classList.remove("is-active");
@@ -758,7 +783,7 @@ function createEnvironment() {
       case "analyze": triggerAnalyze(); break;
       case "design": triggerDesign(); break;
       case "compose": triggerCompose(); break;
-      case "iterate": startIterateLoop(); break;
+      case "iterate": triggerIterate(); break;
       case "concept": triggerConcept(); break;
       case "system": triggerSystem(); break;
       case "execution": triggerExecution(); break;
