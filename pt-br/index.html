@@ -8,14 +8,14 @@
     <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg" />
     <title>Bruno Florian | Engenharia de Software</title>
     <link rel="stylesheet" href="/assets/site.css" />
-    <link rel="stylesheet" href="/assets/home.css" />
-    <link rel="stylesheet" href="/assets/home-environment.css" />
+    <link rel="stylesheet" href="/assets/home.css?v=mobile-compose-1" />
+    <link rel="stylesheet" href="/assets/home-environment.css?v=mobile-compose-1" />
+    <link rel="stylesheet" href="/assets/home-mobile.css?v=mobile-compose-1" />
     <script src="/assets/locale.js" defer></script>
     <script type="importmap">
       {"imports":{"three":"/assets/vendor/three/build/three.module.js","three/addons/":"/assets/vendor/three/examples/jsm/"}}
     </script>
-    <script type="module" src="/assets/home-environment.js?v=pbr-obsidian-1"></script>
-    <script type="module" src="/assets/home-hero.js?v=pbr-obsidian-1"></script>
+    <script type="module" src="/assets/home-hero.js?v=mobile-compose-1"></script>
   </head>
   <body class="home-page">
     <a class="skip-link" href="#main-content">Pular para o conteúdo</a>
@@ -33,7 +33,7 @@
         <a href="/en/" data-locale-choice="en" lang="en">EN</a>
       </nav>
       <details class="mobile-menu">
-        <summary class="menu-toggle"><span class="menu-icon" aria-hidden="true"></span><span>Menu</span></summary>
+        <summary class="menu-toggle" aria-label="Menu"><span class="menu-icon" aria-hidden="true"></span><span>Menu</span></summary>
         <div class="mobile-menu-panel">
           <nav class="mobile-nav" aria-label="Navegação principal">
             <a href="/pt-br/" aria-current="page">Início</a>
@@ -51,7 +51,8 @@
         <div class="hero-screen">
           <div class="hero-art" id="scene-frame" data-scene-state="poster" data-model-ready="false" role="img" aria-label="Chess Knight 006, por Vijay Saini, com luzes brancas e vermelhas e reflexo; cena decorativa.">
             <picture class="hero-poster" id="hero-poster" aria-hidden="true">
-              <source type="image/webp" media="(max-width: 640px)" srcset="/assets/models/chess-knight-006-poster-mobile.webp" />
+              <source type="image/webp" media="(max-width: 900px) and (orientation: landscape) and (max-height: 520px)" srcset="/assets/models/chess-knight-006-poster-mobile-landscape.webp?v=mobile-compose-1" />
+              <source type="image/webp" media="(max-width: 640px)" srcset="/assets/models/chess-knight-006-poster-mobile.webp?v=mobile-compose-1" />
               <source type="image/webp" srcset="/assets/models/chess-knight-006-poster-desktop.webp" />
               <img id="hero-poster-image" src="/assets/models/chess-knight-006-preview.png" alt="" fetchpriority="high" decoding="async" width="1094" height="900" />
             </picture>
@@ -63,7 +64,7 @@
 
           <div class="hero-copy">
             <p class="eyebrow"><span aria-hidden="true"></span> Engenharia de software <i aria-hidden="true">·</i> Portfólio</p>
-            <h1 id="hero-title">Da ideia<br />à <span>forma.</span></h1>
+            <h1 id="hero-title"><span class="hero-word">Da</span> <span class="hero-word">ideia</span><br /><span class="hero-word">à</span> <span class="hero-word hero-form">forma.</span></h1>
             <p class="intro">Desenvolvo software com implementações claras, testes reproduzíveis e <span lang="en">trade-offs</span> documentados.</p>
             <div class="hero-actions">
               <a class="button primary" href="/pt-br/projetos/">Explorar projetos <span aria-hidden="true">→</span></a>
@@ -73,7 +74,7 @@
 
           <div class="hero-side-note" aria-hidden="true"><span><span data-scene-state="0">01&nbsp; IDEIA</span><br /><span data-scene-state="1">02&nbsp; ESTRUTURA</span><br /><span data-scene-state="2">03&nbsp; FORMA</span></span><i></i></div>
           <p class="temporary-note">Modelo 3D <a href="https://skfb.ly/pEJVJ" target="_blank" rel="noopener noreferrer">Chess Knight 006</a>, por Vijay Saini · <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">CC BY 4.0</a> · otimizado e recolorido</p>
-          <a class="scroll-cue" href="#work-preview"><span class="scroll-mark" aria-hidden="true"></span> Role para explorar</a>
+          <a class="scroll-cue" href="#work-preview"><span class="scroll-mark" aria-hidden="true"></span> Role para explorar <span class="mobile-stage-progress" aria-hidden="true">01 / 03</span></a>
           <p class="scene-status visually-hidden" id="scene-status" role="status" aria-live="polite">Preview estático disponível. Projetos e navegação continuam acessíveis.</p>
         </div>
       </section>
