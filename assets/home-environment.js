@@ -110,10 +110,11 @@ function createEnvironment() {
           </div>
         </div>
 
-        <!-- 2. DESIGN (Clean technical presentation - cursive experiment removed) -->
+        <!-- 2. DESIGN (Refined script typeface giving the expressive 'design...' vibe) -->
         <div class="system-node node-design" data-kinetic="design" tabindex="0" role="button" aria-label="Design computational node">
+          <span class="node-caption">DESIGN</span>
           <div class="design-tech-row">
-            <span class="tech-word design-word">DESIGN</span>
+            <span class="tech-word design-word">Design</span>
             <span class="design-marker" aria-hidden="true">+</span>
           </div>
           <div class="design-tech-line" aria-hidden="true">
