@@ -3,7 +3,7 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { Reflector } from "three/addons/objects/Reflector.js";
 import { MeshoptDecoder } from "three/addons/libs/meshopt_decoder.module.js";
 import { SimplifyModifier } from "three/addons/modifiers/SimplifyModifier.js";
-import { createSpatialEnvironment } from "./home-environment-scene.js";
+import { createSpatialEnvironment } from "./home-environment-scene.js?v=pbr-obsidian-1";
 import { homeEnvironment } from "./home-environment.js";
 
 const frame = document.querySelector("#scene-frame");
@@ -445,12 +445,12 @@ async function startScene() {
     }
 
     renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: "low-power" });
-    renderer.setClearColor(0x000000, debugMode ? 1 : 0);
+    renderer.setClearColor(0x050608, 1);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.12;
 
-    if (debugMode) scene.background = new THREE.Color(0x000000);
+    scene.background = new THREE.Color(0x050608);
     // Both modes use the same fixed rig and silhouette-only material.
     const whiteLight = new THREE.DirectionalLight(0xffffff, 0.6);
     whiteLight.name = "fixed-white-left-light";

@@ -28,7 +28,7 @@ function loadSceneWhenAppropriate() {
 
   if (sceneModulePromise) return;
   frame.dataset.sceneState = "loading";
-  sceneModulePromise = import("./home-hero-scene.js").catch((error) => {
+  sceneModulePromise = import("./home-hero-scene.js?v=pbr-obsidian-1").catch((error) => {
     sceneModulePromise = null;
     frame.dataset.sceneState = "poster";
     status.textContent = isPortuguese

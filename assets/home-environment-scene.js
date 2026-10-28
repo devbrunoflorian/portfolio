@@ -1,174 +1,364 @@
 import * as THREE from "three";
 
-// Layout for the dark monolithic architectural blocks (x, width, height, depth, z).
-// Center (x: -0.6 to +0.9) is intentionally kept open so the knight's silhouette remains authoritative.
-const layout = [
-  [-1.55, 0.32, 2.45, 0.30, -2.5],
-  [1.75, 0.40, 1.95, 0.44, -2.2],
-  [-0.98, 0.44, 0.95, 0.36, -1.5],
-  [1.05, 0.36, 0.70, 0.44, -1.1],
-  [-2.30, 0.58, 1.55, 0.52, -2.1],
-  [2.65, 0.50, 2.60, 0.36, -3.0],
-  [-0.68, 0.25, 0.42, 0.26, -0.85],
-  [1.45, 0.30, 1.20, 0.52, -2.8],
-  [-2.65, 0.35, 2.95, 0.25, -3.6],
-  [2.15, 0.68, 0.98, 0.58, -1.6],
-  [-1.35, 0.40, 1.45, 0.30, -3.5],
-  [3.10, 0.30, 1.85, 0.40, -2.8],
-];
+/**
+ * Procedural Multi-Ring Crystalline Monolith Geometry Generator
+ * Generates unique faceted gemstone columns with multiple irregular vertical rings,
+ * lateral offsets, asymmetric shoulders, and distinctive crown cuts (apex, chisel, plateau).
+ */
+function createMultiRingMonolithGeometry(config) {
+  const {
+    facets = 7,
+    rings = [],
+    crown = { type: "apex", apex: [0, 2.5, 0] },
+    facetJitter = null,
+  } = config;
+
+  const numRings = rings.length;
+  const ringVertices = [];
+  const positions = [];
+
+  const weights = facetJitter || Array.from({ length: facets }, () => 1.0);
+
+  // 1. Calculate 3D perimeter vertices for each irregular vertical section ring
+  for (let r = 0; r < numRings; r++) {
+    const ring = [];
+    const { y, rx, rz, twist = 0, ox = 0, oz = 0 } = rings[r];
+
+    for (let f = 0; f < facets; f++) {
+      const angle = (f / facets) * Math.PI * 2 + twist;
+      const w = weights[f];
+      const x = Math.cos(angle) * rx * w + ox;
+      const z = Math.sin(angle) * rz * w + oz;
+      ring.push([x, y, z]);
+    }
+    ringVertices.push(ring);
+  }
+
+  function addTriangle(p1, p2, p3) {
+    positions.push(...p1, ...p2, ...p3);
+  }
+
+  function addQuad(p1, p2, p3, p4) {
+    addTriangle(p1, p3, p2);
+    addTriangle(p1, p4, p3);
+  }
+
+  // 2. Connect vertical section rings with triangulated facet planes
+  for (let r = 0; r < numRings - 1; r++) {
+    const curRing = ringVertices[r];
+    const nextRing = ringVertices[r + 1];
+    for (let f = 0; f < facets; f++) {
+      const nextF = (f + 1) % facets;
+      addQuad(curRing[f], curRing[nextF], nextRing[nextF], nextRing[f]);
+    }
+  }
+
+  // 3. Construct unique crown geometry
+  const topRing = ringVertices[numRings - 1];
+  if (crown.type === "apex") {
+    // Sharp gemstone pyramid point
+    const apex = crown.apex;
+    for (let f = 0; f < facets; f++) {
+      const nextF = (f + 1) % facets;
+      addTriangle(topRing[f], apex, topRing[nextF]);
+    }
+  } else if (crown.type === "chisel") {
+    // Architectural chisel ridge with 2 apex points
+    const p1 = crown.chisel[0];
+    const p2 = crown.chisel[1];
+    const half = Math.floor(facets / 2);
+    for (let f = 0; f < facets; f++) {
+      const nextF = (f + 1) % facets;
+      const target = f < half ? p1 : p2;
+      addTriangle(topRing[f], target, topRing[nextF]);
+    }
+    addTriangle(topRing[0], p2, p1);
+    addTriangle(topRing[half], p1, p2);
+  } else if (crown.type === "plateau") {
+    // Beveled gemstone plateau cap
+    const plateauY = crown.plateauY;
+    const scale = crown.plateauScale || 0.6;
+    const last = rings[numRings - 1];
+    const plateauRing = topRing.map(([x, , z]) => [
+      (x - last.ox) * scale + last.ox,
+      plateauY,
+      (z - last.oz) * scale + last.oz,
+    ]);
+    for (let f = 0; f < facets; f++) {
+      const nextF = (f + 1) % facets;
+      addQuad(topRing[f], topRing[nextF], plateauRing[nextF], plateauRing[f]);
+    }
+    for (let f = 1; f < facets - 1; f++) {
+      addTriangle(plateauRing[0], plateauRing[f], plateauRing[f + 1]);
+    }
+  }
+
+  // 4. Close bottom base ring (facing downward)
+  const baseRing = ringVertices[0];
+  const baseCenter = [rings[0].ox || 0, rings[0].y, rings[0].oz || 0];
+  for (let f = 0; f < facets; f++) {
+    const nextF = (f + 1) % facets;
+    addTriangle(baseRing[f], baseRing[nextF], baseCenter);
+  }
+
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+  geo.computeVertexNormals();
+  return geo;
+}
 
 export function createSpatialEnvironment(scene, floorY) {
   const group = new THREE.Group();
   group.name = "computational-environment";
   scene.add(group);
 
-  // Instanced mesh for the structural blocks
-  const geometry = new THREE.BoxGeometry(1, 1, 1);
-  const totalInstances = layout.length * 2;
-  const visibility = new THREE.InstancedBufferAttribute(new Float32Array(totalInstances).fill(1), 1);
-  geometry.setAttribute("aVisibility", visibility);
+  // --------------------------------------------------------------------------
+  // ASYMMETRICAL 3-TIER MONOLITH ARCHITECTURE (11 Unique Meshes)
+  // Deep perspective: Foreground (z: -1.10) to Deep Background (z: -4.50)
+  // Central reading corridor (x: -1.25 to +1.45) open for the knight
+  // --------------------------------------------------------------------------
+  const monolithConfigs = [
+    // 0: Deep Background Cathedral Spire (Left)
+    {
+      pos: [-2.10, floorY, -4.50],
+      rotY: -0.28,
+      facets: 7,
+      facetJitter: [1.05, 0.95, 1.10, 0.92, 1.04, 0.98, 1.02],
+      rings: [
+        { y: 0.0, rx: 0.28, rz: 0.26, twist: 0.00 },
+        { y: 1.1, rx: 0.32, rz: 0.29, twist: 0.06, ox: 0.02 },
+        { y: 2.3, rx: 0.26, rz: 0.24, twist: -0.05, ox: -0.02 },
+        { y: 3.3, rx: 0.17, rz: 0.15, twist: 0.12, ox: 0.03 },
+        { y: 3.75, rx: 0.08, rz: 0.07, twist: 0.20, ox: 0.04 },
+      ],
+      crown: { type: "apex", apex: [0.04, 3.90, 0.02] },
+      mat: { transmission: 0.04, thickness: 1.0, roughness: 0.06, clearcoat: 0.30 },
+    },
 
-  const blockMaterial = new THREE.ShaderMaterial({
-    vertexShader: `
-      attribute float aVisibility;
-      varying vec3 vLocal;
-      varying vec3 vWorld;
-      varying vec3 vNormal;
-      varying vec3 vViewPosition;
-      varying float vVisibility;
-      void main() {
-        vLocal = position;
-        vec4 world = modelMatrix * instanceMatrix * vec4(position, 1.0);
-        vWorld = world.xyz;
-        vNormal = normalize(mat3(modelMatrix * instanceMatrix) * normal);
-        vec4 viewPos = viewMatrix * world;
-        vViewPosition = -viewPos.xyz;
-        vVisibility = aVisibility;
-        gl_Position = projectionMatrix * viewPos;
-      }
-    `,
-    fragmentShader: `
-      varying vec3 vLocal;
-      varying vec3 vWorld;
-      varying vec3 vNormal;
-      varying vec3 vViewPosition;
-      varying float vVisibility;
-      void main() {
-        if (vVisibility < 0.05) discard;
-        vec3 p = abs(vLocal);
-        
-        // 1. Faceted Chamfer / Gemstone Bevels:
-        // Bevel corners and vertical chamfers for angular cut planes
-        float chamferDist = max(p.x + p.z * 0.95 - 0.44, max(p.y + p.x * 0.15 - 0.47, p.y + p.z * 0.15 - 0.47));
-        float isChamfer = smoothstep(-0.015, 0.025, chamferDist);
-        
-        // Razor-sharp second-axis architectural edges
-        float secondAxis = min(max(p.x, p.y), min(max(p.y, p.z), max(p.x, p.z)));
-        float edge = smoothstep(0.480, 0.496, secondAxis);
-        
-        // 2. Controlled Normal Perturbation / Cleavage Facets:
-        vec3 norm = normalize(vNormal);
-        
-        // Local 2D coordinates on the active face
-        vec2 faceUV;
-        if (p.x > p.y && p.x > p.z) faceUV = vLocal.yz;
-        else if (p.y > p.x && p.y > p.z) faceUV = vLocal.xz;
-        else faceUV = vLocal.xy;
-        
-        // Geometric facet divisions: triangular & trapezoidal crystal plane cuts
-        float facet1 = step(0.0, faceUV.x + faceUV.y * 0.35);
-        float facet2 = step(0.0, faceUV.x * 0.5 - faceUV.y);
-        
-        // Subtle normal tilt per facet (5 to 8 degrees) so adjacent planes catch light at distinct angles
-        vec3 facetTilt = vec3(
-          (facet1 - 0.5) * 0.14,
-          (facet2 - 0.5) * 0.09,
-          (facet1 * facet2 - 0.25) * 0.11
-        );
-        
-        vec3 chamferNorm = normalize(norm + 0.45 * sign(vLocal) * vec3(1.0, 0.25, 1.0));
-        vec3 facetNorm = normalize(mix(norm + facetTilt, chamferNorm, isChamfer));
-        
-        vec3 viewDir = normalize(vViewPosition);
-        
-        // Directional key light (cool silver-white left) and rim light (crimson right)
-        vec3 keyDir = normalize(vec3(-2.8, 3.4, 4.2));
-        vec3 redDir = normalize(vec3(3.6, 1.2, 3.0));
-        
-        vec3 halfKey = normalize(keyDir + viewDir);
-        vec3 halfRed = normalize(redDir + viewDir);
-        
-        // High specular exponents: razor-sharp diamond glints (NO broad diffuse spread!)
-        float specKey = pow(max(dot(facetNorm, halfKey), 0.0), 72.0);
-        float specRed = pow(max(dot(facetNorm, halfRed), 0.0), 64.0);
-        
-        // Thin edge reflections
-        float edgeKey = edge * pow(max(dot(norm, halfKey), 0.0), 32.0);
-        // Crimson rim catch is strictly restricted to right-facing edges and rare chamfer facets
-        float redSide = max(dot(norm, vec3(1.0, 0.0, 0.0)), 0.0);
-        float edgeRed = (edge * 0.7 + isChamfer * 0.3) * pow(max(dot(norm, halfRed), 0.0), 36.0) * redSide;
-        
-        // 3. Overwhelmingly Black Diamond / Smoked Obsidian Base:
-        // Deep charcoal/black: #060709 (90%+ perceived black)
-        // ZERO red diffuse wash on any surface!
-        vec3 color = vec3(0.014, 0.016, 0.020);
-        
-        // Architectural CAD edge hairline: subtle cool silver
-        vec3 edgeColor = vec3(0.12, 0.13, 0.16);
-        color = mix(color, edgeColor, edge * 0.7);
-        
-        // Distinct facet responses (each facet catches light differently)
-        color += specKey * vec3(0.55, 0.60, 0.70);
-        color += edgeKey * vec3(0.40, 0.45, 0.55);
-        
-        // Crimson exists ONLY as thin edge reflections and tiny facet catches (NO red wash!)
-        color += specRed * vec3(0.38, 0.025, 0.045) * redSide;
-        color += edgeRed * vec3(0.45, 0.03, 0.06);
-        
-        // Mineral grain inclusion (dark smoked gemstone texture)
-        float grain = fract(sin(dot(floor(vWorld * 180.0), vec3(12.9898, 78.233, 37.719))) * 43758.5453);
-        color *= mix(0.93, 1.0, grain) * vVisibility;
-        
-        // 4. Transmission / Opacity:
-        // Thick smoked obsidian: 0.95 - 0.985
-        // Deep dark mineral mass. Rear blocks are perceived darkly and refracted through edges/chamfers.
-        float alpha = mix(0.95, 0.985, max(edge, isChamfer)) * vVisibility;
-        
-        gl_FragColor = vec4(color, alpha);
-        #include <tonemapping_fragment>
-        #include <colorspace_fragment>
-      }
-    `,
-    transparent: true,
-    depthWrite: true,
-  });
+    // 1: Deep Background Cathedral Spire (Right)
+    {
+      pos: [2.25, floorY, -4.30],
+      rotY: 0.20,
+      facets: 6,
+      facetJitter: [0.96, 1.08, 0.94, 1.05, 0.98, 1.04],
+      rings: [
+        { y: 0.0, rx: 0.26, rz: 0.28, twist: 0.00 },
+        { y: 1.3, rx: 0.30, rz: 0.31, twist: -0.06, ox: -0.02 },
+        { y: 2.5, rx: 0.23, rz: 0.22, twist: 0.08, ox: 0.03 },
+        { y: 3.5, rx: 0.12, rz: 0.11, twist: 0.15, ox: -0.01 },
+      ],
+      crown: { type: "chisel", chisel: [[-0.08, 3.75, 0.01], [0.08, 3.68, -0.01]] },
+      mat: { transmission: 0.04, thickness: 1.1, roughness: 0.06, clearcoat: 0.32 },
+    },
 
-  const blocks = new THREE.InstancedMesh(geometry, blockMaterial, totalInstances);
-  blocks.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-  blocks.frustumCulled = false;
-  blocks.renderOrder = 2;
-  group.add(blocks);
+    // 2: Deep Flank Pillar (Far Left)
+    {
+      pos: [-3.20, floorY, -3.80],
+      rotY: -0.45,
+      facets: 8,
+      facetJitter: [1.02, 0.96, 1.05, 0.94, 1.06, 0.98, 1.04, 0.95],
+      rings: [
+        { y: 0.0, rx: 0.38, rz: 0.34, twist: 0.00 },
+        { y: 0.9, rx: 0.44, rz: 0.38, twist: 0.08, ox: 0.04 },
+        { y: 2.0, rx: 0.35, rz: 0.30, twist: -0.07, ox: -0.03 },
+        { y: 3.1, rx: 0.22, rz: 0.18, twist: 0.14, ox: 0.02 },
+      ],
+      crown: { type: "plateau", plateauY: 3.30, plateauScale: 0.55 },
+      mat: { transmission: 0.04, thickness: 1.0, roughness: 0.06, clearcoat: 0.28 },
+    },
 
-  const transform = new THREE.Object3D();
+    // 3: Deep Flank Sentry (Far Right)
+    {
+      pos: [3.10, floorY, -3.50],
+      rotY: 0.25,
+      facets: 7,
+      facetJitter: [0.94, 1.06, 0.98, 1.04, 0.95, 1.08, 0.96],
+      rings: [
+        { y: 0.0, rx: 0.34, rz: 0.32, twist: 0.00 },
+        { y: 1.0, rx: 0.38, rz: 0.36, twist: -0.08, ox: -0.03 },
+        { y: 2.1, rx: 0.28, rz: 0.25, twist: 0.10, ox: 0.04 },
+        { y: 2.9, rx: 0.16, rz: 0.14, twist: 0.18, ox: -0.02 },
+      ],
+      crown: { type: "chisel", chisel: [[-0.07, 3.15, 0.02], [0.08, 3.05, -0.02]] },
+      mat: { transmission: 0.05, thickness: 1.1, roughness: 0.06, clearcoat: 0.30 },
+    },
 
-  function setBlock(index, offset = 0, faded = false) {
-    const [x, width, height, depth, z] = layout[index];
-    for (let half = 0; half < 2; half++) {
-      transform.position.set(
-        x + (half ? offset : 0),
-        floorY + height * (0.25 + half * 0.5),
-        z
+    // 4: Midground Asymmetric Obelisk (Left of Knight)
+    {
+      pos: [-1.85, floorY, -2.50],
+      rotY: -0.32,
+      facets: 7,
+      facetJitter: [1.08, 0.92, 1.12, 0.90, 1.05, 0.98, 1.02],
+      rings: [
+        { y: 0.0, rx: 0.30, rz: 0.28, twist: 0.00 },
+        { y: 0.6, rx: 0.36, rz: 0.32, twist: 0.10, ox: 0.03 },
+        { y: 1.4, rx: 0.42, rz: 0.35, twist: -0.08, ox: -0.04 }, // Prominent angular shoulder
+        { y: 2.1, rx: 0.24, rz: 0.20, twist: 0.12, ox: 0.02 },
+        { y: 2.6, rx: 0.12, rz: 0.10, twist: 0.22, ox: -0.02 },
+      ],
+      crown: { type: "apex", apex: [-0.04, 2.78, 0.03] },
+      mat: { transmission: 0.06, thickness: 1.2, ior: 2.15, roughness: 0.06, clearcoat: 0.38 },
+      hasFracture: true,
+    },
+
+    // 5: Midground Fractured Tower (Right of Knight)
+    {
+      pos: [1.95, floorY, -2.30],
+      rotY: 0.12,
+      facets: 8,
+      facetJitter: [0.95, 1.05, 0.92, 1.10, 0.96, 1.04, 0.98, 1.06],
+      rings: [
+        { y: 0.0, rx: 0.36, rz: 0.32, twist: 0.00 },
+        { y: 0.7, rx: 0.42, rz: 0.37, twist: -0.08, ox: -0.03 },
+        { y: 1.5, rx: 0.38, rz: 0.34, twist: 0.06, ox: 0.03 },
+        { y: 2.3, rx: 0.24, rz: 0.21, twist: 0.15, ox: -0.02 },
+      ],
+      crown: { type: "plateau", plateauY: 2.52, plateauScale: 0.58 },
+      mat: { transmission: 0.06, thickness: 1.2, ior: 2.15, roughness: 0.06, clearcoat: 0.36 },
+      hasFracture: true,
+    },
+
+    // 6: Midground Leaning Crystalline Column (Left)
+    {
+      pos: [-2.45, floorY, -2.10],
+      rotY: 0.18,
+      facets: 6,
+      facetJitter: [1.06, 0.94, 1.08, 0.92, 1.04, 0.96],
+      rings: [
+        { y: 0.0, rx: 0.34, rz: 0.30, twist: 0.00 },
+        { y: 0.6, rx: 0.38, rz: 0.34, twist: 0.08, ox: -0.04 },
+        { y: 1.3, rx: 0.32, rz: 0.28, twist: -0.06, ox: -0.08 }, // Leaning column
+        { y: 1.9, rx: 0.18, rz: 0.15, twist: 0.12, ox: -0.12 },
+      ],
+      crown: { type: "chisel", chisel: [[-0.08, 2.05, 0], [0.06, 1.98, 0]] },
+      mat: { transmission: 0.05, thickness: 1.1, roughness: 0.06, clearcoat: 0.35 },
+    },
+
+    // 7: Midground Stepped Mass (Right)
+    {
+      pos: [2.50, floorY, -1.90],
+      rotY: -0.20,
+      facets: 8,
+      facetJitter: [0.98, 1.04, 0.95, 1.06, 0.96, 1.08, 0.94, 1.02],
+      rings: [
+        { y: 0.0, rx: 0.40, rz: 0.35, twist: 0.00 },
+        { y: 0.5, rx: 0.46, rz: 0.40, twist: 0.06, ox: 0.03 },
+        { y: 1.1, rx: 0.41, rz: 0.36, twist: -0.06, ox: -0.02 },
+        { y: 1.7, rx: 0.28, rz: 0.26, twist: 0.10, ox: 0.02 },
+      ],
+      crown: { type: "plateau", plateauY: 1.86, plateauScale: 0.62 },
+      mat: { transmission: 0.05, thickness: 1.2, roughness: 0.06, clearcoat: 0.36 },
+    },
+
+    // 8: Foreground Low Cut Gemstone Mass (Near Left)
+    {
+      pos: [-1.25, floorY, -1.20],
+      rotY: -0.15,
+      facets: 7,
+      facetJitter: [1.04, 0.96, 1.08, 0.92, 1.06, 0.98, 1.02],
+      rings: [
+        { y: 0.0, rx: 0.35, rz: 0.32, twist: 0.00 },
+        { y: 0.3, rx: 0.42, rz: 0.38, twist: 0.05, ox: 0.02 },
+        { y: 0.6, rx: 0.38, rz: 0.34, twist: -0.04, ox: -0.02 },
+        { y: 0.9, rx: 0.28, rz: 0.26, twist: 0.08, ox: 0.01 },
+      ],
+      crown: { type: "plateau", plateauY: 0.98, plateauScale: 0.68 },
+      mat: { transmission: 0.07, thickness: 1.3, ior: 2.20, roughness: 0.06, clearcoat: 0.42 },
+    },
+
+    // 9: Foreground Near Crystal (Near Right)
+    {
+      pos: [1.45, floorY, -1.10],
+      rotY: 0.18,
+      facets: 6,
+      facetJitter: [0.94, 1.08, 0.96, 1.05, 0.98, 1.04],
+      rings: [
+        { y: 0.0, rx: 0.30, rz: 0.28, twist: 0.00 },
+        { y: 0.4, rx: 0.36, rz: 0.32, twist: -0.06, ox: -0.02 },
+        { y: 0.8, rx: 0.31, rz: 0.27, twist: 0.06, ox: 0.02 },
+        { y: 1.0, rx: 0.20, rz: 0.17, twist: 0.14, ox: 0.03 },
+      ],
+      crown: { type: "chisel", chisel: [[-0.08, 1.15, 0.02], [0.08, 1.08, -0.02]] },
+      mat: { transmission: 0.07, thickness: 1.3, ior: 2.20, roughness: 0.06, clearcoat: 0.42 },
+    },
+
+    // 10: Outer Boundary Framing Crystal (Far Right Peripheral)
+    {
+      pos: [3.65, floorY, -2.60],
+      rotY: -0.35,
+      facets: 7,
+      facetJitter: [1.02, 0.98, 1.05, 0.95, 1.04, 0.97, 1.01],
+      rings: [
+        { y: 0.0, rx: 0.28, rz: 0.26, twist: 0.00 },
+        { y: 0.7, rx: 0.32, rz: 0.30, twist: 0.06, ox: 0.02 },
+        { y: 1.4, rx: 0.26, rz: 0.24, twist: -0.04, ox: -0.02 },
+        { y: 2.1, rx: 0.14, rz: 0.12, twist: 0.10, ox: 0.01 },
+      ],
+      crown: { type: "apex", apex: [0.02, 2.32, 0.00] },
+      mat: { transmission: 0.05, thickness: 1.2, roughness: 0.06, clearcoat: 0.32 },
+    },
+  ];
+
+  // --------------------------------------------------------------------------
+  // CREATE SEPARATE MESHES WITH PHYSICAL GEMSTONE MATERIAL (MeshPhysicalMaterial)
+  // --------------------------------------------------------------------------
+  const monolithMeshes = [];
+  const fractureLines = [];
+
+  monolithConfigs.forEach((cfg) => {
+    const geo = createMultiRingMonolithGeometry(cfg);
+
+    const mat = new THREE.MeshPhysicalMaterial({
+      color: 0x010203, // Pure dense black obsidian (95%+ black mineral mass)
+      roughness: 0.06, // Ultra-polished crystal: razor-sharp diamond pin-point glints, zero broad face flood
+      metalness: 0.02,
+      transmission: cfg.mat.transmission ?? 0.06, // Dense smoked mineral transmission
+      thickness: cfg.mat.thickness ?? 1.0,
+      ior: 2.15, // Diamond index of refraction
+      attenuationColor: new THREE.Color(0x010203),
+      attenuationDistance: 0.5,
+      clearcoat: 0.35,
+      clearcoatRoughness: 0.06,
+      opacity: 1.0,
+      flatShading: true,
+    });
+
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set(...cfg.pos);
+    mesh.rotation.y = cfg.rotY;
+    mesh.userData.basePosition = mesh.position.clone();
+    mesh.userData.baseRotation = mesh.rotation.clone();
+
+    // Optional Internal Cleavage Fracture Line for selected monoliths (Section 12)
+    if (cfg.hasFracture) {
+      const fGeo = new THREE.BufferGeometry();
+      const pY = cfg.rings[2]?.y || 1.2;
+      fGeo.setAttribute(
+        "position",
+        new THREE.Float32BufferAttribute(
+          [
+            -0.12, pY - 0.25, 0.05,
+            0.15, pY + 0.35, -0.06,
+            0.15, pY + 0.35, -0.06,
+            0.02, pY + 0.55, 0.08,
+          ],
+          3
+        )
       );
-      transform.scale.set(width, height * 0.5 - 0.003, depth);
-      transform.updateMatrix();
-      blocks.setMatrixAt(index * 2 + half, transform.matrix);
-      visibility.setX(index * 2 + half, half && faded ? 0 : 1);
+      const fMat = new THREE.LineBasicMaterial({
+        color: 0x9ba0ad,
+        transparent: true,
+        opacity: 0.26,
+        depthWrite: false,
+      });
+      const fLine = new THREE.LineSegments(fGeo, fMat);
+      mesh.add(fLine);
+      fractureLines.push(fLine);
     }
-    blocks.instanceMatrix.needsUpdate = true;
-    visibility.needsUpdate = true;
-  }
 
-  layout.forEach((_, index) => setBlock(index));
+    group.add(mesh);
+    monolithMeshes.push(mesh);
+  });
 
   // Layer B: Deep spatial floor grid
   const gridPoints = [];
@@ -197,18 +387,21 @@ export function createSpatialEnvironment(scene, floorY) {
   const guidesGeometry = new THREE.BufferGeometry();
   guidesGeometry.setAttribute(
     "position",
-    new THREE.Float32BufferAttribute([
-      -3.2, 1.4, -3.0, 3.2, 1.4, -3.0,
-      -2.1, floorY, -3.0, -2.1, 2.4, -3.0,
-      1.3, floorY, -3.0, 1.3, 2.6, -3.0,
-      -0.9, 1.8, -2.4, 2.8, 1.8, -2.4,
-      -2.8, 0.2, -2.8, -1.0, 0.2, -2.8,
-      1.4, -0.1, -2.3, 3.2, -0.1, -2.3,
-      -1.5, 2.2, -3.0, -1.5, 1.8, -3.0,
-      -1.5, 2.2, -3.0, 0.3, 2.2, -3.0,
-      2.4, 0.8, -2.2, 3.4, 0.8, -2.2,
-      2.4, floorY, -2.2, 2.4, 1.8, -2.2,
-    ], 3)
+    new THREE.Float32BufferAttribute(
+      [
+        -3.2, 1.4, -3.0, 3.2, 1.4, -3.0,
+        -2.1, floorY, -3.0, -2.1, 2.4, -3.0,
+        1.3, floorY, -3.0, 1.3, 2.6, -3.0,
+        -0.9, 1.8, -2.4, 2.8, 1.8, -2.4,
+        -2.8, 0.2, -2.8, -1.0, 0.2, -2.8,
+        1.4, -0.1, -2.3, 3.2, -0.1, -2.3,
+        -1.5, 2.2, -3.0, -1.5, 1.8, -3.0,
+        -1.5, 2.2, -3.0, 0.3, 2.2, -3.0,
+        2.4, 0.8, -2.2, 3.4, 0.8, -2.2,
+        2.4, floorY, -2.2, 2.4, 1.8, -2.2,
+      ],
+      3
+    )
   );
   const guides = new THREE.LineSegments(
     guidesGeometry,
@@ -229,12 +422,15 @@ export function createSpatialEnvironment(scene, floorY) {
   const fgGeometry = new THREE.BufferGeometry();
   fgGeometry.setAttribute(
     "position",
-    new THREE.Float32BufferAttribute([
-      1.65, 0.15, 1.4, 1.85, 0.15, 1.4,
-      1.65, 0.15, 1.4, 1.65, 0.35, 1.4,
-      2.10, -0.30, 1.2, 2.25, -0.30, 1.2,
-      2.175, -0.375, 1.2, 2.175, -0.225, 1.2,
-    ], 3)
+    new THREE.Float32BufferAttribute(
+      [
+        1.65, 0.15, 1.4, 1.85, 0.15, 1.4,
+        1.65, 0.15, 1.4, 1.65, 0.35, 1.4,
+        2.10, -0.30, 1.2, 2.25, -0.30, 1.2,
+        2.175, -0.375, 1.2, 2.175, -0.225, 1.2,
+      ],
+      3
+    )
   );
   const fgMesh = new THREE.LineSegments(
     fgGeometry,
@@ -308,7 +504,6 @@ export function createSpatialEnvironment(scene, floorY) {
         uniform float uOffset;
         varying float vAlong;
         void main() {
-          // Pulse takes 3.0s to travel, remaining period is quiet
           float phase = mod(uTime + uOffset, uPeriod) / 3.0;
           if (phase > 1.0) discard;
           
@@ -337,7 +532,7 @@ export function createSpatialEnvironment(scene, floorY) {
   let nextEventAt = 9200;
   let eventStart = null;
   let eventIndex = 0;
-  let activeBlock = 0;
+  let activeMeshIndex = 0;
   const quietGaps = [14200, 19500, 12400, 23100, 16800];
 
   return {
@@ -345,7 +540,9 @@ export function createSpatialEnvironment(scene, floorY) {
     setLimited(value) {
       if (limited === value) return;
       limited = value;
-      blocks.count = value ? 8 : totalInstances;
+      monolithMeshes.forEach((mesh, index) => {
+        mesh.visible = value ? index < 6 : true;
+      });
       guides.visible = !value;
       foregroundGroup.visible = !value;
       pulses.forEach((pulse, index) => {
@@ -373,31 +570,42 @@ export function createSpatialEnvironment(scene, floorY) {
         pulse.uniforms.uTime.value = (time / 1000) * signalRate;
       }
 
-      // Glitch language (Section 4): occasional, restrained block offset & reconstruction
+      // Glitch language (Section 16): occasional, restrained mesh displacement & reconstruction
       const coherence = environment.phase?.coherence ?? 0.75;
       if (!limited && eventStart === null && time >= nextEventAt) {
-        activeBlock = [7, 0, 9, 4, 1, 10][eventIndex % 6];
+        activeMeshIndex = [4, 1, 5, 8, 0, 7][eventIndex % 6];
         eventStart = time;
         eventIndex++;
       }
 
       if (eventStart !== null) {
         const age = time - eventStart;
-        if (age > 260 || limited) {
-          // Reconstruct into stable shape
-          setBlock(activeBlock);
-          eventStart = null;
-          nextEventAt = time + quietGaps[eventIndex % quietGaps.length] / coherence;
-        } else {
-          // Brief 260ms distortion & partial fade
-          const offset = Math.sin((age / 260) * Math.PI) * 0.055;
-          setBlock(activeBlock, offset, age > 90 && age < 160);
+        const mesh = monolithMeshes[activeMeshIndex];
+        if (mesh) {
+          if (age > 260 || limited) {
+            // Reconstruct cleanly to original resting state
+            mesh.position.copy(mesh.userData.basePosition);
+            mesh.rotation.copy(mesh.userData.baseRotation);
+            eventStart = null;
+            nextEventAt = time + quietGaps[eventIndex % quietGaps.length] / coherence;
+          } else {
+            // Brief 260ms subtle crystalline shear / displacement
+            const offset = Math.sin((age / 260) * Math.PI) * 0.045;
+            mesh.position.x = mesh.userData.basePosition.x + offset;
+            mesh.rotation.y = mesh.userData.baseRotation.y + offset * 0.75;
+          }
         }
       }
     },
     dispose() {
-      geometry.dispose();
-      blockMaterial.dispose();
+      monolithMeshes.forEach((mesh) => {
+        mesh.geometry.dispose();
+        mesh.material.dispose();
+      });
+      fractureLines.forEach((line) => {
+        line.geometry.dispose();
+        line.material.dispose();
+      });
       gridGeometry.dispose();
       grid.material.dispose();
       guidesGeometry.dispose();

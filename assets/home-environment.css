@@ -1,3 +1,5 @@
+@import url("https://fonts.googleapis.com/css2?family=Caveat:wght@500;600&family=Sacramento&display=swap");
+
 /* HOME HERO COMPUTATIONAL ENVIRONMENT STYLES
    Loose spatial typography suspended in architectural space:
    - System A (Left): ANALYZE / DESIGN / COMPOSE / ITERATE
@@ -229,7 +231,11 @@
   text-shadow: 0 0 10px rgba(255, 18, 48, 0.85);
 }
 
-/* 2. DESIGN (Clean technical presentation - cursive experiment removed) */
+/* 2. DESIGN (Refined script typeface giving the expressive 'design...' vibe) */
+.node-design {
+  margin-top: 3px;
+}
+
 .design-tech-row {
   display: flex;
   align-items: center;
@@ -237,16 +243,27 @@
 }
 
 .design-word {
-  font-size: 9px;
+  font-family: "Caveat", "Sacramento", cursive;
+  font-size: 21px;
+  line-height: 1;
   font-weight: 600;
-  letter-spacing: 0.22em;
-  color: #555860;
-  transition: color 140ms ease, text-shadow 140ms ease;
+  letter-spacing: 0.05em;
+  color: #7c8190;
+  text-transform: none;
+  display: inline-block;
+  transform: translateY(1px);
+  transition: color 180ms ease, text-shadow 180ms ease, transform 180ms ease;
+}
+
+.node-design:hover .design-word,
+.node-design.is-active .design-word {
+  color: #dce0ee;
+  text-shadow: 0 0 8px rgba(255, 255, 255, 0.35);
 }
 
 .node-design.is-resolved .design-word {
   color: #ff1230;
-  text-shadow: 0 0 8px rgba(255, 18, 48, 0.85);
+  text-shadow: 0 0 12px rgba(255, 18, 48, 0.9);
 }
 
 .design-marker {
