@@ -241,7 +241,8 @@
   text-wrap: balance;
 }
 
-.hero-copy h1 span { color: #e12b3b; }
+.hero-copy h1 .hero-word { color: inherit; }
+.hero-copy h1 .hero-form { color: #e12b3b; }
 .hero-copy .intro { max-width: 40ch; color: #aaa9ad; font-size: 18px; font-weight: 400; line-height: 1.5; }
 .hero-actions { display: grid; grid-template-columns: repeat(2, 210px); gap: 16px; width: fit-content; margin-top: 32px; }
 

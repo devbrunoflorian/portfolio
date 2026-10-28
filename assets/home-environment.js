@@ -2,7 +2,8 @@ const hero = document.querySelector(".hero-screen");
 const frame = document.querySelector("#scene-frame");
 const heroTitle = document.querySelector("#hero-title");
 const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
-const mobile = matchMedia("(max-width: 640px)");
+export const mobileViewport = matchMedia("(max-width: 640px), (max-width: 900px) and (orientation: landscape) and (max-height: 520px)");
+const mobile = mobileViewport;
 const debug = new URLSearchParams(location.search).has("knight-debug");
 
 const phases = {
@@ -85,6 +86,12 @@ function createEnvironment() {
         <circle cx="320" cy="596" r="2" />
       </g>
     </svg>
+
+    <div class="mobile-technical-labels">
+      <span data-phase-label="idea">ANALYZE<br />DESIGN</span>
+      <span data-phase-label="structure">COMPOSE<br />ITERATE<br />SYSTEM</span>
+      <span data-phase-label="form">EXECUTION<br />IMPACT</span>
+    </div>
 
     <!-- Technical Text Systems: Loose Spatial Typography (NO GLASS PANELS) -->
     <div class="environment-labels">
@@ -307,6 +314,7 @@ function createEnvironment() {
   const pointer = { x: 0, y: 0 };
   const target = { x: 0, y: 0 };
   let phase = "structure";
+  let mobileProgress = 0;
   let active = false;
   let startedAt = null;
   let lastTextAt = 0;
@@ -865,6 +873,8 @@ function createEnvironment() {
     element,
     pointer,
     get phase() { return phases[phase]; },
+    get mobile() { return mobile.matches; },
+    get progress() { return mobileProgress; },
     get limited() { return limited || mobile.matches; },
     get animating() { return active && !reducedMotion.matches && !document.hidden; },
 
@@ -872,6 +882,10 @@ function createEnvironment() {
       if (!phases[next]) return;
       phase = next;
       element.dataset.phase = next;
+    },
+
+    setProgress(value) {
+      mobileProgress = value;
     },
 
     setActive(value) {
@@ -882,7 +896,7 @@ function createEnvironment() {
 
     setAnchor(center, bounds) {
       if (!center || !bounds?.width) return;
-      const heroBounds = hero.getBoundingClientRect();
+      const heroBounds = mobile.matches ? bounds : hero.getBoundingClientRect();
       element.style.setProperty("--knight-axis-x", `${(center.x - heroBounds.left).toFixed(1)}px`);
       element.style.setProperty("--knight-axis-y", `${(center.y - heroBounds.top).toFixed(1)}px`);
     },
@@ -891,15 +905,20 @@ function createEnvironment() {
       if (!this.animating) return;
       if (startedAt === null) startedAt = timestamp;
 
-      pointer.x += (target.x - pointer.x) * 0.05;
-      pointer.y += (target.y - pointer.y) * 0.05;
+      if (mobile.matches) {
+        pointer.x = (mobileProgress - 0.5) * 0.12 + Math.sin((timestamp - startedAt) / 12000) * 0.025;
+        pointer.y = (mobileProgress - 0.5) * 0.45;
+      } else {
+        pointer.x += (target.x - pointer.x) * 0.05;
+        pointer.y += (target.y - pointer.y) * 0.05;
+      }
 
       if (timestamp - lastTextAt < 60) return;
       lastTextAt = timestamp;
 
       // Parallax offsets in CSS variables
-      element.style.setProperty("--environment-x", `${(pointer.x * (this.limited ? 0 : 14)).toFixed(2)}px`);
-      element.style.setProperty("--environment-y", `${(pointer.y * (this.limited ? 0 : 10)).toFixed(2)}px`);
+      element.style.setProperty("--environment-x", `${(pointer.x * (mobile.matches ? 18 : this.limited ? 0 : 14)).toFixed(2)}px`);
+      element.style.setProperty("--environment-y", `${(pointer.y * (mobile.matches ? 30 : this.limited ? 0 : 10)).toFixed(2)}px`);
     },
   };
 }
