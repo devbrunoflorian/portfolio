@@ -206,10 +206,10 @@ async function prepareKnight(root) {
           float rim = smoothstep(0.76, 0.94, rimEdge);
           vec3 worldRightInView = normalize(mat3(viewMatrix) * vec3(1.0, 0.0, 0.0));
           float worldSide = dot(normalize(normal), worldRightInView);
-          float redSideMask = smoothstep(0.05, 0.65, worldSide);
-          float whiteSideMask = smoothstep(0.05, 0.65, -worldSide);
-          // Gate physical highlights too: neither light may fill the interior.
-          outgoingLight *= rim;
+          float redSideMask = smoothstep(0.05, 0.45, worldSide);
+          float whiteSideMask = smoothstep(0.05, 0.45, -worldSide);
+          // Allow calibrated subtle sculptural detail (80% darkness, 20% recovered structure) without flattening
+          outgoingLight = outgoingLight * mix(0.20, 1.0, rim);
           outgoingLight += rim * (uRedRimColor * redSideMask * uRimStrength
             + uWhiteRimColor * whiteSideMask * 0.85);
           #include <opaque_fragment>`,
@@ -460,6 +460,11 @@ async function startScene() {
     redLight.name = "fixed-red-right-light";
     redLight.position.set(4, 1.5, 4);
     addStudioLight(redLight);
+    // Third restrained neutral frontal fill light: recovers 20% sculptural surface detail while preserving deep black shadow
+    const fillLight = new THREE.DirectionalLight(0xdbe0e8, 0.35);
+    fillLight.name = "fixed-neutral-fill-light";
+    fillLight.position.set(-1.8, 2.0, 4.4);
+    addStudioLight(fillLight);
     frame.dataset.studioLightCount = String(studioLights.length);
     scene.add(modelPivot);
     modelPivot.position.y = FLOOR_Y;

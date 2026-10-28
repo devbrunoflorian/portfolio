@@ -1,13 +1,14 @@
 const hero = document.querySelector(".hero-screen");
 const frame = document.querySelector("#scene-frame");
+const heroTitle = document.querySelector("#hero-title");
 const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
 const mobile = matchMedia("(max-width: 640px)");
 const debug = new URLSearchParams(location.search).has("knight-debug");
 
 const phases = {
-  idea: { interval: 7000, signalRate: 1.0, coherence: 0.35 },
-  structure: { interval: 9500, signalRate: 0.75, coherence: 0.75 },
-  form: { interval: 14000, signalRate: 0.4, coherence: 1.0 },
+  idea: { interval: 8000, signalRate: 1.0, coherence: 0.35 },
+  structure: { interval: 11000, signalRate: 0.75, coherence: 0.75 },
+  form: { interval: 15000, signalRate: 0.4, coherence: 1.0 },
 };
 
 function goldenSpiralPath() {
@@ -59,30 +60,21 @@ function createEnvironment() {
 
     <!-- Layer B: Golden Ratio and Construction Geometry (SVG) -->
     <svg class="construction-map" viewBox="0 0 640 700" fill="none">
-      <!-- Secondary architectural guides -->
       <g class="construction-secondary">
         <path d="M35 108H582V602H96V176H538M0 350H640M320 24V676M94 70V620M546 62V644M30 530H609M158 96H603M46 594H568" />
         <circle cx="320" cy="350" r="246" />
         <path d="M98 501A270 270 0 0 1 496 135M122 542A270 270 0 0 0 576 292" />
       </g>
-
-      <!-- Primary construction geometry: concentric circles, golden ratio spiral & rectangles -->
       <g class="construction-primary">
         <circle cx="320" cy="350" r="205" />
         <path d="M320 104V123M320 577V596M74 350H93M547 350H566M143 173l14 14M483 513l14 14M143 527l14-14M483 187l14-14" />
-        <!-- Nested Fibonacci / Golden Ratio Rectangles -->
         <path d="M 408 62 H 568 V 161 H 408 Z M 507 62 V 161 M 507 123 H 568 M 545 123 V 161 M 545 147 H 568" />
-        <!-- Fibonacci Golden Spiral -->
         <path class="spiral-path" d="${goldenSpiralPath()}" />
       </g>
-
-      <!-- Measurement ticks -->
       <g class="construction-ticks">
         ${Array.from({ length: 17 }, (_, i) => `<path d="M${112 + i * 26} 608v${i % 4 ? 4 : 9}"/>`).join("")}
         <path d="M100 608H540M100 604v16M540 604v16" />
       </g>
-
-      <!-- Crimson anchor points & intersection markers -->
       <g class="construction-anchors" fill="currentColor" stroke="none">
         <circle cx="320" cy="104" r="2.2" />
         <circle cx="546" cy="350" r="2.2" />
@@ -94,101 +86,192 @@ function createEnvironment() {
       </g>
     </svg>
 
-    <!-- Section 6: Technical Text System (Interactive Kinetic Micro-Interface) -->
+    <!-- Section 6: Technical Text System (Three Compact Computational Systems) -->
     <div class="environment-labels">
-      <!-- ANALYZE group: binary decode cascade -->
-      <div class="technical-label label-analyze" data-kinetic="analyze" tabindex="0" role="button" aria-label="Analyze technical node">
-        <span class="technical-caption">ANALYZE</span>
-        <div class="analyze-stack">
-          <span class="bin-line bin-1">0100110</span>
-          <span class="bin-line bin-2">0101011</span>
-          <span class="bin-corrupt">ANA1YZE</span>
-          <span class="bin-resolved">ANALYZE</span>
-        </div>
-      </div>
-
-      <!-- DESIGN: handwriting script reveal with crosshair -->
-      <div class="technical-label label-design" data-kinetic="design" tabindex="0" role="button" aria-label="Design technical node">
-        <span class="technical-caption">DESIGN</span>
-        <div class="design-row">
-          <svg viewBox="0 0 155 52" fill="none">
-            <path data-handwriting d="M12 40Q23 20 32 8M9 18Q31-2 48 10Q65 28 27 41Q9 46 12 38M48 32Q70 18 61 21Q47 24 49 34Q53 41 70 29M78 22Q64 24 74 30Q86 34 68 38M88 25l-7 12 12-7M91 18l1-2M107 25Q102 19 94 30Q91 40 103 31L110 24Q98 56 88 46Q84 40 110 32M114 25l-6 12Q126 15 124 28l-3 9 15-11M15 47Q68 39 143 39" />
-          </svg>
-          <span class="design-cross" aria-hidden="true">+</span>
-        </div>
-      </div>
-
-      <!-- BUILD: sequential structural assemble -->
-      <div class="technical-label label-build" data-kinetic="build" tabindex="0" role="button" aria-label="Build technical node">
-        <span class="technical-caption">BUILD</span>
-        <div class="build-assembly">
-          <span class="build-step" data-step="0">B</span>
-          <span class="build-step" data-step="1">BU</span>
-          <span class="build-step" data-step="2">BUI</span>
-          <span class="build-step" data-step="3">BUIL</span>
-          <span class="build-resolved" data-step="4">BUILD</span>
-        </div>
-      </div>
-
-      <!-- ITERATE: track bar and coordinate metadata -->
-      <div class="technical-label label-iterate" data-kinetic="iterate" tabindex="0" role="button" aria-label="Iterate technical node">
-        <span class="iterate-title">ITERATE</span>
-        <div class="iterate-bar">
-          <span class="iterate-track"></span>
-          <small class="iterate-coord">↳ 02.04 / 02.05</small>
-        </div>
-      </div>
-
-      <!-- Right side supporting words column -->
-      <div class="technical-label label-side-group">
-        <span class="side-item" data-kinetic="system" tabindex="0" role="button" aria-label="System technical node">SYSTEM</span>
-        <span class="side-item" data-kinetic="execution" tabindex="0" role="button" aria-label="Execution technical node">EXECUTION</span>
-      </div>
       
-      <!-- IMPACT: decisive appearance with coordinate marker -->
-      <div class="technical-label label-impact" data-kinetic="impact" tabindex="0" role="button" aria-label="Impact technical node">
-        <span class="impact-guide"></span>
-        <span class="impact-word">IMPACT</span>
-      </div>
+      <!-- GROUP A: ANALYZE / DESIGN / COMPOSE / ITERATE (Left Module) -->
+      <section class="computational-system system-group-a" data-module="a" aria-label="System A: Synthesis">
+        <div class="system-bracket" aria-hidden="true">
+          <span class="bracket-tag">SYS.01 // SYNTHESIS</span>
+          <span class="system-status-indicator"></span>
+        </div>
 
-      <!-- Lower supporting group: THINK, SYSTEM, EXECUTION, IMPROVE -->
-      <div class="environment-lower">
-        <div class="lower-item" data-kinetic="think" tabindex="0" role="button" aria-label="Think technical node">
-          <span class="lower-marker"></span>
-          <span class="lower-word">THINK</span>
+        <!-- 1. ANALYZE (Single line binary slot resolver) -->
+        <div class="system-node node-analyze" data-kinetic="analyze" tabindex="0" role="button" aria-label="Analyze computational node">
+          <span class="node-caption">ANALYZE</span>
+          <div class="analyze-slot-line" aria-live="polite">
+            <span class="slot" data-index="0" data-char="A">0</span>
+            <span class="slot" data-index="1" data-char="N">1</span>
+            <span class="slot" data-index="2" data-char="A">0</span>
+            <span class="slot" data-index="3" data-char="L">1</span>
+            <span class="slot" data-index="4" data-char="Y">1</span>
+            <span class="slot" data-index="5" data-char="Z">0</span>
+            <span class="slot" data-index="6" data-char="E">1</span>
+          </div>
         </div>
-        <div class="lower-item" data-kinetic="system" tabindex="0" role="button" aria-label="System technical node">
-          <span class="lower-marker"></span>
-          <span class="lower-word">SYSTEM</span>
+
+        <!-- 2. DESIGN (Cursive handwriting SVG path draw + crosshair) -->
+        <div class="system-node node-design" data-kinetic="design" tabindex="0" role="button" aria-label="Design computational node">
+          <span class="node-caption">DESIGN</span>
+          <div class="design-script-wrap">
+            <svg class="design-script-svg" viewBox="0 0 155 52" fill="none">
+              <path class="design-script-path" d="M12 40Q23 20 32 8M9 18Q31-2 48 10Q65 28 27 41Q9 46 12 38M48 32Q70 18 61 21Q47 24 49 34Q53 41 70 29M78 22Q64 24 74 30Q86 34 68 38M88 25l-7 12 12-7M91 18l1-2M107 25Q102 19 94 30Q91 40 103 31L110 24Q98 56 88 46Q84 40 110 32M114 25l-6 12Q126 15 124 28l-3 9 15-11M15 47Q68 39 143 39" />
+            </svg>
+            <span class="design-marker" aria-hidden="true">+</span>
+          </div>
         </div>
-        <div class="lower-item" data-kinetic="execution" tabindex="0" role="button" aria-label="Execution technical node">
-          <span class="lower-marker"></span>
-          <span class="lower-word">EXECUTION</span>
+
+        <!-- 3. COMPOSE (Vertical drop assembling letters) -->
+        <div class="system-node node-compose" data-kinetic="compose" tabindex="0" role="button" aria-label="Compose computational node">
+          <span class="node-caption">COMPOSE</span>
+          <div class="compose-drop-stage">
+            <span class="drop-letter" data-index="0" data-char="C">C</span>
+            <span class="drop-letter" data-index="1" data-char="O">O</span>
+            <span class="drop-letter" data-index="2" data-char="M">M</span>
+            <span class="drop-letter" data-index="3" data-char="P">P</span>
+            <span class="drop-letter" data-index="4" data-char="O">O</span>
+            <span class="drop-letter" data-index="5" data-char="S">S</span>
+            <span class="drop-letter" data-index="6" data-char="E">E</span>
+          </div>
         </div>
-        <div class="lower-item" data-kinetic="improve" tabindex="0" role="button" aria-label="Improve technical node">
-          <span class="lower-marker"></span>
-          <span class="lower-word">IMPROVE</span>
+
+        <!-- 4. ITERATE (Physically connected to COMPOSE, pulled down on drop, cyclic loop) -->
+        <div class="system-node node-iterate" data-kinetic="iterate" tabindex="0" role="button" aria-label="Iterate computational node">
+          <div class="iterate-row">
+            <span class="node-caption">ITERATE</span>
+            <span class="iterate-cycle-indicator" aria-hidden="true">↻</span>
+          </div>
+          <div class="iterate-loop-wrap">
+            <svg class="iterate-loop-svg" viewBox="0 0 54 12" fill="none">
+              <path class="iterate-loop-path" d="M2 6h36a4 4 0 0 1 0 5H18" />
+            </svg>
+            <span class="iterate-coord">↳ 02.04</span>
+            <span class="iterate-crimson-dot" aria-hidden="true"></span>
+          </div>
         </div>
-      </div>
+      </section>
+
+      <!-- GROUP B: CONCEPT / SYSTEM / EXECUTION / IMPACT (Right Module) -->
+      <section class="computational-system system-group-b" data-module="b" aria-label="System B: Realization">
+        <div class="system-bracket" aria-hidden="true">
+          <span class="bracket-tag">SYS.02 // REALIZATION</span>
+          <span class="system-status-indicator"></span>
+        </div>
+
+        <!-- 1. CONCEPT (Letter-by-letter neon circuit power-up) -->
+        <div class="system-node node-concept" data-kinetic="concept" tabindex="0" role="button" aria-label="Concept computational node">
+          <span class="node-caption">CONCEPT</span>
+          <div class="concept-circuit-line">
+            <span class="circuit-char" data-index="0">C</span>
+            <span class="circuit-char" data-index="1">O</span>
+            <span class="circuit-char" data-index="2">N</span>
+            <span class="circuit-char" data-index="3">C</span>
+            <span class="circuit-char" data-index="4">E</span>
+            <span class="circuit-char" data-index="5">P</span>
+            <span class="circuit-char" data-index="6">T</span>
+          </div>
+        </div>
+
+        <!-- 2. SYSTEM (Ordered binary grid alignment) -->
+        <div class="system-node node-system" data-kinetic="system" tabindex="0" role="button" aria-label="System computational node">
+          <span class="node-caption">SYSTEM</span>
+          <div class="system-grid-line">
+            <span class="sys-slot" data-index="0" data-char="S">1</span>
+            <span class="sys-slot" data-index="1" data-char="Y">0</span>
+            <span class="sys-slot" data-index="2" data-char="S">1</span>
+            <span class="sys-slot" data-index="3" data-char="T">0</span>
+            <span class="sys-slot" data-index="4" data-char="E">1</span>
+            <span class="sys-slot" data-index="5" data-char="M">1</span>
+          </div>
+        </div>
+
+        <!-- 3. EXECUTION (Mechanical segmented mask scanline + confirmation) -->
+        <div class="system-node node-execution" data-kinetic="execution" tabindex="0" role="button" aria-label="Execution computational node">
+          <span class="node-caption">EXECUTION</span>
+          <div class="execution-scan-wrap">
+            <div class="execution-scanline" aria-hidden="true"></div>
+            <div class="execution-word">
+              <span class="exec-seg">EXEC</span><span class="exec-seg">UTI</span><span class="exec-seg">ON</span>
+            </div>
+            <span class="execution-marker" aria-hidden="true">✓</span>
+          </div>
+        </div>
+
+        <!-- 4. IMPACT (Visual punch scale 0.8 -> 1.12 -> 1.0 + flash line) -->
+        <div class="system-node node-impact" data-kinetic="impact" tabindex="0" role="button" aria-label="Impact computational node">
+          <div class="impact-flash-line" aria-hidden="true"></div>
+          <div class="impact-content">
+            <span class="impact-word">IMPACT</span>
+            <span class="impact-point" aria-hidden="true">●</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- GROUP C: THINK / SHIP / BUILD / IMPROVE (Lower Supporting Sequential Module) -->
+      <section class="computational-system system-group-c" data-module="c" aria-label="System C: Cadence">
+        <div class="system-bracket" aria-hidden="true">
+          <span class="bracket-tag">SYS.03 // CADENCE</span>
+          <span class="system-status-indicator"></span>
+        </div>
+        <div class="chain-flow" role="group" aria-label="Cadence milestone chain">
+          <div class="chain-step step-think" data-step="think" tabindex="0" role="button" aria-label="Think milestone">
+            <span class="chain-num">01</span>
+            <span class="chain-word">THINK</span>
+          </div>
+          <span class="chain-connector" aria-hidden="true">→</span>
+          <div class="chain-step step-ship" data-step="ship" tabindex="0" role="button" aria-label="Ship milestone">
+            <span class="chain-num">02</span>
+            <span class="chain-word">SHIP</span>
+          </div>
+          <span class="chain-connector" aria-hidden="true">→</span>
+          <div class="chain-step step-build" data-step="build" tabindex="0" role="button" aria-label="Build milestone">
+            <span class="chain-num">03</span>
+            <span class="chain-word">BUILD</span>
+          </div>
+          <span class="chain-connector" aria-hidden="true">→</span>
+          <div class="chain-step step-improve" data-step="improve" tabindex="0" role="button" aria-label="Improve milestone">
+            <span class="chain-num">04</span>
+            <span class="chain-word">IMPROVE</span>
+          </div>
+        </div>
+      </section>
     </div>`;
 
   hero.prepend(element);
   hero.classList.add("has-environment");
 
-  // DOM node references
-  const handwriting = element.querySelector("[data-handwriting]");
-  const designCross = element.querySelector(".design-cross");
-  const analyzeLabel = element.querySelector(".label-analyze");
-  const binResolved = element.querySelector(".bin-resolved");
-  const binLines = element.querySelectorAll(".bin-line");
-  const binCorrupt = element.querySelector(".bin-corrupt");
-  const buildSteps = element.querySelectorAll(".build-step, .build-resolved");
-  const iterateLabel = element.querySelector(".label-iterate");
-  const iterateTrack = element.querySelector(".iterate-track");
+  // DOM node references - Group A
+  const groupA = element.querySelector(".system-group-a");
+  const nodeAnalyze = element.querySelector(".node-analyze");
+  const analyzeSlots = Array.from(element.querySelectorAll(".analyze-slot-line .slot"));
+  const nodeDesign = element.querySelector(".node-design");
+  const designPath = element.querySelector(".design-script-path");
+  const designMarker = element.querySelector(".design-marker");
+  const nodeCompose = element.querySelector(".node-compose");
+  const composeLetters = Array.from(element.querySelectorAll(".compose-drop-stage .drop-letter"));
+  const nodeIterate = element.querySelector(".node-iterate");
+  const iterateLoopPath = element.querySelector(".iterate-loop-path");
   const iterateCoord = element.querySelector(".iterate-coord");
-  const impactLabel = element.querySelector(".label-impact");
+  const iterateCrimsonDot = element.querySelector(".iterate-crimson-dot");
+
+  // DOM node references - Group B
+  const groupB = element.querySelector(".system-group-b");
+  const nodeConcept = element.querySelector(".node-concept");
+  const conceptChars = Array.from(element.querySelectorAll(".concept-circuit-line .circuit-char"));
+  const nodeSystem = element.querySelector(".node-system");
+  const systemSlots = Array.from(element.querySelectorAll(".system-grid-line .sys-slot"));
+  const nodeExecution = element.querySelector(".node-execution");
+  const execScanline = element.querySelector(".execution-scanline");
+  const execSegments = Array.from(element.querySelectorAll(".execution-word .exec-seg"));
+  const execMarker = element.querySelector(".execution-marker");
+  const nodeImpact = element.querySelector(".node-impact");
   const impactWord = element.querySelector(".impact-word");
-  const impactGuide = element.querySelector(".impact-guide");
+  const impactFlashLine = element.querySelector(".impact-flash-line");
+  const impactPoint = element.querySelector(".impact-point");
+
+  // DOM node references - Group C
+  const groupC = element.querySelector(".system-group-c");
+  const chainSteps = Array.from(element.querySelectorAll(".chain-flow .chain-step"));
 
   const pointer = { x: 0, y: 0 };
   const target = { x: 0, y: 0 };
@@ -196,21 +279,23 @@ function createEnvironment() {
   let active = false;
   let startedAt = null;
   let lastTextAt = 0;
-  let nextAmbientAt = 7500;
-  let ambientIndex = 0;
-  let slowFrames = 0;
   let limited = (navigator.hardwareConcurrency || 4) <= 4 || navigator.connection?.saveData === true;
   element.dataset.quality = limited ? "reduced" : "full";
 
   // Initialize handwriting stroke
-  if (handwriting) {
-    handwriting.style.strokeDasharray = "420";
-    handwriting.style.strokeDashoffset = "0";
+  if (designPath) {
+    designPath.style.strokeDasharray = "420";
+    designPath.style.strokeDashoffset = "420";
+    designPath.style.opacity = "0";
+  }
+  if (iterateLoopPath) {
+    iterateLoopPath.style.strokeDasharray = "64";
+    iterateLoopPath.style.strokeDashoffset = "64";
   }
 
-  // Cooldown tracker for hover interactions (prevent frantic retriggering)
+  // Trigger cooldowns to prevent spamming
   const lastTriggered = new Map();
-  function canTrigger(id, cooldown = 450) {
+  function canTrigger(id, cooldown = 500) {
     const now = performance.now();
     const last = lastTriggered.get(id) || 0;
     if (now - last < cooldown) return false;
@@ -219,306 +304,595 @@ function createEnvironment() {
   }
 
   /* -------------------------------------------------------------
-     KINETIC LABEL ENGINES
+     GROUP A KINETIC ENGINES
   ------------------------------------------------------------- */
 
-  // 1. ANALYZE: Binary / Corrupted Computational Decode
-  let analyzeTimer = null;
-  function triggerAnalyze(isHover = false) {
-    if (reducedMotion.matches) return;
-    if (isHover && !canTrigger("analyze", 500)) return;
-    if (analyzeTimer) clearInterval(analyzeTimer);
+  // 1. ANALYZE: Single line binary slot resolver -> locks into crimson letters
+  let analyzeInterval = null;
+  let analyzeStep = 0;
+  let analyzeResetTimer = null;
+  const analyzeWord = "ANALYZE";
 
-    analyzeLabel?.classList.add("is-active");
-    const decodeFrames = [
-      { res: "0101101", c: "0100110", b1: "0110101", b2: "1010011" },
-      { res: "A10L01E", c: "0101011", b1: "1101010", b2: "0101101" },
-      { res: "A10LY1E", c: "ANA1011", b1: "0100110", b2: "0101011" },
-      { res: "ANA1YZE", c: "ANA1YZE", b1: "0100110", b2: "0101011" },
-      { res: "ANALYZE", c: "ANA1YZE", b1: "0100110", b2: "0101011" },
-    ];
-
-    let step = 0;
-    analyzeTimer = setInterval(() => {
-      const f = decodeFrames[step];
-      if (!f) {
-        clearInterval(analyzeTimer);
-        analyzeTimer = null;
-        if (binResolved) binResolved.textContent = "ANALYZE";
-        analyzeLabel?.classList.remove("is-active");
-        return;
-      }
-      if (binResolved) binResolved.textContent = f.res;
-      if (binCorrupt) binCorrupt.textContent = f.c;
-      if (binLines[0]) binLines[0].textContent = f.b1;
-      if (binLines[1]) binLines[1].textContent = f.b2;
-      step++;
-    }, 130);
+  function resetAnalyze() {
+    if (analyzeInterval) clearInterval(analyzeInterval);
+    if (analyzeResetTimer) clearTimeout(analyzeResetTimer);
+    analyzeInterval = null;
+    analyzeStep = 0;
+    nodeAnalyze?.classList.remove("is-resolved", "is-active");
+    analyzeSlots.forEach((slot, i) => {
+      slot.classList.remove("is-resolved");
+      slot.textContent = (i % 2 === 0 ? "0" : "1");
+    });
   }
 
-  // 2. DESIGN: Handwritten Cursive Script with Drawing Animation
+  function triggerAnalyze() {
+    if (reducedMotion.matches) return;
+    if (!canTrigger("analyze", 600)) return;
+    if (analyzeInterval) clearInterval(analyzeInterval);
+    if (analyzeResetTimer) clearTimeout(analyzeResetTimer);
+
+    nodeAnalyze?.classList.add("is-active");
+    analyzeStep = 0;
+
+    analyzeInterval = setInterval(() => {
+      // Cycle unresolved slots rapidly between 0 and 1
+      for (let i = analyzeStep; i < analyzeSlots.length; i++) {
+        analyzeSlots[i].textContent = Math.random() > 0.5 ? "1" : "0";
+      }
+
+      // Lock current slot into correct letter with crimson activation
+      if (analyzeStep < analyzeSlots.length) {
+        const slot = analyzeSlots[analyzeStep];
+        slot.textContent = analyzeWord[analyzeStep];
+        slot.classList.add("is-resolved");
+        analyzeStep++;
+      } else {
+        // All resolved: complete word is now crimson
+        clearInterval(analyzeInterval);
+        analyzeInterval = null;
+        nodeAnalyze?.classList.add("is-resolved");
+        nodeAnalyze?.classList.remove("is-active");
+
+        // Short stable state then return to dormant
+        analyzeResetTimer = setTimeout(resetAnalyze, 4500);
+      }
+    }, 110);
+  }
+
+  // 2. DESIGN: SVG handwriting path draws left-to-right, crimson glow + crosshair flash
   let designAnim = null;
-  function triggerDesign(isHover = false) {
-    if (reducedMotion.matches || !handwriting) return;
-    if (isHover && !canTrigger("design", 600)) return;
+  let designResetTimer = null;
 
+  function resetDesign() {
     if (designAnim) designAnim.cancel();
-    element.querySelector(".label-design")?.classList.add("is-active");
+    if (designResetTimer) clearTimeout(designResetTimer);
+    nodeDesign?.classList.remove("is-drawn", "is-active");
+    if (designPath) {
+      designPath.style.strokeDashoffset = "420";
+      designPath.style.opacity = "0";
+    }
+    if (designMarker) {
+      designMarker.classList.remove("is-flashing");
+    }
+  }
 
-    const startOffset = isHover ? "260" : "420";
-    designAnim = handwriting.animate(
+  function triggerDesign() {
+    if (reducedMotion.matches || !designPath) return;
+    if (!canTrigger("design", 700)) return;
+    if (designAnim) designAnim.cancel();
+    if (designResetTimer) clearTimeout(designResetTimer);
+
+    nodeDesign?.classList.add("is-active");
+    designPath.style.opacity = "1";
+
+    designAnim = designPath.animate(
       [
-        { strokeDashoffset: startOffset, opacity: 0.5 },
+        { strokeDashoffset: "420", opacity: 0.4 },
         { strokeDashoffset: "0", opacity: 1 },
       ],
-      { duration: isHover ? 700 : 950, easing: "cubic-bezier(0.2, 0.8, 0.25, 1)" }
+      { duration: 750, easing: "cubic-bezier(0.2, 0.8, 0.25, 1)", fill: "forwards" }
     );
 
     designAnim.onfinish = () => {
-      element.querySelector(".label-design")?.classList.remove("is-active");
-      if (designCross) {
-        designCross.animate(
+      nodeDesign?.classList.add("is-drawn");
+      nodeDesign?.classList.remove("is-active");
+      if (designMarker) {
+        designMarker.classList.add("is-flashing");
+        designMarker.animate(
           [
-            { transform: "scale(1.8)", color: "#ffffff" },
-            { transform: "scale(1.0)", color: "#e52b3d" },
+            { transform: "scale(1.8)", color: "#ffffff", opacity: 1 },
+            { transform: "scale(1.0)", color: "#ff1230", opacity: 1 },
           ],
           { duration: 240, easing: "ease-out" }
         );
       }
+      designResetTimer = setTimeout(resetDesign, 4500);
     };
   }
 
-  // 3. BUILD: Structural Assembly with Alignment Snaps
-  let buildTimeouts = [];
-  function triggerBuild(isHover = false) {
-    if (reducedMotion.matches || !buildSteps.length) return;
-    if (isHover && !canTrigger("build", 550)) return;
+  // 3. COMPOSE: Architectural vertical drop assembling letters -> turns crimson at end
+  let composeTimeouts = [];
+  let composeResetTimer = null;
 
-    buildTimeouts.forEach(clearTimeout);
-    buildTimeouts = [];
-
-    const label = element.querySelector(".label-build");
-    label?.classList.add("is-active");
-
-    // Hide steps initially during rebuild
-    buildSteps.forEach((s) => {
-      s.classList.remove("is-assembled", "is-focused");
-      s.style.opacity = "0.15";
-      s.style.transform = "translateY(3px)";
-    });
-
-    const stepDelay = isHover ? 90 : 120;
-    buildSteps.forEach((stepEl, idx) => {
-      const t = setTimeout(() => {
-        buildSteps.forEach((prev, pIdx) => {
-          if (pIdx < idx) {
-            prev.classList.remove("is-focused");
-            prev.style.opacity = "0.32";
-          }
-        });
-        stepEl.classList.add("is-assembled", "is-focused");
-        stepEl.style.opacity = "1";
-        stepEl.style.transform = "translateY(0)";
-
-        if (idx === buildSteps.length - 1) {
-          stepEl.animate(
-            [
-              { transform: "scale(1.08)", color: "#ffffff" },
-              { transform: "scale(1.0)", color: "#e52b3d" },
-            ],
-            { duration: 220, easing: "ease-out" }
-          );
-          setTimeout(() => label?.classList.remove("is-active"), 300);
-        }
-      }, idx * stepDelay);
-      buildTimeouts.push(t);
+  function resetCompose() {
+    composeTimeouts.forEach(clearTimeout);
+    composeTimeouts = [];
+    if (composeResetTimer) clearTimeout(composeResetTimer);
+    nodeCompose?.classList.remove("is-resolved", "is-active");
+    composeLetters.forEach((letter) => {
+      letter.classList.remove("is-dropped");
+      letter.style.transform = "";
+      letter.style.opacity = "";
     });
   }
 
-  // 4. ITERATE: Process Continuation & Progress Tick
-  function triggerIterate(isHover = false) {
-    if (reducedMotion.matches) return;
-    if (isHover && !canTrigger("iterate", 400)) return;
+  function triggerCompose() {
+    if (reducedMotion.matches || !composeLetters.length) return;
+    if (!canTrigger("compose", 700)) return;
+    composeTimeouts.forEach(clearTimeout);
+    composeTimeouts = [];
+    if (composeResetTimer) clearTimeout(composeResetTimer);
 
-    iterateLabel?.classList.add("is-active");
-    const trackAnim = iterateTrack?.animate(
+    nodeCompose?.classList.add("is-active");
+    nodeCompose?.classList.remove("is-resolved");
+
+    // Letters begin separated / slightly raised
+    composeLetters.forEach((letter) => {
+      letter.classList.remove("is-dropped");
+      letter.style.transform = "translateY(-14px)";
+      letter.style.opacity = "0.2";
+    });
+
+    // Sequential heavy architectural drop
+    const stepDuration = 80;
+    composeLetters.forEach((letter, index) => {
+      const t = setTimeout(() => {
+        letter.classList.add("is-dropped");
+        letter.style.transform = "translateY(0)";
+        letter.style.opacity = "1";
+
+        // As the final letter lands with subtle weight
+        if (index === composeLetters.length - 1) {
+          nodeCompose?.classList.add("is-resolved");
+          nodeCompose?.classList.remove("is-active");
+
+          // When COMPOSE lands, pull and displace ITERATE with it!
+          triggerIterateDisplaced();
+
+          composeResetTimer = setTimeout(resetCompose, 4500);
+        }
+      }, index * stepDuration);
+      composeTimeouts.push(t);
+    });
+  }
+
+  // 4. ITERATE: Physically connected to COMPOSE, pulled down on drop, cyclic loop
+  let iterateResetTimer = null;
+  let iterateCoordIndex = 4;
+
+  function resetIterate() {
+    if (iterateResetTimer) clearTimeout(iterateResetTimer);
+    nodeIterate?.classList.remove("is-active", "is-resolved");
+    if (iterateCrimsonDot) iterateCrimsonDot.classList.remove("is-active");
+    if (iterateLoopPath) iterateLoopPath.style.strokeDashoffset = "64";
+  }
+
+  function triggerIterateDisplaced() {
+    // When COMPOSE drops, ITERATE is physically pulled / displaced downward
+    nodeIterate?.animate(
       [
-        { width: "12px", background: "#e52b3d" },
-        { width: "54px", background: "#ffffff", offset: 0.5 },
-        { width: "44px", background: "linear-gradient(90deg, #e52b3d 0% 30%, rgba(120, 120, 120, 0.26) 30%)" },
+        { transform: "translateY(0)" },
+        { transform: "translateY(6px)" },
+        { transform: "translateY(0)" },
       ],
-      { duration: 380, easing: "ease-out" }
+      { duration: 320, easing: "cubic-bezier(0.2, 0.8, 0.25, 1)" }
     );
+    // Follow with iterate loop process
+    setTimeout(() => triggerIterate(true), 120);
+  }
 
-    iterateLabel?.animate(
+  function triggerIterate(fromCompose = false) {
+    if (reducedMotion.matches) return;
+    if (!fromCompose && !canTrigger("iterate", 600)) return;
+    if (iterateResetTimer) clearTimeout(iterateResetTimer);
+
+    nodeIterate?.classList.add("is-active");
+
+    // Circular/loop progress trace
+    if (iterateLoopPath) {
+      iterateLoopPath.animate(
+        [
+          { strokeDashoffset: "64", opacity: 0.3 },
+          { strokeDashoffset: "0", opacity: 1 },
+        ],
+        { duration: 420, easing: "ease-out" }
+      );
+    }
+
+    // Letters shift one position and snap back
+    nodeIterate?.querySelector(".node-caption")?.animate(
       [
         { transform: "translateX(3px)" },
-        { transform: "translateX(-2px)", offset: 0.4 },
-        { transform: "none" },
+        { transform: "translateX(-1px)", offset: 0.6 },
+        { transform: "translateX(0)" },
       ],
-      { duration: 260, easing: "ease-out" }
+      { duration: 280, easing: "ease-out" }
     );
 
+    // Coordinate counter increments once
+    iterateCoordIndex++;
     if (iterateCoord) {
-      const patch = (Math.random() > 0.5 ? "06" : "07");
-      iterateCoord.textContent = `↳ 02.05 / 02.${patch}`;
+      iterateCoord.textContent = `↳ 02.${String(iterateCoordIndex).padStart(2, "0")}`;
     }
 
-    trackAnim?.addEventListener("finish", () => {
-      iterateLabel?.classList.remove("is-active");
-    });
-  }
-
-  // 5. IMPACT: Abrupt, Decisive Appearance
-  function triggerImpact(isHover = false) {
-    if (reducedMotion.matches) return;
-    if (isHover && !canTrigger("impact", 350)) return;
-
-    impactLabel?.classList.add("is-active");
-    impactWord?.animate(
-      [
-        { opacity: 0.2, transform: "translateX(-4px)", clipPath: "inset(0 60% 0 0)" },
-        { opacity: 1, transform: "none", clipPath: "inset(0 0% 0 0)" },
-      ],
-      { duration: 120, easing: "steps(2, end)" }
-    );
-
-    impactGuide?.animate(
-      [
-        { background: "#ffffff", width: "42px" },
-        { background: "linear-gradient(90deg, rgba(229, 43, 61, 0.95), rgba(180, 180, 180, 0.2))", width: "32px" },
-      ],
-      { duration: 220, easing: "ease-out" }
-    );
-
-    setTimeout(() => impactLabel?.classList.remove("is-active"), 220);
-  }
-
-  // 6. THINK: Emerging from Uncertainty into Clarity
-  function triggerThink(targetEl, isHover = false) {
-    if (reducedMotion.matches || !targetEl) return;
-    if (isHover && !canTrigger("think", 450)) return;
-
-    const wordEl = targetEl.querySelector(".lower-word") || targetEl;
-    targetEl.classList.add("is-active");
-
-    wordEl.animate(
-      [
-        { opacity: 0.18, letterSpacing: "0.48em", filter: "blur(2px)", transform: "translateY(2px)" },
-        { opacity: 0.70, letterSpacing: "0.30em", filter: "blur(0.8px)", offset: 0.6 },
-        { opacity: 1.0, letterSpacing: "0.22em", filter: "blur(0)", transform: "translateY(0)" },
-      ],
-      { duration: 420, easing: "cubic-bezier(0.2, 0.8, 0.2, 1)" }
-    ).onfinish = () => targetEl.classList.remove("is-active");
-  }
-
-  // 7. SYSTEM: Structural Grid Alignment
-  function triggerSystem(targetEl, isHover = false) {
-    if (reducedMotion.matches || !targetEl) return;
-    if (isHover && !canTrigger("system", 450)) return;
-
-    const wordEl = targetEl.querySelector(".lower-word") || targetEl;
-    targetEl.classList.add("is-active");
-
-    wordEl.animate(
-      [
-        { letterSpacing: "0.55em", transform: "scaleX(0.92)", opacity: 0.55 },
-        { letterSpacing: "0.18em", transform: "scaleX(1.03)", opacity: 0.95, offset: 0.75 },
-        { letterSpacing: "0.22em", transform: "scaleX(1.0)", opacity: 1.0 },
-      ],
-      { duration: 380, easing: "cubic-bezier(0.2, 0.9, 0.25, 1)" }
-    ).onfinish = () => targetEl.classList.remove("is-active");
-  }
-
-  // 8. EXECUTION: Mechanical Segmented Reveal
-  function triggerExecution(targetEl, isHover = false) {
-    if (reducedMotion.matches || !targetEl) return;
-    if (isHover && !canTrigger("execution", 450)) return;
-
-    const wordEl = targetEl.querySelector(".lower-word") || targetEl;
-    targetEl.classList.add("is-active");
-
-    wordEl.animate(
-      [
-        { clipPath: "inset(0 100% 0 0)", transform: "translateX(5px)", opacity: 0.4 },
-        { clipPath: "inset(0 50% 0 0)", transform: "translateX(2px)", opacity: 0.8, offset: 0.45 },
-        { clipPath: "inset(0 0% 0 0)", transform: "none", opacity: 1.0 },
-      ],
-      { duration: 320, easing: "steps(3, jump-none)" }
-    ).onfinish = () => targetEl.classList.remove("is-active");
-  }
-
-  // 9. IMPROVE: Progressive Refinement & Clarification
-  function triggerImprove(targetEl, isHover = false) {
-    if (reducedMotion.matches || !targetEl) return;
-    if (isHover && !canTrigger("improve", 450)) return;
-
-    const wordEl = targetEl.querySelector(".lower-word") || targetEl;
-    targetEl.classList.add("is-active");
-
-    wordEl.animate(
-      [
-        { opacity: 0.25, filter: "blur(1.4px)", letterSpacing: "0.28em" },
-        { opacity: 0.65, filter: "blur(0.5px)", offset: 0.5 },
-        { opacity: 1.0, filter: "blur(0)", letterSpacing: "0.22em" },
-      ],
-      { duration: 520, easing: "ease-out" }
-    ).onfinish = () => targetEl.classList.remove("is-active");
-  }
-
-  // Unified dispatcher for kinetic events
-  function dispatchKinetic(name, targetEl, isHover = false) {
-    switch (name) {
-      case "analyze": triggerAnalyze(isHover); break;
-      case "design": triggerDesign(isHover); break;
-      case "build": triggerBuild(isHover); break;
-      case "iterate": triggerIterate(isHover); break;
-      case "impact": triggerImpact(isHover); break;
-      case "think": triggerThink(targetEl, isHover); break;
-      case "system": triggerSystem(targetEl, isHover); break;
-      case "execution": triggerExecution(targetEl, isHover); break;
-      case "improve": triggerImprove(targetEl, isHover); break;
-    }
+    // At completion: small crimson indicator dot activates
+    setTimeout(() => {
+      if (iterateCrimsonDot) iterateCrimsonDot.classList.add("is-active");
+      nodeIterate?.classList.add("is-resolved");
+      nodeIterate?.classList.remove("is-active");
+      iterateResetTimer = setTimeout(resetIterate, 4500);
+    }, 420);
   }
 
   /* -------------------------------------------------------------
-     POINTER HOVER & PROXIMITY INTERACTION
+     GROUP B KINETIC ENGINES
   ------------------------------------------------------------- */
-  const interactiveNodes = element.querySelectorAll("[data-kinetic]");
 
-  interactiveNodes.forEach((node) => {
+  // 5. CONCEPT: Neon circuit powering up letter by letter -> short crimson neon glow
+  let conceptTimeouts = [];
+  let conceptResetTimer = null;
+
+  const conceptWord = "CONCEPT";
+  function resetConcept() {
+    conceptTimeouts.forEach(clearTimeout);
+    conceptTimeouts = [];
+    if (conceptResetTimer) clearTimeout(conceptResetTimer);
+    nodeConcept?.classList.remove("is-active", "is-resolved");
+    conceptChars.forEach((c, idx) => {
+      c.classList.remove("is-powered", "is-glowing");
+      c.textContent = conceptWord[idx] || c.dataset.char;
+    });
+  }
+
+  function triggerConcept() {
+    if (reducedMotion.matches || !conceptChars.length) return;
+    if (!canTrigger("concept", 600)) return;
+    conceptTimeouts.forEach(clearTimeout);
+    conceptTimeouts = [];
+    if (conceptResetTimer) clearTimeout(conceptResetTimer);
+
+    nodeConcept?.classList.add("is-active");
+    nodeConcept?.classList.remove("is-resolved");
+
+    const stepDelay = 85;
+    conceptChars.forEach((charEl, idx) => {
+      const t = setTimeout(() => {
+        charEl.classList.add("is-powered", "is-glowing");
+        setTimeout(() => charEl.classList.remove("is-glowing"), 200);
+
+        if (idx === conceptChars.length - 1) {
+          nodeConcept?.classList.add("is-resolved");
+          nodeConcept?.classList.remove("is-active");
+          conceptResetTimer = setTimeout(resetConcept, 4500);
+        }
+      }, idx * stepDelay);
+      conceptTimeouts.push(t);
+    });
+  }
+
+  // 6. SYSTEM: Ordered binary grid alignment -> locks character by character into crimson
+  let systemInterval = null;
+  let systemStep = 0;
+  let systemResetTimer = null;
+  const systemWord = "SYSTEM";
+
+  function resetSystem() {
+    if (systemInterval) clearInterval(systemInterval);
+    if (systemResetTimer) clearTimeout(systemResetTimer);
+    systemInterval = null;
+    systemStep = 0;
+    nodeSystem?.classList.remove("is-resolved", "is-active");
+    systemSlots.forEach((slot, i) => {
+      slot.classList.remove("is-resolved");
+      slot.textContent = (i % 2 === 0 ? "1" : "0");
+    });
+  }
+
+  function triggerSystem() {
+    if (reducedMotion.matches) return;
+    if (!canTrigger("system", 600)) return;
+    if (systemInterval) clearInterval(systemInterval);
+    if (systemResetTimer) clearTimeout(systemResetTimer);
+
+    nodeSystem?.classList.add("is-active");
+    systemStep = 0;
+
+    systemInterval = setInterval(() => {
+      // Ordered cycle for remaining slots
+      for (let i = systemStep; i < systemSlots.length; i++) {
+        systemSlots[i].textContent = Math.random() > 0.5 ? "1" : "0";
+      }
+
+      // Lock current slot
+      if (systemStep < systemSlots.length) {
+        const slot = systemSlots[systemStep];
+        slot.textContent = systemWord[systemStep];
+        slot.classList.add("is-resolved");
+        systemStep++;
+      } else {
+        clearInterval(systemInterval);
+        systemInterval = null;
+        nodeSystem?.classList.add("is-resolved");
+        nodeSystem?.classList.remove("is-active");
+        systemResetTimer = setTimeout(resetSystem, 4500);
+      }
+    }, 100);
+  }
+
+  // 7. EXECUTION: Mechanical scan line unmasking segments + checkmark confirmation
+  let execResetTimer = null;
+
+  function resetExecution() {
+    if (execResetTimer) clearTimeout(execResetTimer);
+    nodeExecution?.classList.remove("is-active", "is-resolved");
+    execSegments.forEach((seg) => seg.classList.remove("is-unmasked"));
+    if (execMarker) execMarker.classList.remove("is-confirmed");
+    if (execScanline) execScanline.style.transform = "translateX(-100%)";
+  }
+
+  function triggerExecution() {
+    if (reducedMotion.matches) return;
+    if (!canTrigger("execution", 600)) return;
+    if (execResetTimer) clearTimeout(execResetTimer);
+
+    nodeExecution?.classList.add("is-active");
+    nodeExecution?.classList.remove("is-resolved");
+
+    // Scan line travels left to right
+    if (execScanline) {
+      execScanline.animate(
+        [
+          { transform: "translateX(-100%)", opacity: 0.3 },
+          { transform: "translateX(100%)", opacity: 1 },
+        ],
+        { duration: 320, easing: "cubic-bezier(0.2, 0.8, 0.25, 1)" }
+      );
+    }
+
+    // Segment reveals
+    execSegments.forEach((seg, idx) => {
+      setTimeout(() => {
+        seg.classList.add("is-unmasked");
+      }, idx * 95);
+    });
+
+    // Tiny mechanical confirmation at the end
+    setTimeout(() => {
+      if (execMarker) execMarker.classList.add("is-confirmed");
+      nodeExecution?.classList.add("is-resolved");
+      nodeExecution?.classList.remove("is-active");
+      execResetTimer = setTimeout(resetExecution, 4500);
+    }, 320);
+  }
+
+  // 8. IMPACT: Visual punch scale 0.8 -> 1.12 -> 1.0 (180-260ms) + crimson flash line
+  let impactResetTimer = null;
+
+  function resetImpact() {
+    if (impactResetTimer) clearTimeout(impactResetTimer);
+    nodeImpact?.classList.remove("is-active", "is-resolved");
+    if (impactFlashLine) impactFlashLine.style.transform = "scaleX(0)";
+  }
+
+  function triggerImpact() {
+    if (reducedMotion.matches) return;
+    if (!canTrigger("impact", 450)) return;
+    if (impactResetTimer) clearTimeout(impactResetTimer);
+
+    nodeImpact?.classList.add("is-active");
+
+    // Visual punch scale
+    nodeImpact?.animate(
+      [
+        { transform: "scale(0.8)", opacity: 0.5 },
+        { transform: "scale(1.14)", opacity: 1, offset: 0.45 },
+        { transform: "scale(1.0)", opacity: 1 },
+      ],
+      { duration: 230, easing: "cubic-bezier(0.18, 0.89, 0.32, 1.28)" }
+    );
+
+    // Crimson line flash
+    if (impactFlashLine) {
+      impactFlashLine.animate(
+        [
+          { transform: "scaleX(0)", opacity: 1, background: "#ffffff" },
+          { transform: "scaleX(1.3)", opacity: 1, background: "#ff1230", offset: 0.5 },
+          { transform: "scaleX(1.0)", opacity: 0.8, background: "#ff1230" },
+        ],
+        { duration: 240, easing: "ease-out" }
+      );
+    }
+
+    setTimeout(() => {
+      nodeImpact?.classList.add("is-resolved");
+      nodeImpact?.classList.remove("is-active");
+      impactResetTimer = setTimeout(resetImpact, 4500);
+    }, 240);
+  }
+
+  /* -------------------------------------------------------------
+     GROUP C: SEQUENTIAL CADENCE & FINAL CHAIN REACTION
+  ------------------------------------------------------------- */
+  let chainTimeouts = [];
+  let isChainRunning = false;
+
+  const chainWords = ["THINK", "SHIP", "BUILD", "IMPROVE"];
+  function resetChain() {
+    chainTimeouts.forEach(clearTimeout);
+    chainTimeouts = [];
+    isChainRunning = false;
+    chainSteps.forEach((s, idx) => {
+      s.classList.remove("is-active", "is-passed");
+      const wordEl = s.querySelector(".chain-word");
+      if (wordEl) wordEl.textContent = chainWords[idx];
+    });
+    groupC?.classList.remove("is-active");
+  }
+
+  function triggerChainSequence() {
+    if (reducedMotion.matches || isChainRunning) return;
+    if (!canTrigger("chain-c", 1500)) return;
+
+    isChainRunning = true;
+    groupC?.classList.add("is-active");
+    chainSteps.forEach((s) => s.classList.remove("is-active", "is-passed"));
+
+    // Step sequence: THINK -> SHIP -> BUILD -> IMPROVE
+    const delays = [0, 320, 640, 960];
+    chainSteps.forEach((stepEl, idx) => {
+      const t = setTimeout(() => {
+        // Mark previous steps as passed (retaining slightly higher brightness)
+        chainSteps.forEach((prev, pIdx) => {
+          if (pIdx < idx) {
+            prev.classList.remove("is-active");
+            prev.classList.add("is-passed");
+          }
+        });
+        stepEl.classList.add("is-active");
+
+        // When IMPROVE completes: trigger FINAL CHAIN REACTION
+        if (idx === chainSteps.length - 1) {
+          setTimeout(() => {
+            stepEl.classList.remove("is-active");
+            stepEl.classList.add("is-passed");
+            triggerFinalChainReaction();
+          }, 360);
+        }
+      }, delays[idx]);
+      chainTimeouts.push(t);
+    });
+  }
+
+  // FINAL CHAIN REACTION:
+  // 1. Controlled light sweep passes across H1 ("FROM THOUGHT TO FORM")
+  // 2. Coordinated "hack reconstruction" terminal glitch across all 3 systems
+  // 3. Complete reset of all 3 systems back to dormant gray
+  function triggerFinalChainReaction() {
+    if (reducedMotion.matches) {
+      resetAllSystems();
+      return;
+    }
+
+    // 1. Subtle illumination sweep travels across H1 letters
+    if (heroTitle) {
+      heroTitle.classList.remove("h1-light-sweep");
+      void heroTitle.offsetWidth; // trigger reflow
+      heroTitle.classList.add("h1-light-sweep");
+      setTimeout(() => heroTitle.classList.remove("h1-light-sweep"), 700);
+    }
+
+    // 2. Coordinated "hack reconstruction" glitch across all 3 systems (~380ms)
+    setTimeout(() => {
+      element.classList.add("is-glitching-reconstruction");
+
+      // Corrupt characters momentarily into terminal noise
+      const glitchChars = ["0", "1", "/", "_", "□", "%", "&", "!", "X", "7"];
+      const allTextSlots = element.querySelectorAll(".slot, .circuit-char, .sys-slot, .chain-word");
+      const originalTexts = new Map();
+      allTextSlots.forEach((slot, i) => {
+        originalTexts.set(slot, slot.textContent);
+        slot.textContent = glitchChars[i % glitchChars.length];
+      });
+
+      // Quick second corruption wave
+      setTimeout(() => {
+        allTextSlots.forEach((slot, i) => {
+          slot.textContent = glitchChars[(i + 4) % glitchChars.length];
+        });
+      }, 140);
+
+      // 3. Reset everything back to dormant gray state
+      setTimeout(() => {
+        element.classList.remove("is-glitching-reconstruction");
+        resetAllSystems();
+      }, 380);
+    }, 450);
+  }
+
+  function resetAllSystems() {
+    resetAnalyze();
+    resetDesign();
+    resetCompose();
+    resetIterate();
+    resetConcept();
+    resetSystem();
+    resetExecution();
+    resetImpact();
+    resetChain();
+  }
+
+  /* -------------------------------------------------------------
+     INTERACTION EVENT BINDINGS
+  ------------------------------------------------------------- */
+  function dispatchKinetic(kind) {
+    switch (kind) {
+      case "analyze": triggerAnalyze(); break;
+      case "design": triggerDesign(); break;
+      case "compose": triggerCompose(); break;
+      case "iterate": triggerIterate(); break;
+      case "concept": triggerConcept(); break;
+      case "system": triggerSystem(); break;
+      case "execution": triggerExecution(); break;
+      case "impact": triggerImpact(); break;
+    }
+  }
+
+  const nodes = element.querySelectorAll("[data-kinetic]");
+  nodes.forEach((node) => {
     const kind = node.dataset.kinetic;
 
-    // Direct pointerenter trigger with instantaneous response
-    node.addEventListener("pointerenter", (e) => {
-      if (e.pointerType === "mouse" || e.pointerType === "pen") {
-        dispatchKinetic(kind, node, true);
-      }
-    }, { passive: true });
+    const onTrigger = (e) => {
+      if (e?.pointerType === "touch") return;
+      dispatchKinetic(kind);
+    };
 
-    // Keyboard accessibility trigger
-    node.addEventListener("focus", () => {
-      dispatchKinetic(kind, node, true);
-    });
+    node.addEventListener("pointerenter", onTrigger, { passive: true });
+    node.addEventListener("mouseenter", onTrigger, { passive: true });
+    node.addEventListener("click", onTrigger);
+    node.addEventListener("focus", onTrigger);
   });
 
-  // Mouse tracking for parallax and distance proximity
+  const onChainTrigger = (e) => {
+    if (e?.pointerType === "touch") return;
+    triggerChainSequence();
+  };
+  groupC?.addEventListener("pointerenter", onChainTrigger, { passive: true });
+  groupC?.addEventListener("mouseenter", onChainTrigger, { passive: true });
+  groupC?.addEventListener("click", onChainTrigger);
+
+  chainSteps.forEach((step) => {
+    step.addEventListener("focus", onChainTrigger);
+    step.addEventListener("click", onChainTrigger);
+  });
+
+  // Mouse tracking: knight tracking continues uninterrupted!
+  // We do NOT stopPropagation, so pointermove bubbles to heroScreen listener.
   hero.addEventListener("pointermove", (event) => {
-    if (reducedMotion.matches || mobile.matches || event.pointerType !== "mouse") return;
+    if (reducedMotion.matches || mobile.matches || event.pointerType === "touch") return;
     const bounds = hero.getBoundingClientRect();
     if (!bounds.width || !bounds.height) return;
     target.x = (event.clientX - bounds.left) / bounds.width - 0.5;
     target.y = (event.clientY - bounds.top) / bounds.height - 0.5;
 
-    // Optional proximity effect: detect approaching pointer within ~65px
+    // Proximity pre-activation cues (~60px zone)
     const mx = event.clientX;
     const my = event.clientY;
-    interactiveNodes.forEach((node) => {
+    nodes.forEach((node) => {
       const r = node.getBoundingClientRect();
       const cx = r.left + r.width / 2;
       const cy = r.top + r.height / 2;
       const dist = Math.hypot(mx - cx, my - cy);
-      if (dist < 65 && dist > 15) {
+      if (dist < 60 && dist > 10) {
         node.classList.add("is-proximate");
       } else {
         node.classList.remove("is-proximate");
@@ -529,7 +903,7 @@ function createEnvironment() {
   hero.addEventListener("pointerleave", () => {
     target.x = 0;
     target.y = 0;
-    interactiveNodes.forEach((node) => node.classList.remove("is-proximate"));
+    nodes.forEach((node) => node.classList.remove("is-proximate"));
   });
 
   function settle() {
@@ -537,23 +911,11 @@ function createEnvironment() {
     pointer.x = pointer.y = target.x = target.y = 0;
     element.style.setProperty("--environment-x", "0px");
     element.style.setProperty("--environment-y", "0px");
-    if (binResolved) binResolved.textContent = "ANALYZE";
-    if (handwriting) handwriting.style.strokeDashoffset = "0";
-    buildSteps.forEach((s) => {
-      s.style.opacity = "";
-      s.style.transform = "";
-    });
+    resetAllSystems();
   }
 
   reducedMotion.addEventListener("change", settle);
   mobile.addEventListener("change", settle);
-
-  // Initial reveal sequence on first load (staggered from right to left, top to bottom)
-  setTimeout(() => {
-    triggerAnalyze(false);
-    triggerDesign(false);
-    triggerBuild(false);
-  }, 350);
 
   return {
     element,
@@ -584,14 +946,6 @@ function createEnvironment() {
     update(timestamp, elapsed) {
       if (!this.animating) return;
       if (startedAt === null) startedAt = timestamp;
-      const time = timestamp - startedAt;
-
-      // Handle sustained slow frames
-      slowFrames = elapsed > 45 ? slowFrames + 1 : Math.max(0, slowFrames - 1);
-      if (slowFrames > 90 && !limited) {
-        limited = true;
-        element.dataset.quality = "reduced";
-      }
 
       pointer.x += (target.x - pointer.x) * 0.05;
       pointer.y += (target.y - pointer.y) * 0.05;
@@ -602,32 +956,6 @@ function createEnvironment() {
       // Parallax offsets in CSS variables
       element.style.setProperty("--environment-x", `${(pointer.x * (this.limited ? 0 : 14)).toFixed(2)}px`);
       element.style.setProperty("--environment-y", `${(pointer.y * (this.limited ? 0 : 10)).toFixed(2)}px`);
-
-      // GLOBAL AMBIENT IDLE RECONSTRUCTION CYCLE
-      // Triggers one or two labels at calm, irregular intervals (7 to 11s)
-      if (time >= nextAmbientAt) {
-        const scheduleOrder = [
-          { name: "iterate", el: iterateLabel },
-          { name: "system", el: element.querySelector(".side-item[data-kinetic='system']") },
-          { name: "analyze", el: analyzeLabel },
-          { name: "execution", el: element.querySelector(".side-item[data-kinetic='execution']") },
-          { name: "design", el: element.querySelector(".label-design") },
-          { name: "impact", el: impactLabel },
-          { name: "build", el: element.querySelector(".label-build") },
-          { name: "think", el: element.querySelector(".lower-item[data-kinetic='think']") },
-          { name: "improve", el: element.querySelector(".lower-item[data-kinetic='improve']") },
-        ];
-
-        const candidate = scheduleOrder[ambientIndex % scheduleOrder.length];
-        ambientIndex++;
-        if (candidate?.el) {
-          dispatchKinetic(candidate.name, candidate.el, false);
-        }
-
-        const interval = phases[phase].interval;
-        const jitter = (Math.sin(time) * 0.2 + 0.9);
-        nextAmbientAt = time + interval * jitter;
-      }
     },
   };
 }
