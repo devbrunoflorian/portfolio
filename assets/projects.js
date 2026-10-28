@@ -2,6 +2,7 @@
   const gallery = document.querySelector("[data-project-gallery]");
   const stage = document.querySelector("[data-project-arc]");
   const screens = Array.from(document.querySelectorAll("[data-project-screen]"));
+  const reflection = document.querySelector("[data-project-reflection]");
   const controls = document.querySelector("[data-project-controls]");
   const selectButtons = Array.from(document.querySelectorAll("[data-project-select]"));
   const previous = document.querySelector("[data-project-previous]");
@@ -61,11 +62,21 @@
     screens.forEach((screen, screenIndex) => {
       screen.classList.toggle("is-active", screenIndex === nextIndex);
     });
+    const artwork = screens[nextIndex].querySelector(".screen-art");
+    if (reflection && artwork) {
+      const reflectionArtwork = artwork.cloneNode(true);
+      reflectionArtwork.removeAttribute("aria-label");
+      reflectionArtwork.setAttribute("aria-hidden", "true");
+      reflectionArtwork.classList.add("project-reflection-art");
+      reflection.replaceChildren(reflectionArtwork);
+    }
   }
 
   function layoutStep() {
     const mobile = window.matchMedia("(max-width: 780px)").matches;
-    return Math.min(mobile ? 230 : 370, stage.clientWidth * (mobile ? .6 : .245));
+    return mobile
+      ? Math.min(210, stage.clientWidth * .53)
+      : Math.min(275, stage.clientWidth * .185);
   }
 
   function paintScene(position) {
@@ -80,9 +91,9 @@
       const x = offset * step;
       const y = Math.min(54, distance * (mobile ? 14 : 19));
       const z = -distance * (mobile ? 112 : 182);
-      const rotation = Math.max(-38, Math.min(38, -offset * (mobile ? 20 : 19)));
-      const opacity = Math.max(.1, 1 - distance * (mobile ? .34 : .22));
-      const blur = Math.max(0, distance - 1.05) * (mobile ? .6 : 1.1);
+      const rotation = Math.max(-44, Math.min(44, -offset * (mobile ? 20 : 27)));
+      const opacity = Math.max(mobile ? .14 : .24, 1 - distance * (mobile ? .26 : .15));
+      const blur = Math.max(0, distance - 1.5) * (mobile ? .45 : .75);
       screen.style.transform = "translate3d(calc(-50% + " + x + "px), calc(-50% + " + y + "px), " + z + "px) rotateY(" + rotation + "deg) scale(" + scale + ")";
       screen.style.opacity = String(opacity);
       screen.style.filter = "blur(" + blur + "px)";

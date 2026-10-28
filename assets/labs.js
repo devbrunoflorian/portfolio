@@ -85,7 +85,7 @@
 
   function sceneStep() {
     const mobile = window.matchMedia("(max-width: 780px)").matches;
-    return stage.clientWidth * (mobile ? 0.46 : 0.235);
+    return mobile ? stage.clientWidth * 0.46 : Math.min(460, stage.clientWidth * 0.33);
   }
 
   function paintScene(position) {
@@ -99,7 +99,7 @@
       const x = offset * step;
       const y = Math.min(52, distance * 16);
       const z = -distance * (window.matchMedia("(max-width: 780px)").matches ? 95 : 160);
-      const rotation = Math.max(-42, Math.min(42, -offset * 24));
+      const rotation = Math.max(-42, Math.min(42, -offset * 24 - (distance < .02 ? 6 : 0)));
       const opacity = Math.max(.18, 1 - distance * .22);
       const blur = Math.max(0, distance - .8) * (window.matchMedia("(max-width: 780px)").matches ? .7 : 1.2);
       folder.style.transform = "translate3d(calc(-50% + " + x + "px), calc(-50% + " + y + "px), " + z + "px) rotateY(" + rotation + "deg) scale(" + scale + ")";
@@ -187,14 +187,20 @@
     if (!canvas) return;
     const context = canvas.getContext("2d", { alpha: true });
     if (!context) return;
+    const reflectionCanvas = document.createElement("canvas");
+    reflectionCanvas.className = "folder-reflection";
+    reflectionCanvas.setAttribute("aria-hidden", "true");
+    folder.insertBefore(reflectionCanvas, folder.querySelector(".folder-label"));
+    const reflectionContext = reflectionCanvas.getContext("2d", { alpha: true });
+    if (!reflectionContext) reflectionCanvas.remove();
     const pointer = { x: -1000, y: -1000, strength: 0, targetStrength: 0, frame: 0, width: 1, height: 1, ratio: 1 };
     const folderHue = Number(folder.style.getPropertyValue("--folder-hue")) || 210;
-    const polygon = (width, height, dx, dy) => {
-      const bottom = width < 245 ? .67 : .8;
+      const polygon = (width, height, dx = 0, dy = 0) => {
+      const bottom = width <= 245 ? .67 : .87;
       return [
-        [width * .055 + dx, height * .16 + dy], [width * .33 + dx, height * .16 + dy],
-        [width * .415 + dx, height * .25 + dy], [width * .945 + dx, height * .25 + dy],
-        [width * .945 + dx, height * bottom + dy], [width * .055 + dx, height * bottom + dy],
+          [width * .055 + dx, height * .16 + dy], [width * .33 + dx, height * .16 + dy],
+          [width * .415 + dx, height * .25 + dy], [width * .91 + dx, height * .25 + dy],
+          [width * .91 + dx, height * bottom + dy], [width * .055 + dx, height * bottom + dy],
       ];
     };
     const pointInPolygon = (x, y, points) => {
@@ -226,21 +232,70 @@
           const distance = Math.hypot(distanceX, distanceY) || 1;
           const warpX = (distanceX / distance) * local * 11;
           const warpY = (distanceY / distance) * local * 11;
-          const jitter = Math.sin(x * .037 + y * .021 + seed) * .75;
+          let edgeDistance = Infinity;
+          for (let edgeIndex = 0; edgeIndex < points.length; edgeIndex++) {
+            const start = points[edgeIndex];
+            const end = points[(edgeIndex + 1) % points.length];
+            const edgeX = end[0] - start[0];
+            const edgeY = end[1] - start[1];
+            const along = Math.max(0, Math.min(1, ((x - start[0]) * edgeX + (y - start[1]) * edgeY) / (edgeX * edgeX + edgeY * edgeY)));
+            edgeDistance = Math.min(edgeDistance, Math.hypot(x - start[0] - edgeX * along, y - start[1] - edgeY * along));
+          }
+          const edgeGlow = Math.max(0, 1 - edgeDistance / (spacingX * 1.45));
+          const jitter = Math.sin(x * .037 + y * .021 + seed) * 1.1;
+          const texture = .74 + (Math.sin(x * .061 + y * .043 + seed * 2) + 1) * .12;
           const bit = ((Math.floor(x / spacingX) * 13 + Math.floor(y / spacingY) * 7 + seed + folderIndex) % 3 === 0) ? "0" : "1";
-          const edge = Math.min(x - minX, maxX - x, y - minY, maxY - y) < spacingX * 1.2;
-          context.globalAlpha = Math.min(.98, alpha * (.82 + (edge ? .17 : 0) + local * .14));
-          context.fillStyle = "hsl(" + (folderHue + (side ? 13 : 0)) + " 100% " + (edge ? "96" : "89") + "%)";
+          const lightness = Math.round((side ? 68 : 81) + edgeGlow * (side ? 26 : 17));
+          context.globalAlpha = Math.min(.94, alpha * (.58 + edgeGlow * .34 + local * .14) * texture);
+          context.fillStyle = "hsl(" + (folderHue + (side ? 13 : 0)) + " 100% " + lightness + "%)";
           context.fillText(bit, x + warpX + jitter, y + warpY);
         }
       }
     };
+    const noise = (value) => {
+      const sample = Math.sin(value * 127.1 + folderIndex * 311.7) * 43758.5453;
+      return sample - Math.floor(sample);
+    };
+    const drawEdgeParticles = (points, amount, opacity) => {
+      for (let index = 0; index < amount; index++) {
+        const start = points[index % points.length];
+        const end = points[(index + 1) % points.length];
+        const along = noise(index * 4 + 1);
+        const outward = 2 + noise(index * 4 + 2) * (folder.classList.contains("is-active") ? 34 : 22);
+        const x = start[0] + (end[0] - start[0]) * along + (end[1] - start[1]) / Math.hypot(end[0] - start[0], end[1] - start[1]) * outward;
+        const y = start[1] + (end[1] - start[1]) * along - (end[0] - start[0]) / Math.hypot(end[0] - start[0], end[1] - start[1]) * outward;
+        if (x < 0 || x > pointer.width || y < 0 || y > pointer.height) continue;
+        const radius = .55 + noise(index * 4 + 3) * (folder.classList.contains("is-active") ? 2.1 : 1.25);
+        const dx = x - pointer.x;
+        const dy = y - pointer.y;
+        const falloff = pointer.strength * Math.exp(-(dx * dx + dy * dy) / (2 * Math.pow(Math.min(pointer.width, pointer.height) * .2, 2)));
+        const distance = Math.hypot(dx, dy) || 1;
+        context.globalAlpha = opacity * (.42 + noise(index * 4 + 4) * .58);
+        context.fillStyle = "#b8dcff";
+        context.shadowBlur = folder.classList.contains("is-active") ? 9 : 3;
+        context.shadowColor = "rgba(95, 174, 255, .8)";
+        context.beginPath();
+        context.arc(x + dx / distance * falloff * 9, y + dy / distance * falloff * 9, radius, 0, Math.PI * 2);
+        context.fill();
+      }
+      context.shadowBlur = 0;
+    };
     function draw() {
       context.clearRect(0, 0, pointer.width, pointer.height);
-      const front = polygon(pointer.width, pointer.height, 0, 0);
-      const back = polygon(pointer.width, pointer.height, 12, -9);
+      const front = polygon(pointer.width, pointer.height);
+      const bottom = pointer.width <= 245 ? .67 : .87;
+      const back = [
+        [pointer.width * .14, pointer.height * .075],
+        [pointer.width * .375, pointer.height * .075],
+        [pointer.width * .46, pointer.height * .195],
+        [pointer.width * .965, pointer.height * .195],
+        [pointer.width * .94, pointer.height * (bottom - .012)],
+        [pointer.width * .09, pointer.height * (bottom + .012)],
+      ];
       const sideRight = [front[3], front[4], back[4], back[3]];
       const sideBottom = [front[4], front[5], back[5], back[4]];
+      const frontFont = context.font;
+      const isActive = folder.classList.contains("is-active");
 
       const backGlow = context.createLinearGradient(0, 0, pointer.width, pointer.height);
       backGlow.addColorStop(0, "rgba(86, 168, 255, .025)");
@@ -248,35 +303,54 @@
       trace(back);
       context.fillStyle = backGlow;
       context.fill();
-      drawFace(back, 16, 17, 19, .18);
+      context.font = (pointer.width < 245 ? 6 : 8) + "px ui-monospace, SFMono-Regular, Consolas, monospace";
+      drawFace(back, 12, 15, 19, .12);
 
       [sideRight, sideBottom].forEach((face, index) => {
         trace(face);
         const shade = context.createLinearGradient(face[0][0], face[0][1], face[2][0], face[2][1]);
-        shade.addColorStop(0, "rgba(97, 176, 255, .13)");
-        shade.addColorStop(1, "rgba(7, 22, 44, .24)");
+        shade.addColorStop(0, "rgba(97, 176, 255, .22)");
+        shade.addColorStop(1, "rgba(7, 22, 44, .36)");
         context.fillStyle = shade;
         context.fill();
-        drawFace(face, 8, 12, index + 5, .88, true);
+        drawFace(face, 10, 14, index + 5, index === 0 ? .44 : .3, true);
       });
 
+      context.font = frontFont;
       trace(front);
-      context.fillStyle = "rgba(3, 11, 24, .055)";
+      const faceShade = context.createLinearGradient(0, 0, pointer.width, pointer.height);
+      faceShade.addColorStop(0, "rgba(17, 56, 101, .12)");
+      faceShade.addColorStop(.58, "rgba(3, 11, 24, .035)");
+      faceShade.addColorStop(1, "rgba(26, 86, 157, .1)");
+      context.fillStyle = faceShade;
       context.fill();
-      drawFace(front, pointer.width < 245 ? 12 : 14, pointer.width < 245 ? 13 : 15, 5, folder.classList.contains("is-active") ? .95 : .76);
+      drawFace(front, pointer.width < 245 ? 13 : 15, pointer.width < 245 ? 14 : 16, 5, isActive ? .96 : .76);
+
+      drawEdgeParticles(front, isActive ? 240 : 82, isActive ? .88 : .28);
 
       trace(back);
       context.strokeStyle = "rgba(118, 188, 255, .29)";
       context.lineWidth = 1;
       context.stroke();
       trace(front);
-      context.strokeStyle = folder.classList.contains("is-active") ? "rgba(194, 227, 255, .91)" : "rgba(121, 182, 246, .5)";
-      context.lineWidth = folder.classList.contains("is-active") ? 1.5 : 1;
-      context.shadowBlur = folder.classList.contains("is-active") ? 12 : 4;
+      context.strokeStyle = isActive ? "rgba(194, 227, 255, .96)" : "rgba(121, 182, 246, .5)";
+      context.lineWidth = isActive ? 1.7 : 1;
+      context.shadowBlur = isActive ? 21 : 5;
       context.shadowColor = "rgba(75, 163, 255, .8)";
       context.stroke();
       context.shadowBlur = 0;
       context.globalAlpha = 1;
+      if (reflectionContext) {
+        reflectionContext.save();
+        reflectionContext.setTransform(1, 0, 0, 1, 0, 0);
+        reflectionContext.clearRect(0, 0, reflectionCanvas.width, reflectionCanvas.height);
+        reflectionContext.translate(0, reflectionCanvas.height);
+        reflectionContext.scale(1, -1);
+        const sourceTop = pointer.height * .08 * pointer.ratio;
+        const sourceHeight = pointer.height * bottom;
+        reflectionContext.drawImage(canvas, 0, sourceTop, canvas.width, sourceHeight * pointer.ratio, 0, 0, reflectionCanvas.width, reflectionCanvas.height);
+        reflectionContext.restore();
+      }
     }
     pointer.draw = draw;
     folderPointers[folderIndex] = pointer;
@@ -302,6 +376,11 @@
       pointer.ratio = Math.min(window.devicePixelRatio || 1, 1.35);
       canvas.width = Math.round(pointer.width * pointer.ratio);
       canvas.height = Math.round(pointer.height * pointer.ratio);
+      if (reflectionContext) {
+        reflectionCanvas.width = canvas.width;
+        reflectionCanvas.height = Math.round(canvas.height * (pointer.width <= 245 ? .34 : .43));
+      folder.dataset.mobile = String(window.matchMedia("(max-width: 780px)").matches);
+      }
       context.setTransform(pointer.ratio, 0, 0, pointer.ratio, 0, 0);
       context.font = (pointer.width < 245 ? 9 : 12) + "px ui-monospace, SFMono-Regular, Consolas, monospace";
       context.textAlign = "center";
