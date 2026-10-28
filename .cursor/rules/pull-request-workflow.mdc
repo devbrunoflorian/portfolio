@@ -1,0 +1,8 @@
+---
+description: Apply the shared portfolio agent workflow
+alwaysApply: true
+---
+
+# Shared workflow
+
+Follow the repository-root `AGENTS.md` as the source of truth for task ownership, worktree isolation, verification, and pull-request handoff. Keep this rule as a pointer so the workflow stays consistent across agents.
