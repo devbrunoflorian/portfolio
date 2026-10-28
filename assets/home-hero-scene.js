@@ -3,9 +3,9 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { Reflector } from "three/addons/objects/Reflector.js";
 import { MeshoptDecoder } from "three/addons/libs/meshopt_decoder.module.js";
 import { SimplifyModifier } from "three/addons/modifiers/SimplifyModifier.js";
-import { createSpatialEnvironment } from "./home-environment-scene.js?v=mobile-compose-1";
-import { homeEnvironment } from "./home-environment.js?v=mobile-compose-1";
-import { mobileViewport, revealMobileCopy, updateMobileProgress } from "./home-mobile.js?v=mobile-compose-1";
+import { createSpatialEnvironment } from "./home-environment-scene.js?v=pbr-tight-1";
+import { homeEnvironment } from "./home-environment.js?v=pbr-tight-1";
+import { mobileViewport, revealMobileCopy, updateMobileProgress } from "./home-mobile.js?v=pbr-tight-1";
 
 const frame = document.querySelector("#scene-frame");
 const canvas = document.querySelector("#scene-canvas");
@@ -480,6 +480,7 @@ function renderFrame(timestamp) {
     homeEnvironment.update(timestamp, elapsed);
     homeEnvironment.setAnchor(projectTrackingCenter(), frame.getBoundingClientRect());
   }
+  spatialEnvironment?.render(renderer, camera);
   renderer.render(scene, camera);
   if (frame.dataset.sceneState === "loading") {
     frame.dataset.sceneState = "live";
@@ -524,12 +525,12 @@ async function startScene() {
     }
 
     renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: "low-power" });
-    renderer.setClearColor(0x050608, 1);
+    renderer.setClearColor(0x070809, 1);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.12;
 
-    scene.background = new THREE.Color(0x050608);
+    scene.background = new THREE.Color(0x070809);
     // Both modes use the same fixed rig and silhouette-only material.
     const whiteLight = new THREE.DirectionalLight(0xffffff, 0.65);
     whiteLight.name = "fixed-white-left-light";
@@ -597,9 +598,11 @@ async function startScene() {
       const renderReflectionWithoutWireOverlay = reflectiveFloor.onBeforeRender;
       reflectiveFloor.onBeforeRender = function (...args) {
         for (const wireframe of wireframes) wireframe.visible = false;
+        spatialEnvironment?.setReflectionVisible(true);
         try {
           renderReflectionWithoutWireOverlay.apply(this, args);
         } finally {
+          spatialEnvironment?.setReflectionVisible(false);
           for (const wireframe of wireframes) wireframe.visible = true;
         }
       };

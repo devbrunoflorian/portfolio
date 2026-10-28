@@ -79,11 +79,20 @@ function createEnvironment() {
       <g class="construction-anchors" fill="currentColor" stroke="none">
         <circle cx="320" cy="104" r="2.2" />
         <circle cx="546" cy="350" r="2.2" />
-        <circle cx="94" cy="176" r="2.2" />
-        <circle cx="507" cy="161" r="1.8" />
-        <circle cx="568" cy="123" r="1.8" />
-        <circle cx="507" cy="62" r="1.8" />
+        <circle cx="94" cy="350" r="2.2" />
         <circle cx="320" cy="596" r="2" />
+      </g>
+      <g class="construction-neon" style="--signal-path: path('M408 62H568V161H408Z'); --signal-duration: 11s; --signal-delay: -3s;">
+        <path class="neon-rail" d="M408 62H568V161H408Z" pathLength="1" />
+        <circle class="neon-runner" cx="0" cy="0" r="2" />
+      </g>
+      <g class="construction-neon" style="--signal-path: path('M507 62V161H568V123H507'); --signal-duration: 8.7s; --signal-delay: -5.4s;">
+        <path class="neon-rail" d="M507 62V161H568V123H507" pathLength="1" />
+        <circle class="neon-runner" cx="0" cy="0" r="1.8" />
+      </g>
+      <g class="construction-neon" style="--signal-path: path('M94 176V530H320'); --signal-duration: 13s; --signal-delay: -8s;">
+        <path class="neon-rail" d="M94 176V530H320" pathLength="1" />
+        <circle class="neon-runner" cx="0" cy="0" r="1.8" />
       </g>
     </svg>
 
@@ -100,7 +109,6 @@ function createEnvironment() {
       <section class="computational-system system-group-a" data-module="a" aria-label="System A: Synthesis">
         <div class="system-bracket" aria-hidden="true">
           <span class="bracket-tag">SYS.01 // SYNTHESIS</span>
-          <span class="system-status-indicator"></span>
         </div>
 
         <!-- 1. ANALYZE (Single line binary slots resolving to crimson letters) -->
@@ -859,7 +867,7 @@ function createEnvironment() {
   });
 
   function settle() {
-    for (const anim of element.getAnimations({ subtree: true })) anim.cancel();
+    for (const anim of element.querySelector(".environment-labels").getAnimations({ subtree: true })) anim.cancel();
     pointer.x = pointer.y = target.x = target.y = 0;
     element.style.setProperty("--environment-x", "0px");
     element.style.setProperty("--environment-y", "0px");
