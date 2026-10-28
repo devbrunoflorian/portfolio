@@ -34,58 +34,107 @@ export function createSpatialEnvironment(scene, floorY) {
       varying vec3 vLocal;
       varying vec3 vWorld;
       varying vec3 vNormal;
+      varying vec3 vViewPosition;
       varying float vVisibility;
       void main() {
         vLocal = position;
         vec4 world = modelMatrix * instanceMatrix * vec4(position, 1.0);
         vWorld = world.xyz;
         vNormal = normalize(mat3(modelMatrix * instanceMatrix) * normal);
+        vec4 viewPos = viewMatrix * world;
+        vViewPosition = -viewPos.xyz;
         vVisibility = aVisibility;
-        gl_Position = projectionMatrix * viewMatrix * world;
+        gl_Position = projectionMatrix * viewPos;
       }
     `,
     fragmentShader: `
       varying vec3 vLocal;
       varying vec3 vWorld;
       varying vec3 vNormal;
+      varying vec3 vViewPosition;
       varying float vVisibility;
       void main() {
         if (vVisibility < 0.05) discard;
         vec3 p = abs(vLocal);
-        // Identify edges of the box: fine, razor-sharp architectural CAD lines
+        
+        // 1. Razor-sharp architectural cut edges and faceted chamfers
         float secondAxis = min(max(p.x, p.y), min(max(p.y, p.z), max(p.x, p.z)));
-        float edge = smoothstep(0.482, 0.497, secondAxis);
+        float edge = smoothstep(0.478, 0.496, secondAxis);
         
-        // Lighting: key light from top-left, crimson fill from right
+        // Diagonal corner facet plane (gives gemstone cut appearance)
+        float facetCut = smoothstep(0.66, 0.72, p.x + p.y + p.z - 0.78);
+        
+        // 2. Normal perturbation for cut crystal facets (subtle slope per face quadrant)
         vec3 norm = normalize(vNormal);
-        float key = max(dot(norm, normalize(vec3(-2.2, 3.2, 3.5))), 0.0);
-        float redFill = max(dot(norm, normalize(vec3(3.2, 1.2, 2.8))), 0.0);
+        vec3 facetNorm = normalize(norm + 0.14 * sign(vLocal) * (1.0 - smoothstep(0.38, 0.49, p)));
+        vec3 viewDir = normalize(vViewPosition);
         
-        // Subtle procedural grain
-        float grain = fract(sin(dot(floor(vWorld * 160.0), vec3(12.9898, 78.233, 37.719))) * 43758.5453);
+        // 3. Environmental directional light sources (matching scene key & rim)
+        vec3 keyDir = normalize(vec3(-2.4, 3.2, 4.0));
+        vec3 redDir = normalize(vec3(3.4, 1.4, 3.2));
         
-        // Dark monolithic surfaces with crisp architectural edges
-        vec3 faceColor = vec3(0.012, 0.013, 0.017)
-                       + key * vec3(0.028, 0.030, 0.036)
-                       + redFill * vec3(0.022, 0.002, 0.005);
+        float keyDiffuse = max(dot(norm, keyDir), 0.0);
+        float redDiffuse = max(dot(norm, redDir), 0.0);
+        
+        // Specular glints (faceted gemstone reflectance)
+        vec3 halfKey = normalize(keyDir + viewDir);
+        vec3 halfRed = normalize(redDir + viewDir);
+        float specKey = pow(max(dot(facetNorm, halfKey), 0.0), 32.0);
+        float specRed = pow(max(dot(facetNorm, halfRed), 0.0), 20.0);
+        
+        // Razor-sharp edge glints (white from left, crimson from right)
+        float edgeKeyGlint = edge * pow(max(dot(norm, halfKey), 0.0), 16.0);
+        float edgeRedGlint = edge * pow(max(dot(norm, halfRed), 0.0), 12.0);
+        
+        // Fresnel reflection (smoked obsidian high refraction, low base reflectivity)
+        float fresnel = pow(1.0 - max(dot(norm, viewDir), 0.0), 4.0);
+        
+        // Crystalline micro-grain (mineral obsidian inclusions)
+        float grain = fract(sin(dot(floor(vWorld * 180.0), vec3(12.9898, 78.233, 37.719))) * 43758.5453);
+        
+        // 4. Black Diamond / Smoked Obsidian Core
+        // Base is near-black (dark mass)
+        vec3 coreColor = vec3(0.005, 0.006, 0.008);
+        
+        // Internal dark refractive light reception
+        vec3 internalTone = keyDiffuse * vec3(0.022, 0.024, 0.028)
+                          + redDiffuse * vec3(0.030, 0.004, 0.007);
+                          
+        // Architectural edge lines (structural CAD lines on cut stone)
+        vec3 edgeColor = vec3(0.18, 0.19, 0.22) * (0.6 + 0.4 * keyDiffuse)
+                       + vec3(0.38, 0.04, 0.07) * redDiffuse
+                       + vec3(0.10, 0.11, 0.13);
                        
-        vec3 edgeColor = vec3(0.12, 0.13, 0.15)
-                       + key * vec3(0.06, 0.06, 0.07)
-                       + redFill * vec3(0.20, 0.02, 0.035);
-                       
-        vec3 color = mix(faceColor, edgeColor, edge);
-        color *= mix(0.88, 1.0, grain) * vVisibility;
+        // Combine core, facets and edge
+        vec3 color = mix(coreColor + internalTone, edgeColor, edge);
         
-        gl_FragColor = vec4(color, 1.0);
+        // Add gemstone glints
+        color += specKey * vec3(0.52, 0.55, 0.62) * (0.3 + 0.7 * facetCut);
+        color += specRed * vec3(0.65, 0.08, 0.12) * (0.3 + 0.7 * facetCut);
+        color += edgeKeyGlint * vec3(0.75, 0.80, 0.90) * 1.2;
+        color += edgeRedGlint * vec3(0.95, 0.12, 0.20) * 1.4;
+        color += fresnel * vec3(0.05, 0.055, 0.07);
+        
+        color *= mix(0.93, 1.0, grain) * vVisibility;
+        
+        // 5. Smoked Obsidian Semi-Transparency:
+        // Core alpha ~0.78 allows rear geometry & lines to be perceived dimly through front blocks;
+        // edges are denser (0.92) to preserve dark mass and solid silhouette.
+        float alpha = mix(0.78, 0.92, max(edge, facetCut * 0.5)) * vVisibility;
+        
+        gl_FragColor = vec4(color, alpha);
         #include <tonemapping_fragment>
         #include <colorspace_fragment>
       }
     `,
+    transparent: true,
+    depthWrite: true,
   });
 
   const blocks = new THREE.InstancedMesh(geometry, blockMaterial, totalInstances);
   blocks.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
   blocks.frustumCulled = false;
+  blocks.renderOrder = 2;
   group.add(blocks);
 
   const transform = new THREE.Object3D();
