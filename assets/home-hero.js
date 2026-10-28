@@ -1,4 +1,4 @@
-import { initializeMobileHome, revealMobileCopy } from "./home-mobile.js?v=mobile-compose-1";
+import { initializeMobileHome, revealMobileCopy } from "./home-mobile.js?v=pbr-tight-1";
 
 const frame = document.querySelector("#scene-frame");
 const status = document.querySelector("#scene-status");
@@ -32,7 +32,7 @@ function loadSceneWhenAppropriate() {
 
   if (sceneModulePromise) return;
   frame.dataset.sceneState = "loading";
-  sceneModulePromise = import("./home-hero-scene.js?v=mobile-compose-1").catch((error) => {
+  sceneModulePromise = import("./home-hero-scene.js?v=pbr-tight-1").catch((error) => {
     revealMobileCopy();
     sceneModulePromise = null;
     frame.dataset.sceneState = "poster";
