@@ -736,10 +736,10 @@
       const currentness = roleState.currentness;
       const baseAlpha = previewAlpha + (activeAlpha - previewAlpha) * currentness;
       const colors = face.kind === "side" || face.kind === "top"
-        ? [blendHex("#314a68", "#3a6da5", currentness), blendHex("#6894c2", "#80b4e8", currentness), blendHex("#a5c8e8", "#c6e2ff", currentness)]
+        ? [blendHex("#1d3550", "#294766", currentness), blendHex("#315678", "#3e78ad", currentness), blendHex("#4c80b5", "#5fa9ed", currentness)]
         : face.kind === "rear"
-          ? [blendHex("#1e3450", "#2e5178", currentness), blendHex("#3d5e83", "#507eaf", currentness), blendHex("#74a9df", "#a6ccf4", currentness)]
-        : [blendHex("#27466e", "#315f9a", currentness), blendHex("#4b76a8", "#5e95cf", currentness), blendHex("#80b2e7", "#b0d5fa", currentness)];
+          ? [blendHex("#14273b", "#1e3450", currentness), blendHex("#254261", "#315f8f", currentness), blendHex("#3c6991", "#3e78ad", currentness)]
+        : [blendHex("#27466e", "#315f8f", currentness), blendHex("#3f71a6", "#3e78ad", currentness), blendHex("#568cc4", "#75baf5", currentness)];
       mutateFace(face, time, enabled);
       const radius = Math.max(80, Math.min(125, Math.min(pointer.width, pointer.height) * .24));
       face.cells.forEach((cell) => {
@@ -785,7 +785,7 @@
         context.fillStyle = cell.edgeSample || cell.edgeGlow > .76 ? colors[2] : cell.edgeGlow > .3 ? colors[1] : colors[0];
         const fontSize = (pointer.width < 245 ? 6.5 : 8) * (cell.sizeTier === 2 ? 1.45 : cell.sizeTier === 1 ? 1.06 : 1);
         context.font = fontSize.toFixed(1) + "px ui-monospace, SFMono-Regular, Consolas, monospace";
-        context.shadowColor = face.kind === "front" ? "rgba(112, 181, 255, .9)" : "rgba(73, 145, 235, .52)";
+        context.shadowColor = face.kind === "front" ? "rgba(207, 234, 255, .78)" : "rgba(95, 169, 237, .44)";
         context.shadowBlur = cell.edgeSample ? 1.6 + currentness * (5.5 + cell.edgeGlow * 3) : face.kind === "front" && cell.edgeGlow > .78 ? 2 + currentness * 4 : (face.kind === "side" || face.kind === "top") && cell.edgeGlow > .52 ? 1.4 + currentness * 3 : 0;
         context.fillText(cell.bit, x, y);
       });
