@@ -654,10 +654,10 @@
             normalX *= -1;
             normalY *= -1;
           }
-          const alongStep = Math.max(7, spacingX * .72);
+          const alongStep = Math.max(8, spacingX * .9);
           for (let along = alongStep * .5; along < edgeLength; along += alongStep) {
             const ratio = along / edgeLength;
-            for (const depth of [.24, .72, 1.2]) {
+            for (const depth of [.36, 1.08]) {
               const jitter = (noise(seed * 97 + edgeSample * 13) - .5) * spacingX * .12;
               const x = start[0] + edgeX * ratio - normalX * (spacingY * depth + jitter);
               const y = start[1] + edgeY * ratio - normalY * (spacingY * depth + jitter);
@@ -744,7 +744,7 @@
       const radius = Math.max(80, Math.min(125, Math.min(pointer.width, pointer.height) * .24));
       face.cells.forEach((cell) => {
         const interior = cell.edgeGlow < .32;
-        if (face.kind === "front" && interior && cell.sparse < .48) return;
+        if (face.kind === "front" && interior && cell.sparse < .18) return;
         if (face.kind === "middle" && cell.sparse < .66) return;
         if (face.kind === "rear" && cell.sparse < .72) return;
         if (face.kind !== "front" && face.kind !== "middle" && face.kind !== "rear" && cell.sparse < .18) return;
@@ -773,7 +773,7 @@
         const flash = time < cell.flashUntil ? 1.12 : 1;
         const edge = Math.pow(cell.edgeGlow, 1.72);
         const contour = face.kind === "front"
-          ? .32 + edge * (.94 + currentness * .18) + (cell.edgeSample ? .2 : 0)
+          ? .62 + edge * (.74 + currentness * .12) + (cell.edgeSample ? .06 : 0)
           : face.kind === "middle" ? .16 + edge * .42
             : face.kind === "rear" ? .1 + edge * .3
               : .14 + edge * .52;
@@ -783,7 +783,7 @@
         const lightAlpha = baseAlpha * contour * pulse * flash * cell.glow * emission * (1 + disturbed) * coherence;
         context.globalAlpha = Math.min(.88 + currentness * .12, lightAlpha);
         context.fillStyle = cell.edgeSample || cell.edgeGlow > .76 ? colors[2] : cell.edgeGlow > .3 ? colors[1] : colors[0];
-        const fontSize = (pointer.width < 245 ? 6.5 : 8) * (cell.sizeTier === 2 ? 1.45 : cell.sizeTier === 1 ? 1.06 : 1);
+        const fontSize = (pointer.width < 245 ? 6.5 : 8) * (cell.sizeTier === 2 ? 1.1 : cell.sizeTier === 1 ? 1.06 : 1);
         context.font = fontSize.toFixed(1) + "px ui-monospace, SFMono-Regular, Consolas, monospace";
         context.shadowColor = face.kind === "front" ? "rgba(207, 234, 255, .78)" : "rgba(95, 169, 237, .44)";
         context.shadowBlur = cell.edgeSample ? 1.6 + currentness * (5.5 + cell.edgeGlow * 3) : face.kind === "front" && cell.edgeGlow > .78 ? 2 + currentness * 4 : (face.kind === "side" || face.kind === "top") && cell.edgeGlow > .52 ? 1.4 + currentness * 3 : 0;
