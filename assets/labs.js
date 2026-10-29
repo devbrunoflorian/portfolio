@@ -103,6 +103,7 @@
     return {
       current: toLocalBounds(transition.currentIndex),
       next: toLocalBounds(transition.nextIndex),
+      finalApproach: clamp((position - (folders.length - 1.22)) / .22, 0, 1),
       width: ambientWidth,
       height: ambientHeight,
     };
@@ -132,6 +133,14 @@
       const bend = particle.offset * curve;
       x = current.x + dx * along - (dy / distance) * bend;
       y = current.y + dy * along + (dx / distance) * bend - curve * 18;
+      if (layout.finalApproach > 0) {
+        const progress = layout.finalApproach * layout.finalApproach * (3 - 2 * layout.finalApproach);
+        const radius = 1.38 + particle.radiusFactor * .32;
+        const targetX = next.x + Math.cos(particle.angle) * next.width * .5 * radius;
+        const targetY = next.y + Math.sin(particle.angle) * next.height * .5 * radius;
+        x += (targetX - x) * progress;
+        y += (targetY - y) * progress;
+      }
     } else if (particle.zone === "floor") {
       x = current.left + current.width * (.06 + particle.along * .88);
       y = current.bottom + 7 + particle.depth * Math.min(76, layout.height * .09);
