@@ -224,13 +224,13 @@
   transitionCanvas.setAttribute("aria-hidden", "true");
   stage.appendChild(transitionCanvas);
   const transitionContext = transitionCanvas.getContext("2d", { alpha: true });
-  const bridgeParticles = Array.from({ length: 156 }, (_, index) => ({
-    phase: index / 156,
-    drift: ((Math.sin(index * 71.73) + 1) * .5 - .5) * .12,
-    size: .45 + ((Math.sin(index * 18.91) + 1) * .5) * 1.25,
-    spreadX: Math.sin(index * 8.17) * (6 + ((Math.sin(index * 29.41) + 1) * .5) * 11),
-    spreadY: Math.cos(index * 12.37) * (8 + ((Math.sin(index * 41.03) + 1) * .5) * 15),
-    binary: index % 9 === 0,
+  const bridgeParticles = Array.from({ length: 224 }, (_, index) => ({
+    phase: index / 224,
+    drift: ((Math.sin(index * 71.73) + 1) * .5 - .5) * .1,
+    size: .7 + ((Math.sin(index * 18.91) + 1) * .5) * 1.1,
+    spreadX: Math.sin(index * 8.17) * (14 + ((Math.sin(index * 29.41) + 1) * .5) * 18),
+    spreadY: Math.cos(index * 12.37) * (12 + ((Math.sin(index * 41.03) + 1) * .5) * 16),
+    binary: index % 6 === 0,
     bit: index % 2 ? "0" : "1",
   }));
 
@@ -281,11 +281,11 @@
     const nextIndex = currentIndex < folders.length - 1 ? currentIndex + 1 : -1;
     const fraction = nextIndex < 0 ? 0 : clamp(bounded - currentIndex);
     const edgeInstability = nextIndex < 0 ? 0 : smoothstep((fraction - .08) / .26);
-    const dissolution = nextIndex < 0 ? 0 : smoothstep((fraction - .18) / .6);
-    const reconstruction = nextIndex < 0 ? 0 : smoothstep((fraction - .18) / .6);
+    const dissolution = nextIndex < 0 ? 0 : smoothstep((fraction - .12) / .7);
+    const reconstruction = nextIndex < 0 ? 0 : smoothstep((fraction - .22) / .7);
     const flow = nextIndex < 0 || reduceMotion.matches
       ? 0
-      : smoothstep((fraction - .16) / .25) * (1 - smoothstep((fraction - .82) / .18));
+      : smoothstep((fraction - .12) / .18) * (1 - smoothstep((fraction - .82) / .18));
 
     return {
       currentIndex,
@@ -330,7 +330,7 @@
 
       const assembling = isNext ? transition.reconstruction : 0;
       const dissolving = isCurrent ? transition.dissolution : 0;
-      const x = isCurrent ? 0 : step * .78 * (1 - assembling);
+      const x = isCurrent ? 0 : step * .64 * (1 - assembling);
       const y = isCurrent ? 0 : 18 * (1 - assembling);
       const z = isCurrent ? 20 : -210 + 230 * assembling;
       const rotation = 0;
@@ -358,30 +358,30 @@
     const from = folders[transition.currentIndex].getBoundingClientRect();
     const to = folders[transition.nextIndex].getBoundingClientRect();
     const stageBounds = stage.getBoundingClientRect();
-    const startX = from.left - stageBounds.left + from.width * .56;
-    const startY = from.top - stageBounds.top + from.height * .53;
-    const endX = to.left - stageBounds.left + to.width * .48;
-    const endY = to.top - stageBounds.top + to.height * .51;
-    const controlAX = startX + Math.min(120, stageWidth * .1);
-    const controlAY = startY - Math.min(100, stageHeight * .12);
-    const controlBX = endX - Math.min(80, stageWidth * .07);
-    const controlBY = endY + Math.min(50, stageHeight * .06);
-    const travel = (transition.fraction - .1) / .8;
+    const startX = from.left - stageBounds.left + from.width * .2;
+    const startY = from.top - stageBounds.top + from.height * .38;
+    const endX = to.left - stageBounds.left + to.width * .68;
+    const endY = to.top - stageBounds.top + to.height * .52;
+    const controlAX = startX + Math.min(180, stageWidth * .12);
+    const controlAY = startY - Math.min(140, stageHeight * .16);
+    const controlBX = endX - Math.min(120, stageWidth * .08);
+    const controlBY = endY + Math.min(72, stageHeight * .08);
+    const travel = (transition.fraction - .06) / .88;
 
     bridgeParticles.forEach((particle) => {
-      const progress = clamp(travel + particle.phase * .2 - .1 + particle.drift);
+      const progress = clamp(travel + (particle.phase - .5) * .56 + particle.drift);
       const inverse = 1 - progress;
       const spread = Math.sin(progress * Math.PI);
       const x = inverse ** 3 * startX + 3 * inverse ** 2 * progress * controlAX + 3 * inverse * progress ** 2 * controlBX + progress ** 3 * endX + particle.spreadX * spread;
       const y = inverse ** 3 * startY + 3 * inverse ** 2 * progress * controlAY + 3 * inverse * progress ** 2 * controlBY + progress ** 3 * endY + particle.spreadY * spread;
-      const envelope = .2 + Math.sin(progress * Math.PI) * .8;
+      const envelope = .45 + Math.sin(progress * Math.PI) * .55;
       const pulse = .9 + Math.sin(time * .0032 + particle.phase * 28) * .1;
-      transitionContext.globalAlpha = transition.flow * envelope * pulse * (particle.binary ? 1.05 : .84);
-      transitionContext.fillStyle = particle.binary ? "#c9e4ff" : "#80b6f0";
-      transitionContext.shadowColor = "rgba(95, 174, 255, .7)";
-      transitionContext.shadowBlur = particle.binary ? 6 : 3;
+      transitionContext.globalAlpha = transition.flow * envelope * pulse * (particle.binary ? .92 : .64);
+      transitionContext.fillStyle = particle.binary ? "#8fcaff" : "#4f9ffc";
+      transitionContext.shadowColor = "rgba(76, 154, 255, .78)";
+      transitionContext.shadowBlur = particle.binary ? 5 : 2.5;
       if (particle.binary) {
-        transitionContext.font = "10px ui-monospace, SFMono-Regular, Consolas, monospace";
+        transitionContext.font = "11px ui-monospace, SFMono-Regular, Consolas, monospace";
         transitionContext.textAlign = "center";
         transitionContext.textBaseline = "middle";
         transitionContext.fillText(particle.bit, x, y);
