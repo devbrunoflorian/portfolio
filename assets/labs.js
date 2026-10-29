@@ -18,15 +18,16 @@
   const progressBar = document.querySelector("[data-lab-progress]");
   const handoffLabel = document.querySelector("[data-lab-handoff-label]");
   const sticky = document.querySelector(".labs-sticky");
+  const header = document.querySelector(".labs-header");
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 
-  if (!runway || !stage || !collection || folders.length !== 5 || !controls || !motionControl) return;
+  if (!runway || !stage || !collection || !sticky || folders.length !== 5 || !controls || !motionControl) return;
 
   const ambientCanvas = document.createElement("canvas");
   ambientCanvas.className = "lab-ambient-field";
   ambientCanvas.dataset.labAmbientField = "true";
   ambientCanvas.setAttribute("aria-hidden", "true");
-  document.body.appendChild(ambientCanvas);
+  sticky.appendChild(ambientCanvas);
   const ambientContext = ambientCanvas.getContext("2d", { alpha: true });
 
   const isEnglish = document.documentElement.lang.toLowerCase().startsWith("en");
@@ -58,40 +59,116 @@
     return raw - Math.floor(raw);
   }
 
+  const ambientZoneShares = [
+    ["active", .7],
+    ["corridor", .15],
+    ["floor", .1],
+    ["stray", .05],
+  ];
+
+  function ambientZoneCounts(amount) {
+    const allocations = ambientZoneShares.map(([zone, share]) => {
+      const exact = amount * share;
+      const count = Math.floor(exact);
+      return { zone, count, remainder: exact - count };
+    });
+    const unassigned = amount - allocations.reduce((total, allocation) => total + allocation.count, 0);
+    allocations.sort((a, b) => b.remainder - a.remainder);
+    for (let index = 0; index < unassigned; index += 1) allocations[index].count += 1;
+    return Object.fromEntries(allocations.map(({ zone, count }) => [zone, count]));
+  }
+
+  function ambientLayout(position = visualPosition) {
+    const canvasBounds = ambientCanvas.getBoundingClientRect();
+    const transition = transitionState(position);
+    const toLocalBounds = (index) => {
+      if (index < 0) return null;
+      const bounds = folders[index].getBoundingClientRect();
+      const left = bounds.left - canvasBounds.left + bounds.width * .055;
+      const right = bounds.left - canvasBounds.left + bounds.width * .91;
+      const top = bounds.top - canvasBounds.top + bounds.height * .16;
+      const bottom = bounds.top - canvasBounds.top + bounds.height * .87;
+      return {
+        left,
+        top,
+        right,
+        bottom,
+        width: right - left,
+        height: bottom - top,
+        x: (left + right) * .5,
+        y: (top + bottom) * .5,
+      };
+    };
+
+    return {
+      current: toLocalBounds(transition.currentIndex),
+      next: toLocalBounds(transition.nextIndex),
+      width: ambientWidth,
+      height: ambientHeight,
+    };
+  }
+
+  function ambientAnchor(particle, layout) {
+    const current = layout.current;
+    if (!current) return { x: layout.width * .5, y: layout.height * .5 };
+
+    let x;
+    let y;
+    if (particle.zone === "active") {
+      const radius = 1.04 + particle.radiusFactor * .42;
+      x = current.x + Math.cos(particle.angle) * current.width * .5 * radius;
+      y = current.y + Math.sin(particle.angle) * current.height * .5 * radius;
+    } else if (particle.zone === "corridor") {
+      const next = layout.next || {
+        x: current.x + current.width * .72,
+        y: current.y + current.height * .04,
+      };
+      const dx = next.x - current.x;
+      const dy = next.y - current.y;
+      const distance = Math.hypot(dx, dy) || 1;
+      const along = .12 + particle.along * .76;
+      const curve = Math.sin(along * Math.PI);
+      const bend = particle.offset * curve;
+      x = current.x + dx * along - (dy / distance) * bend;
+      y = current.y + dy * along + (dx / distance) * bend - curve * 18;
+    } else if (particle.zone === "floor") {
+      x = current.left + current.width * (.06 + particle.along * .88);
+      y = current.bottom + 7 + particle.depth * Math.min(76, layout.height * .09);
+    } else {
+      const radius = 1.3 + particle.radiusFactor * .48;
+      x = current.x + Math.cos(particle.angle) * current.width * .5 * radius;
+      y = current.y + Math.sin(particle.angle) * current.height * .5 * radius;
+    }
+
+    return {
+      x: clamp(x, 0, layout.width),
+      y: clamp(y, 0, layout.height),
+    };
+  }
+
   function makeAmbientParticles() {
     const amount = isMobileScene() ? 84 : 180;
-    return Array.from({ length: amount }, (_, index) => {
-      const region = [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 4, 4][index % 20];
-      const horizontal = fieldNoise(index * 13 + 1);
-      const vertical = fieldNoise(index * 17 + 2);
-      let x;
-      let y;
-      if (region === 0) {
-        x = ambientWidth * (.24 + horizontal * .2);
-        y = ambientHeight * (.12 + vertical * .72);
-      } else if (region === 1) {
-        x = ambientWidth * (.035 + horizontal * .29);
-        y = ambientHeight * (.2 + vertical * .66);
-      } else if (region === 2) {
-        x = ambientWidth * (.06 + horizontal * .78);
-        y = ambientHeight * (.72 + vertical * .27);
-      } else if (region === 3) {
-        x = ambientWidth * (.02 + horizontal * .96);
-        y = ambientHeight * (.008 + vertical * .084);
-      } else {
-        x = ambientWidth * (.49 + horizontal * .46);
-        y = ambientHeight * (.14 + vertical * .68);
-      }
-      const alpha = .2 + fieldNoise(index * 19 + 3) * .25;
-      return {
-        anchorX: x,
-        anchorY: y,
-        x,
-        y,
+    const zoneCounts = ambientZoneCounts(amount);
+    const zones = ambientZoneShares.flatMap(([zone]) => Array(zoneCounts[zone]).fill(zone));
+    const layout = ambientLayout();
+    ambientCanvas.dataset.particleZones = JSON.stringify(zoneCounts);
+
+    return zones.map((zone, index) => {
+      const particle = {
+        zone,
+        angle: fieldNoise(index * 101 + 1) * Math.PI * 2,
+        along: fieldNoise(index * 107 + 2),
+        offset: (fieldNoise(index * 113 + 3) - .5) * 104,
+        depth: fieldNoise(index * 127 + 4),
+        radiusFactor: fieldNoise(index * 131 + 5),
+        anchorX: 0,
+        anchorY: 0,
+        x: 0,
+        y: 0,
         vx: 0,
         vy: 0,
         radius: .65 + fieldNoise(index * 23 + 4) * 1.25,
-        alpha,
+        alpha: .2 + fieldNoise(index * 19 + 3) * .25,
         phase: fieldNoise(index * 29 + 5) * Math.PI * 2,
         orbitSpeed: .55 + fieldNoise(index * 31 + 6) * .5,
         pulseSpeed: 1.4 + fieldNoise(index * 37 + 7) * 1.7,
@@ -102,11 +179,18 @@
         bit: index % 2 ? "0" : "1",
         node: fieldNoise(index * 59 + 12) > .978,
       };
+      const anchor = ambientAnchor(particle, layout);
+      particle.anchorX = anchor.x;
+      particle.anchorY = anchor.y;
+      particle.x = anchor.x;
+      particle.y = anchor.y;
+      return particle;
     });
   }
 
   function drawAmbientField(time, deltaMs) {
     if (!ambientContext) return;
+    const layout = ambientLayout();
     ambientContext.setTransform(ambientRatio, 0, 0, ambientRatio, 0, 0);
     ambientContext.clearRect(0, 0, ambientWidth, ambientHeight);
     if (!sceneVisible) return;
@@ -116,6 +200,9 @@
     let maxDisplacement = 0;
     let maxVelocity = 0;
     for (const particle of ambientParticles) {
+      const anchor = ambientAnchor(particle, layout);
+      particle.anchorX = anchor.x;
+      particle.anchorY = anchor.y;
       if (delta > 0) {
         const orbit = time * .00035 * particle.orbitSpeed + particle.phase;
         const homeX = particle.anchorX + (motionPaused ? 0 : Math.cos(orbit) * particle.orbitRadiusX);
@@ -183,12 +270,16 @@
   }
 
   function resetAmbientField() {
+    const layout = ambientLayout();
     ambientPointer.x = -1000;
     ambientPointer.y = -1000;
     ambientPointer.strength = 0;
     ambientPointer.targetStrength = 0;
     ambientPointer.recovering = false;
     ambientParticles.forEach((particle) => {
+      const anchor = ambientAnchor(particle, layout);
+      particle.anchorX = anchor.x;
+      particle.anchorY = anchor.y;
       particle.x = particle.anchorX;
       particle.y = particle.anchorY;
       particle.vx = 0;
@@ -509,8 +600,17 @@
 
   window.addEventListener("pointermove", (event) => {
     if (!sceneVisible || reduceMotion.matches || event.pointerType === "touch") return;
-    ambientPointer.x = event.clientX;
-    ambientPointer.y = event.clientY;
+    const bounds = ambientCanvas.getBoundingClientRect();
+    const insideField = event.clientX >= bounds.left && event.clientX <= bounds.right
+      && event.clientY >= bounds.top && event.clientY <= bounds.bottom;
+    if (!insideField) {
+      ambientPointer.targetStrength = 0;
+      ambientPointer.recovering = ambientPointer.strength > .01;
+      requestSceneAnimation();
+      return;
+    }
+    ambientPointer.x = event.clientX - bounds.left;
+    ambientPointer.y = event.clientY - bounds.top;
     ambientPointer.targetStrength = .95;
     ambientPointer.recovering = false;
     requestSceneAnimation();
@@ -1019,13 +1119,19 @@
     transitionCanvas.height = Math.round(stageHeight * stageRatio);
     transitionCanvas.style.width = stageWidth + "px";
     transitionCanvas.style.height = stageHeight + "px";
-    ambientWidth = Math.max(1, window.innerWidth);
-    ambientHeight = Math.max(1, window.innerHeight);
+    const stickyBounds = sticky.getBoundingClientRect();
+    const headerBottom = header ? header.getBoundingClientRect().bottom : stickyBounds.top;
+    const ambientTop = clamp(headerBottom - stickyBounds.top, 0, sticky.clientHeight);
+    ambientWidth = Math.max(1, sticky.clientWidth);
+    ambientHeight = Math.max(1, sticky.clientHeight - ambientTop);
     ambientRatio = Math.min(window.devicePixelRatio || 1, 1);
     ambientCanvas.width = Math.round(ambientWidth * ambientRatio);
     ambientCanvas.height = Math.round(ambientHeight * ambientRatio);
+    ambientCanvas.style.top = ambientTop + "px";
+    ambientCanvas.style.left = "0px";
     ambientCanvas.style.width = ambientWidth + "px";
     ambientCanvas.style.height = ambientHeight + "px";
+    ambientCanvas.dataset.headerClearance = ambientTop.toFixed(1);
     ambientParticles = makeAmbientParticles();
     resetAmbientField();
     ambientCanvas.style.visibility = sceneVisible ? "visible" : "hidden";
@@ -1034,8 +1140,12 @@
     requestSceneAnimation();
   }
 
-  if ("ResizeObserver" in window) new ResizeObserver(resizeStage).observe(stage);
-  else window.addEventListener("resize", resizeStage, { passive: true });
+  if ("ResizeObserver" in window) {
+    const stageObserver = new ResizeObserver(resizeStage);
+    stageObserver.observe(stage);
+    stageObserver.observe(sticky);
+    if (header) stageObserver.observe(header);
+  } else window.addEventListener("resize", resizeStage, { passive: true });
   resizeStage();
 
   window.addEventListener("scroll", onScroll, { passive: true });
