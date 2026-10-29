@@ -159,7 +159,7 @@
       maxVelocity = Math.max(maxVelocity, Math.hypot(particle.vx, particle.vy));
       const pulse = .58 + (Math.sin(time * .002 * particle.pulseSpeed + particle.phase) + 1) * .21;
       ambientContext.globalAlpha = particle.alpha * pulse * (1 + ambientPointer.strength * .24);
-      ambientContext.fillStyle = particle.node ? "#d8eaff" : "#9ecbfa";
+      ambientContext.fillStyle = particle.node ? "#cfe5ff" : "#79b2f2";
       ambientContext.shadowColor = "rgba(91, 169, 255, .42)";
       ambientContext.shadowBlur = particle.node ? 2.2 : 1.1;
       if (particle.binary) {
@@ -377,7 +377,7 @@
       const envelope = .2 + Math.sin(progress * Math.PI) * .8;
       const pulse = .9 + Math.sin(time * .0032 + particle.phase * 28) * .1;
       transitionContext.globalAlpha = transition.flow * envelope * pulse * (particle.binary ? 1.05 : .84);
-      transitionContext.fillStyle = particle.binary ? "#e1f2ff" : "#91c8ff";
+      transitionContext.fillStyle = particle.binary ? "#c9e4ff" : "#80b6f0";
       transitionContext.shadowColor = "rgba(95, 174, 255, .7)";
       transitionContext.shadowBlur = particle.binary ? 6 : 3;
       if (particle.binary) {
@@ -734,10 +734,10 @@
       const currentness = roleState.currentness;
       const baseAlpha = previewAlpha + (activeAlpha - previewAlpha) * currentness;
       const colors = face.kind === "side" || face.kind === "top"
-        ? [blendHex("#53708f", "#568dc7", currentness), blendHex("#8eb9e7", "#95caff", currentness), blendHex("#cfe6ff", "#f2f9ff", currentness)]
+        ? [blendHex("#314a68", "#3a6da5", currentness), blendHex("#6894c2", "#80b4e8", currentness), blendHex("#a5c8e8", "#c6e2ff", currentness)]
         : face.kind === "rear"
-          ? [blendHex("#293c55", "#456c9a", currentness), blendHex("#567ca8", "#79aee7", currentness), blendHex("#9fcaff", "#d5eaff", currentness)]
-        : [blendHex("#54708f", "#76a9e6", currentness), blendHex("#9fbeea", "#a8d0ff", currentness), blendHex("#d8ecff", "#ffffff", currentness)];
+          ? [blendHex("#1e3450", "#2e5178", currentness), blendHex("#3d5e83", "#507eaf", currentness), blendHex("#74a9df", "#a6ccf4", currentness)]
+        : [blendHex("#27466e", "#315f9a", currentness), blendHex("#4b76a8", "#5e95cf", currentness), blendHex("#80b2e7", "#b0d5fa", currentness)];
       mutateFace(face, time, enabled);
       const radius = Math.max(80, Math.min(125, Math.min(pointer.width, pointer.height) * .24));
       face.cells.forEach((cell) => {
@@ -853,7 +853,7 @@
         const baseAlpha = current ? .72 : .42;
         const alpha = baseAlpha * pulse * depthScale * transitionFactor;
         context.globalAlpha = alpha;
-        context.fillStyle = particle.node ? "#f1f8ff" : "#b7dcff";
+        context.fillStyle = particle.node ? "#d8eaff" : "#85baf0";
         context.shadowColor = "rgba(91, 169, 255, .7)";
         context.shadowBlur = particle.node ? 5 : particle.depth > .8 ? 3 : 1.2;
         if (particle.binary) {
