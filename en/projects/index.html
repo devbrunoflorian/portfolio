@@ -3,8 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="A spatial gallery of software projects, beginning with CC Catalog." />
-    <meta name="theme-color" content="#071018" />
+    <meta name="description" content="A spatial gallery featuring CC Catalog and spaces reserved for future projects." />
+    <meta name="theme-color" content="#030609" />
     <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg" />
     <title>Projects | Bruno Florian</title>
     <link rel="stylesheet" href="/assets/site.css" />
@@ -14,105 +14,100 @@
   </head>
   <body class="projects-body">
     <a class="skip-link" href="#main-content">Skip to content</a>
-    <div class="site-shell projects-shell">
-      <header class="site-header projects-header">
-        <a class="brand" href="/en/" aria-label="Bruno Florian, home">Bruno Florian<span aria-hidden="true">.</span></a>
-        <nav class="primary-nav desktop-nav" aria-label="Primary navigation">
-          <a href="/en/">Home</a><a href="/en/about/">About</a><a href="/en/labs/">Labs</a><a href="/en/projects/" aria-current="page">Projects</a><a href="/en/contact/">Contact</a>
-        </nav>
-        <nav class="locale-nav" aria-label="Language">
-          <a href="/pt-br/projetos/" data-locale-choice="pt-br" lang="pt-BR">PT</a><a href="/en/projects/" data-locale-choice="en" aria-current="page" lang="en">EN</a>
-        </nav>
-        <details class="mobile-menu">
-          <summary class="menu-toggle"><span class="menu-icon" aria-hidden="true"></span><span>Menu</span></summary>
-          <div class="mobile-menu-panel">
-            <nav class="mobile-nav" aria-label="Primary navigation">
-              <a href="/en/">Home</a><a href="/en/about/">About</a><a href="/en/labs/">Labs</a><a href="/en/projects/" aria-current="page">Projects</a><a href="/en/contact/">Contact</a>
-            </nav>
-            <a class="mobile-github" href="https://github.com/devbrunoflorian" target="_blank" rel="noopener noreferrer">GitHub ↗</a>
-          </div>
-        </details>
-      </header>
+    <header class="site-header projects-header">
+      <a class="brand" href="/en/" aria-label="Bruno Florian, home">Bruno Florian<span aria-hidden="true">.</span></a>
+      <nav class="primary-nav desktop-nav" aria-label="Primary navigation">
+        <a href="/en/">Home</a><a href="/en/about/">About</a><a href="/en/labs/">Labs</a><a href="/en/projects/" aria-current="page">Projects</a><a href="/en/contact/">Contact</a>
+      </nav>
+      <nav class="locale-nav" aria-label="Language">
+        <a href="/pt-br/projetos/" data-locale-choice="pt-br" lang="pt-BR">PT</a><a href="/en/projects/" data-locale-choice="en" aria-current="page" lang="en">EN</a>
+      </nav>
+      <details class="mobile-menu">
+        <summary class="menu-toggle"><span class="menu-icon" aria-hidden="true"></span><span>Menu</span></summary>
+        <div class="mobile-menu-panel">
+          <nav class="mobile-nav" aria-label="Primary navigation">
+            <a href="/en/">Home</a><a href="/en/about/">About</a><a href="/en/labs/">Labs</a><a href="/en/projects/" aria-current="page">Projects</a><a href="/en/contact/">Contact</a>
+          </nav>
+          <a class="mobile-github" href="https://github.com/devbrunoflorian" target="_blank" rel="noopener noreferrer">GitHub ↗</a>
+        </div>
+      </details>
+    </header>
 
-      <main id="main-content" class="projects-main" tabindex="-1">
-        <section class="projects-intro" aria-labelledby="projects-title">
-          <div>
-            <p class="projects-eyebrow"><span>01 / 01</span> Selected work · public repository</p>
-            <h1 id="projects-title">Projects<span>.</span></h1>
-          </div>
-          <p class="projects-lede">Explore one project through the systems and tools described in its repository.</p>
-        </section>
+    <main id="main-content" class="projects-main" tabindex="-1">
+      <div class="projects-atmosphere" aria-hidden="true"><span></span><i></i><b></b></div>
+      <section class="project-intro" aria-labelledby="projects-title">
+        <p class="projects-eyebrow"><span></span> Featured work</p>
+        <h1 id="projects-title">Selected<br /><strong>work.</strong></h1>
+        <p class="projects-lede">A collection of projects and ideas in development.</p>
+        <div class="project-current" data-project-current aria-live="polite" aria-atomic="true">
+          <p class="project-current-index"><span data-project-index>01</span><span aria-hidden="true"> / 05</span><i data-project-status>Available</i></p>
+          <h2 data-project-title>CC Catalog</h2>
+          <p data-project-description>A desktop catalog for organizing credits attached to The Sims custom content.</p>
+          <ul class="project-tags" data-project-tags aria-label="Technologies"><li>Electron</li><li>Vite</li><li>React</li><li>sql.js</li><li>Drizzle</li></ul>
+          <a class="project-primary-link" data-project-link href="https://github.com/devbrunoflorian/CC-Catalog" target="_blank" rel="noopener noreferrer">Explore repository <span aria-hidden="true">↗</span></a>
+          <p class="project-incoming-note" data-project-incoming hidden>This space is reserved for a future project.</p>
+        </div>
+        <div class="project-instructions">
+          <span class="project-mouse-icon" aria-hidden="true"><i></i></span>
+          <span>Scroll, drag or use arrows</span>
+        </div>
+      </section>
 
-        <section class="project-gallery" aria-label="CC Catalog project gallery">
-          <div class="project-stage">
-            <div class="project-horizon" aria-hidden="true"></div>
-            <div class="project-facet facet-far-left" data-view-facet="archive" aria-hidden="true">
-              <p class="project-facet-label">CC CATALOG <strong>ARCHIVE INPUT</strong></p>
-              <div class="facet-visual"><div class="facet-lines"><i></i><i></i><i></i><i></i></div></div>
-            </div>
-            <div class="project-facet facet-left" data-view-facet="data" aria-hidden="true">
-              <p class="project-facet-label">CC CATALOG <strong>DATA · SQL.JS</strong></p>
-              <div class="facet-visual"><div class="facet-grid"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
-            </div>
-            <div class="project-facet facet-right" data-view-facet="matching" aria-hidden="true">
-              <p class="project-facet-label">CC CATALOG <strong>MATCHING · LEVENSHTEIN</strong></p>
-              <div class="facet-visual"><div class="facet-radial"></div></div>
-            </div>
-            <div class="project-facet facet-far-right" data-view-facet="desktop" aria-hidden="true">
-              <p class="project-facet-label">CC CATALOG <strong>DESKTOP · ELECTRON</strong></p>
-              <div class="facet-visual"><div class="facet-node">CC</div></div>
-            </div>
-
-            <article class="project-card" aria-labelledby="cc-catalog-title">
-              <div class="project-cover" aria-hidden="true">
-                <div class="project-cover-mark">
-                  <span>CC</span>
-                  <div class="project-cover-code"><i></i><i></i><i></i></div>
-                </div>
+      <section class="project-gallery" data-project-gallery aria-labelledby="projects-title">
+        <div class="project-arc" data-project-arc tabindex="0" role="region" aria-label="Project screen gallery. Use left and right arrow keys to select a screen.">
+          <div class="project-horizon" aria-hidden="true"></div>
+          <div class="project-floor" aria-hidden="true"></div>
+          <div class="project-reflection" data-project-reflection aria-hidden="true"></div>
+          <article class="project-screen is-active" data-project-screen data-project-slot="0" aria-hidden="true">
+            <div class="screen-art art-catalog" aria-label="Concept diagram of custom content flowing into an organized credit catalog">
+              <div class="catalog-kicker"><span>CC CATALOG / PURPOSE</span><span>SOURCE-BASED</span></div>
+              <div class="catalog-flow" aria-hidden="true">
+                <div class="catalog-source"><i></i><i></i><i></i><small>ZIP ARCHIVE</small></div>
+                <span class="catalog-link catalog-link-in"></span>
+                <div class="catalog-index"><span>CC</span><strong>CATALOG</strong><small>CREATOR / SET / ITEM</small></div>
+                <span class="catalog-link catalog-link-out"></span>
+                <div class="catalog-credits"><i></i><i></i><i></i><small>MARKDOWN CREDITS</small></div>
               </div>
-              <div class="project-card-content">
-                <p class="project-index">01 / 01 <span>Public repository</span></p>
-                <h2 id="cc-catalog-title">CC Catalog</h2>
-                <p class="project-summary">A desktop catalog for organizing credits attached to The Sims custom content.</p>
-                <p class="project-view-detail" data-view-detail aria-live="polite">Electron hosts the desktop app; the interface is built with Vite and React.</p>
-                <ul class="project-stack" aria-label="Repository technologies">
-                  <li>Electron</li><li>Vite</li><li>React</li><li>sql.js</li><li>Drizzle</li>
-                </ul>
-                <a class="project-repository" href="https://github.com/devbrunoflorian/CC-Catalog" target="_blank" rel="noopener noreferrer">Explore repository <span aria-hidden="true">↗</span></a>
-              </div>
-            </article>
-            <nav class="project-view-controls" aria-label="CC Catalog technical views" hidden>
-              <span class="project-view-context">CC Catalog · 4 technical views</span>
-              <button class="project-view-arrow" type="button" data-view-prev aria-label="Previous project view">←</button>
-              <div class="project-view-options" role="group" aria-label="Choose a technical view">
-                <button type="button" data-project-view="desktop" aria-label="Desktop shell view" aria-pressed="true"><span class="view-label-full">Desktop</span><span class="view-label-short" aria-hidden="true">Desk</span></button>
-                <button type="button" data-project-view="data" aria-label="Data layer view" aria-pressed="false"><span class="view-label-full">Data</span><span class="view-label-short" aria-hidden="true">Data</span></button>
-                <button type="button" data-project-view="archive" aria-label="Archive input view" aria-pressed="false"><span class="view-label-full">Archive</span><span class="view-label-short" aria-hidden="true">Files</span></button>
-                <button type="button" data-project-view="matching" aria-label="Similarity matching view" aria-pressed="false"><span class="view-label-full">Matching</span><span class="view-label-short" aria-hidden="true">Match</span></button>
-              </div>
-              <p class="project-view-count"><span data-view-index>01</span><span aria-hidden="true"> / 04</span></p>
-              <button class="project-view-arrow" type="button" data-view-next aria-label="Next project view">→</button>
-            </nav>
+              <small class="catalog-disclaimer">CONCEPT DIAGRAM · NOT A SCREENSHOT</small>
+            </div>
+            <div class="screen-caption"><span>01 / PROJECT</span><h2>CC Catalog</h2><small>Available · public repository</small></div>
+          </article>
+          <article class="project-screen" data-project-screen data-project-slot="1" aria-hidden="true">
+            <div class="screen-art art-wave"><span></span><i></i><b></b><small>RESERVED / 02</small></div>
+            <div class="screen-caption"><span>02 / INCOMING</span><h2>Incoming</h2><small>Future project</small></div>
+          </article>
+          <article class="project-screen" data-project-screen data-project-slot="2" aria-hidden="true">
+            <div class="screen-art art-geometry"><span></span><i></i><b></b><small>RESERVED / 03</small></div>
+            <div class="screen-caption"><span>03 / INCOMING</span><h2>Incoming</h2><small>Future project</small></div>
+          </article>
+          <article class="project-screen" data-project-screen data-project-slot="3" aria-hidden="true">
+            <div class="screen-art art-orbit-scene"><span></span><i></i><b></b><small>RESERVED / 04</small></div>
+            <div class="screen-caption"><span>04 / INCOMING</span><h2>Incoming</h2><small>Future project</small></div>
+          </article>
+          <article class="project-screen" data-project-screen data-project-slot="4" aria-hidden="true">
+            <div class="screen-art art-architecture"><span></span><i></i><b></b><small>RESERVED / 05</small></div>
+            <div class="screen-caption"><span>05 / INCOMING</span><h2>Incoming</h2><small>Future project</small></div>
+          </article>
+        </div>
+
+        <nav class="project-controls" data-project-controls aria-label="Choose a project" hidden>
+          <button type="button" data-project-previous aria-label="Previous project">←</button>
+          <div class="project-position" role="group" aria-label="Project positions">
+            <button type="button" data-project-select="0" aria-label="01, CC Catalog" aria-pressed="true">01</button>
+            <button type="button" data-project-select="1" aria-label="02, Incoming" aria-pressed="false">02</button>
+            <button type="button" data-project-select="2" aria-label="03, Incoming" aria-pressed="false">03</button>
+            <button type="button" data-project-select="3" aria-label="04, Incoming" aria-pressed="false">04</button>
+            <button type="button" data-project-select="4" aria-label="05, Incoming" aria-pressed="false">05</button>
           </div>
-          <p class="project-caption">One project · four technical views. Conceptual graphics created for this gallery.<span class="project-swipe-hint">Swipe or use the arrows to explore this project.</span></p>
-        </section>
-
-        <ul class="project-facts" aria-label="Repository structure">
-          <li><span>Desktop shell</span><strong>Electron · Vite · React</strong></li>
-          <li><span>Data layer</span><strong>sql.js · Drizzle ORM</strong></li>
-          <li><span>Similarity</span><strong>Levenshtein implementation</strong></li>
-        </ul>
-
-        <nav class="projects-next" aria-label="Adjacent sections">
-          <span>Back to engineering experiments</span>
-          <a href="/en/labs/">Explore Labs <span aria-hidden="true">←</span></a>
+          <button type="button" data-project-next aria-label="Next project">→</button>
         </nav>
-      </main>
+      </section>
+      <a class="projects-labs-link" href="/en/labs/">Back to Labs <span aria-hidden="true">←</span></a>
+    </main>
 
-      <footer class="site-footer projects-footer">
-        <span>© 2026 Bruno Florian</span>
-        <nav aria-label="External profiles"><a href="https://github.com/devbrunoflorian" target="_blank" rel="noopener noreferrer">GitHub</a><a href="https://github.com/engineering-proof-labs" target="_blank" rel="noopener noreferrer">Engineering Labs</a></nav>
-      </footer>
-    </div>
+    <footer class="site-footer projects-footer">
+      <span>© 2026 Bruno Florian</span>
+      <nav aria-label="External profiles"><a href="https://github.com/devbrunoflorian" target="_blank" rel="noopener noreferrer">GitHub</a><a href="https://github.com/engineering-proof-labs" target="_blank" rel="noopener noreferrer">Engineering Labs</a></nav>
+    </footer>
   </body>
 </html>
