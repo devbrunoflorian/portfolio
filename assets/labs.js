@@ -333,7 +333,7 @@
       const x = isCurrent ? 0 : step * .64 * (1 - assembling);
       const y = isCurrent ? 0 : 18 * (1 - assembling);
       const z = isCurrent ? 20 : -210 + 230 * assembling;
-      const rotation = 0;
+      const rotation = isCurrent ? -18 : 0;
       const scale = isCurrent ? 1 : .6 + .4 * assembling;
       const opacity = isCurrent ? transition.currentPresence : transition.nextPresence;
       const blur = isCurrent ? 0 : (1 - assembling) * 1.35;
@@ -556,7 +556,7 @@
         const localX = width * x + layerX - centerX;
         const localY = height * y + layerY - centerY;
         return [
-          centerX + localX * Math.cos(yaw) + depth * Math.sin(yaw),
+          centerX + localX + depth * Math.sin(yaw),
           centerY + localY * Math.cos(pitch) - depth * Math.sin(pitch),
         ];
       });
