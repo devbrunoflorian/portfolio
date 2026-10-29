@@ -295,7 +295,7 @@
       dissolution,
       reconstruction,
       currentPresence: 1 - dissolution,
-      nextPresence: nextIndex < 0 ? 0 : .38 + .62 * reconstruction,
+      nextPresence: nextIndex < 0 ? 0 : .42 + .58 * reconstruction,
       flow,
     };
   }
@@ -330,13 +330,13 @@
 
       const assembling = isNext ? transition.reconstruction : 0;
       const dissolving = isCurrent ? transition.dissolution : 0;
-      const x = isCurrent ? 0 : step * .64 * (1 - assembling);
-      const y = isCurrent ? 0 : 18 * (1 - assembling);
-      const z = isCurrent ? 20 : -210 + 230 * assembling;
-      const rotation = isCurrent ? -18 : 0;
-      const scale = isCurrent ? 1 : .6 + .4 * assembling;
+      const x = isCurrent ? 0 : step * .5 * (1 - assembling);
+      const y = isCurrent ? 0 : 10 * (1 - assembling);
+      const z = isCurrent ? 20 : -320 + 340 * assembling;
+      const rotation = isCurrent ? -18 : -14 - 4 * assembling;
+      const scale = isCurrent ? 1 : .78 + .22 * assembling;
       const opacity = isCurrent ? transition.currentPresence : transition.nextPresence;
-      const blur = isCurrent ? 0 : (1 - assembling) * 1.35;
+      const blur = isCurrent ? 0 : (1 - assembling) * 2.2;
       folder.style.visibility = opacity > .005 ? "visible" : "hidden";
       folder.style.pointerEvents = isCurrent && opacity > .65 ? "auto" : "none";
       folder.style.willChange = "transform, opacity";
