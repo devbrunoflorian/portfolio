@@ -56,6 +56,7 @@
   let motionPaused = false;
   let lastFrameTime = 0;
   let lastCanvasTime = 0;
+  let sceneTime = 0;
   let stageWidth = 1;
   let stageHeight = 1;
   let stageRatio = 1;
@@ -104,7 +105,6 @@
         ? (isEnglish ? "Collection complete" : "Fim da coleção")
         : (isEnglish ? "Explore another folder" : "Explore outra pasta");
     }
-    sticky.dataset.final = String(nextIndex === folders.length - 1);
     folders.forEach((folder, index) => {
       folder.classList.toggle("is-active", index === nextIndex);
       folder.dataset.selected = String(index === nextIndex);
@@ -119,38 +119,76 @@
   }
 
   function transitionState(position) {
-    const segment = Math.min(folders.length - 2, Math.floor(position));
-    const fraction = clamp(position - segment);
-    const energy = reduceMotion.matches ? 0 : Math.pow(Math.sin(Math.PI * fraction), 1.35);
-    return { segment, fraction, energy };
+    const bounded = clamp(position, 0, folders.length - 1);
+    const currentIndex = Math.min(folders.length - 1, Math.floor(bounded + .000001));
+    const nextIndex = currentIndex < folders.length - 1 ? currentIndex + 1 : -1;
+    const fraction = nextIndex < 0 ? 0 : clamp(bounded - currentIndex);
+    const edgeInstability = nextIndex < 0 ? 0 : smoothstep((fraction - .08) / .26);
+    const dissolution = nextIndex < 0 ? 0 : smoothstep((fraction - .18) / .6);
+    const reconstruction = nextIndex < 0 ? 0 : smoothstep((fraction - .18) / .6);
+    const flow = nextIndex < 0 || reduceMotion.matches
+      ? 0
+      : smoothstep((fraction - .16) / .25) * (1 - smoothstep((fraction - .82) / .18));
+
+    return {
+      currentIndex,
+      nextIndex,
+      fraction,
+      edgeInstability,
+      dissolution,
+      reconstruction,
+      currentPresence: 1 - dissolution,
+      nextPresence: nextIndex < 0 ? 0 : .52 + .48 * reconstruction,
+      flow,
+    };
   }
 
   function paintScene(position, time) {
-    const mobile = window.matchMedia("(max-width: 780px)").matches;
     const step = sceneStep();
     const transition = transitionState(position);
+    sticky.dataset.final = String(transition.nextIndex < 0 && transition.currentIndex === folders.length - 1);
+    stage.dataset.transitionFlow = transition.flow.toFixed(3);
     folders.forEach((folder, index) => {
-      let offset = index - position;
-      if (offset > folders.length / 2) offset -= folders.length;
-      if (offset < -folders.length / 2) offset += folders.length;
-      const distance = Math.abs(offset);
-      const scale = Math.max(.48, 1 - distance * (mobile ? .25 : .155));
-      const isOutgoing = index === transition.segment;
-      const isIncoming = index === transition.segment + 1;
-      const participating = isOutgoing || isIncoming;
-      const energy = participating ? transition.energy : 0;
-      const directionalLift = isOutgoing ? 1 : -1;
-      const x = offset * step;
-      const y = Math.min(52, distance * 16) + (participating ? energy * 10 * directionalLift : 0);
-      const z = -distance * (mobile ? 95 : 160) - (participating ? energy * 18 : 0);
-      const rotation = Math.max(-42, Math.min(42, -offset * 24 - (distance < .02 ? 6 : 0))) + (participating ? energy * 4 * directionalLift : 0);
-      const opacity = Math.max(.18, 1 - distance * .22) * (participating ? 1 - energy * .16 : 1);
-      const blur = Math.max(0, distance - .8) * (mobile ? .7 : 1.2) + (participating ? energy * .35 : 0);
+      const isCurrent = index === transition.currentIndex;
+      const isNext = index === transition.nextIndex;
+      const visible = isCurrent || isNext;
+      const role = isCurrent ? "current" : isNext ? "next" : "hidden";
+      const wasVisible = folder.dataset.sceneVisible === "true";
+      if (!visible && wasVisible) folderSystems[index]?.resetAmbient();
+      folder.dataset.sceneVisible = String(visible);
+      folder.dataset.sceneRole = role;
+      folder.dataset.scenePresence = isCurrent
+        ? transition.currentPresence.toFixed(3)
+        : isNext ? transition.nextPresence.toFixed(3) : "0";
+      if (!visible) {
+        folder.style.visibility = "hidden";
+        folder.style.pointerEvents = "none";
+        folder.style.opacity = "0";
+        folder.style.filter = "none";
+        folder.style.willChange = "auto";
+        folder.dataset.transition = "0";
+        if (folderSystems[index]) folderSystems[index].visible = false;
+        return;
+      }
+
+      const assembling = isNext ? transition.reconstruction : 0;
+      const dissolving = isCurrent ? transition.dissolution : 0;
+      const x = isCurrent ? 0 : step * .78 * (1 - assembling);
+      const y = isCurrent ? 0 : 18 * (1 - assembling);
+      const z = isCurrent ? 20 : -155 + 175 * assembling;
+      const rotation = 0;
+      const scale = isCurrent ? 1 : .67 + .33 * assembling;
+      const opacity = isCurrent ? transition.currentPresence : transition.nextPresence;
+      const blur = isCurrent ? 0 : (1 - assembling) * .65;
+      folder.style.visibility = opacity > .005 ? "visible" : "hidden";
+      folder.style.pointerEvents = isCurrent && opacity > .65 ? "auto" : "none";
+      folder.style.willChange = "transform, opacity";
       folder.style.transform = "translate3d(calc(-50% + " + x + "px), calc(-50% + " + y + "px), " + z + "px) rotateY(" + rotation + "deg) scale(" + scale + ")";
       folder.style.opacity = String(opacity);
       folder.style.filter = "blur(" + blur + "px)";
-      folder.style.zIndex = String(100 - Math.round(distance * 10));
-      folder.dataset.transition = participating ? String(energy) : "0";
+      folder.style.zIndex = "3";
+      folder.dataset.transition = isCurrent ? String(dissolving) : String(assembling);
+      if (folderSystems[index]) folderSystems[index].visible = opacity > .005;
     });
     if (transitionContext) paintParticleBridge(transition, time);
   }
@@ -158,32 +196,33 @@
   function paintParticleBridge(transition, time) {
     transitionContext.setTransform(stageRatio, 0, 0, stageRatio, 0, 0);
     transitionContext.clearRect(0, 0, stageWidth, stageHeight);
-    const intensity = smoothstep((transition.energy - .04) / .7);
-    if (intensity < .015) return;
+    if (transition.nextIndex < 0 || transition.flow < .015) return;
 
-    const from = folders[transition.segment].getBoundingClientRect();
-    const to = folders[transition.segment + 1].getBoundingClientRect();
+    const from = folders[transition.currentIndex].getBoundingClientRect();
+    const to = folders[transition.nextIndex].getBoundingClientRect();
     const stageBounds = stage.getBoundingClientRect();
     const startX = from.left - stageBounds.left + from.width * .56;
     const startY = from.top - stageBounds.top + from.height * .53;
     const endX = to.left - stageBounds.left + to.width * .48;
     const endY = to.top - stageBounds.top + to.height * .51;
-    const curveX = (startX + endX) * .5;
-    const curveY = (startY + endY) * .5 - Math.min(70, stageHeight * .09);
-    const travel = transition.fraction * .72 + time * .000012;
+    const controlAX = startX + Math.min(120, stageWidth * .1);
+    const controlAY = startY - Math.min(100, stageHeight * .12);
+    const controlBX = endX - Math.min(80, stageWidth * .07);
+    const controlBY = endY + Math.min(50, stageHeight * .06);
+    const travel = (transition.fraction - .1) / .8;
 
     bridgeParticles.forEach((particle) => {
-      const progress = (particle.phase + travel + particle.drift + 1) % 1;
+      const progress = clamp(travel + particle.phase * .2 - .1 + particle.drift);
       const inverse = 1 - progress;
       const spread = Math.sin(progress * Math.PI);
-      const x = inverse * inverse * startX + 2 * inverse * progress * curveX + progress * progress * endX + particle.spreadX * spread;
-      const y = inverse * inverse * startY + 2 * inverse * progress * curveY + progress * progress * endY + particle.spreadY * spread;
-      const envelope = .38 + Math.sin(progress * Math.PI) * .62;
-      const pulse = .78 + Math.sin(time * .0016 + particle.phase * 28) * .22;
-      transitionContext.globalAlpha = intensity * envelope * pulse * (particle.binary ? 1.1 : .86);
+      const x = inverse ** 3 * startX + 3 * inverse ** 2 * progress * controlAX + 3 * inverse * progress ** 2 * controlBX + progress ** 3 * endX + particle.spreadX * spread;
+      const y = inverse ** 3 * startY + 3 * inverse ** 2 * progress * controlAY + 3 * inverse * progress ** 2 * controlBY + progress ** 3 * endY + particle.spreadY * spread;
+      const envelope = .2 + Math.sin(progress * Math.PI) * .8;
+      const pulse = .9 + Math.sin(time * .0032 + particle.phase * 28) * .1;
+      transitionContext.globalAlpha = transition.flow * envelope * pulse * (particle.binary ? 1.05 : .84);
       transitionContext.fillStyle = particle.binary ? "#e1f2ff" : "#91c8ff";
-      transitionContext.shadowColor = "rgba(95, 174, 255, .76)";
-      transitionContext.shadowBlur = particle.binary ? 12 : 8;
+      transitionContext.shadowColor = "rgba(95, 174, 255, .7)";
+      transitionContext.shadowBlur = particle.binary ? 6 : 3;
       if (particle.binary) {
         transitionContext.font = "10px ui-monospace, SFMono-Regular, Consolas, monospace";
         transitionContext.textAlign = "center";
@@ -205,24 +244,28 @@
 
     const delta = Math.min(48, Math.max(1, time - (lastFrameTime || time - 33)));
     lastFrameTime = time;
+    if (!motionPaused && !reduceMotion.matches) sceneTime += delta;
     const difference = targetPosition - visualPosition;
     visualPosition += difference * (1 - Math.exp(-delta * .012));
     if (Math.abs(targetPosition - visualPosition) < .001) visualPosition = targetPosition;
-    paintScene(visualPosition, time);
+    paintScene(visualPosition, sceneTime);
 
     if (time - lastCanvasTime >= 1000 / 30 || reduceMotion.matches) {
       const canvasDelta = lastCanvasTime ? Math.min(100, time - lastCanvasTime) : delta;
       lastCanvasTime = time;
       folderSystems.forEach((system) => {
+        if (!system?.visible) return;
         const deltaStrength = system.pointer.targetStrength - system.pointer.strength;
         system.pointer.strength += deltaStrength * (1 - Math.exp(-canvasDelta * (deltaStrength < 0 ? .022 : .013)));
         if (Math.abs(deltaStrength) < .006) system.pointer.strength = system.pointer.targetStrength;
-        system.draw(visualPosition, time);
+          const interactionActive = system.pointer.targetStrength > .01 || system.pointer.strength > .01 || system.pointer.recovering;
+          system.draw(visualPosition, sceneTime, motionPaused && !interactionActive ? 0 : canvasDelta);
       });
     }
 
-    const pointerInMotion = folderSystems.some((system) => Math.abs(system.pointer.targetStrength - system.pointer.strength) > .006);
-    if (!reduceMotion.matches && (!motionPaused || Math.abs(targetPosition - visualPosition) > .002 || pointerInMotion)) {
+    const pointerInMotion = folderSystems.some((system) => system?.visible && Math.abs(system.pointer.targetStrength - system.pointer.strength) > .006);
+    const pointerActive = folderSystems.some((system) => system?.visible && (system.pointer.targetStrength > .01 || system.pointer.strength > .01 || system.pointer.recovering));
+    if (!reduceMotion.matches && (!motionPaused || Math.abs(targetPosition - visualPosition) > .002 || pointerInMotion || pointerActive)) {
       sceneFrame = requestAnimationFrame(animateScene);
     }
   }
@@ -231,8 +274,10 @@
     if (sceneFrame || !sceneVisible || document.hidden) return;
     if (reduceMotion.matches) {
       visualPosition = activeIndex;
-      paintScene(visualPosition, performance.now());
-      folderSystems.forEach((system) => system.draw(visualPosition, performance.now()));
+      paintScene(visualPosition, sceneTime);
+      folderSystems.forEach((system) => {
+        if (system?.visible) system.draw(visualPosition, sceneTime, 0);
+      });
       return;
     }
     lastFrameTime = 0;
@@ -309,16 +354,29 @@
     reflectionCanvas.setAttribute("aria-hidden", "true");
     folder.insertBefore(reflectionCanvas, folder.querySelector(".folder-label"));
     const reflectionContext = reflectionCanvas.getContext("2d", { alpha: true });
-    const pointer = { x: -1000, y: -1000, strength: 0, targetStrength: 0, width: 1, height: 1, ratio: 1 };
-    const system = { folder, canvas, context, reflectionCanvas, reflectionContext, pointer, folderIndex, faces: [], particles: [], bottom: .87, draw: null };
+    const pointer = { x: -1000, y: -1000, strength: 0, targetStrength: 0, recovering: false, width: 1, height: 1, ratio: 1 };
+    const system = { folder, canvas, context, reflectionCanvas, reflectionContext, pointer, folderIndex, faces: [], particles: [], bottom: .87, draw: null, visible: false, needsRecovery: false };
 
-    function polygon(width, height, dx = 0, dy = 0) {
+    function polygon(width, height, depth = 0, layer = 0) {
       const bottom = isMobileScene() ? .67 : .87;
-      return [
-        [width * .055 + dx, height * .16 + dy], [width * .33 + dx, height * .16 + dy],
-        [width * .415 + dx, height * .25 + dy], [width * .91 + dx, height * .25 + dy],
-        [width * .91 + dx, height * bottom + dy], [width * .055 + dx, height * bottom + dy],
+      const yaw = -.55;
+      const pitch = -.14;
+      const centerX = width * .5;
+      const centerY = height * .52;
+      const layerX = width * .012 * layer;
+      const layerY = -height * .012 * layer;
+      const points = [
+        [.055, .205], [.055, .16], [.31, .16], [.38, .232],
+        [.54, .225], [.72, .244], [.91, .235], [.91, bottom], [.055, bottom],
       ];
+      return points.map(([x, y]) => {
+        const localX = width * x + layerX - centerX;
+        const localY = height * y + layerY - centerY;
+        return [
+          centerX + localX * Math.cos(yaw) + depth * Math.sin(yaw),
+          centerY + localY * Math.cos(pitch) - depth * Math.sin(pitch),
+        ];
+      });
     }
 
     function pointInPolygon(x, y, points) {
@@ -335,6 +393,12 @@
     function noise(value) {
       const sample = Math.sin(value * 127.1 + folderIndex * 311.7) * 43758.5453;
       return sample - Math.floor(sample);
+    }
+
+    function blendHex(from, to, amount) {
+      const channel = (color, offset) => parseInt(color.slice(offset, offset + 2), 16);
+      const mix = (offset) => Math.round(channel(from, offset) + (channel(to, offset) - channel(from, offset)) * amount);
+      return "rgb(" + mix(1) + " " + mix(3) + " " + mix(5) + ")";
     }
 
     function distanceToEdge(x, y, points) {
@@ -356,151 +420,318 @@
       const minY = Math.max(0, Math.min(...points.map((point) => point[1])));
       const maxY = Math.min(pointer.height, Math.max(...points.map((point) => point[1])));
       const cells = [];
+      const addCell = (x, y, cellSeed, edgeSample = false) => {
+        const edgeDistance = distanceToEdge(x, y, points);
+        const edgeGlow = clamp(1 - edgeDistance / (spacingX * (edgeSample ? 2.75 : 1.85)));
+        const baseBit = noise(cellSeed + 17) > .46 ? "1" : "0";
+        cells.push({
+          x,
+          y,
+          edgeGlow,
+          edgeSample,
+          phase: noise(cellSeed + 11) * Math.PI * 2,
+          baseBit,
+          bit: baseBit,
+          scatterX: (noise(cellSeed + 23) - .5) * 142,
+          scatterY: (noise(cellSeed + 31) - .5) * 112,
+          order: noise(cellSeed + 41),
+          sparse: noise(cellSeed + 53),
+          glow: .82 + noise(cellSeed + 61) * .18,
+          fieldX: (noise(cellSeed + 101) - .5) * 3.6,
+          fieldY: (noise(cellSeed + 113) - .5) * 3.6,
+          u: (x - minX) / Math.max(1, maxX - minX),
+          v: (y - minY) / Math.max(1, maxY - minY),
+          breach: kind === "front" && (x - minX) / Math.max(1, maxX - minX) > .68 && (y - minY) / Math.max(1, maxY - minY) < .42 && noise(cellSeed + 89) > .54,
+          flashUntil: 0,
+          sizeTier: edgeSample ? 2 : edgeGlow > .78 ? 1 : 0,
+        });
+      };
+
       for (let y = minY + spacingY * .5, row = 0; y < maxY; y += spacingY, row++) {
         for (let x = minX + spacingX * .5, column = 0; x < maxX; x += spacingX, column++) {
           if (!pointInPolygon(x, y, points)) continue;
           const cellSeed = row * 83 + column * 29 + seed * 13;
-          const edgeDistance = distanceToEdge(x, y, points);
-          cells.push({
-            x,
-            y,
-            edgeGlow: clamp(1 - edgeDistance / (spacingX * 1.65)),
-            phase: noise(cellSeed + 11) * Math.PI * 2,
-            baseBit: noise(cellSeed + 17) > .46 ? "1" : "0",
-            scatterX: (noise(cellSeed + 23) - .5) * 78,
-            scatterY: (noise(cellSeed + 31) - .5) * 66,
-            order: noise(cellSeed + 41),
-            sparse: noise(cellSeed + 53),
-            glow: .78 + noise(cellSeed + 61) * .22,
-          });
+          addCell(x, y, cellSeed);
         }
       }
-      return { points, cells, kind };
+
+      if (kind === "front" || kind === "middle" || kind === "rear") {
+        const center = points.reduce((sum, point) => [sum[0] + point[0] / points.length, sum[1] + point[1] / points.length], [0, 0]);
+        let edgeSample = 0;
+        points.forEach((start, edgeIndex) => {
+          const end = points[(edgeIndex + 1) % points.length];
+          const edgeX = end[0] - start[0];
+          const edgeY = end[1] - start[1];
+          const edgeLength = Math.hypot(edgeX, edgeY) || 1;
+          let normalX = edgeY / edgeLength;
+          let normalY = -edgeX / edgeLength;
+          const middleX = (start[0] + end[0]) * .5;
+          const middleY = (start[1] + end[1]) * .5;
+          if (normalX * (middleX - center[0]) + normalY * (middleY - center[1]) < 0) {
+            normalX *= -1;
+            normalY *= -1;
+          }
+          const alongStep = Math.max(7, spacingX * .72);
+          for (let along = alongStep * .5; along < edgeLength; along += alongStep) {
+            const ratio = along / edgeLength;
+            for (const depth of [.24, .72, 1.2]) {
+              const jitter = (noise(seed * 97 + edgeSample * 13) - .5) * spacingX * .12;
+              const x = start[0] + edgeX * ratio - normalX * (spacingY * depth + jitter);
+              const y = start[1] + edgeY * ratio - normalY * (spacingY * depth + jitter);
+              if (pointInPolygon(x, y, points)) addCell(x, y, seed * 997 + edgeIndex * 233 + edgeSample * 31, true);
+              edgeSample++;
+            }
+          }
+        });
+      }
+
+      return { points, cells, kind, seed, mutationTick: 0, nextMutationAt: sceneTime + 130 + noise(seed + 77) * 120 };
     }
 
     function makeEdgeParticles(points, amount) {
+      const center = points.reduce((sum, point) => [sum[0] + point[0] / points.length, sum[1] + point[1] / points.length], [0, 0]);
       return Array.from({ length: amount }, (_, index) => {
-        const edgeIndex = [0, 1, 1, 2, 2, 2, 3, 3, 5][Math.floor(noise(index * 4) * 9)];
+        const escaping = noise(index * 4 + 9) > .85;
+        const edgeIndex = escaping
+          ? [4, 5, 6, 6, 6, 6, 6][Math.floor(noise(index * 4) * 7)]
+          : [0, 1, 2, 3, 4, 5, 5, 6, 7][Math.floor(noise(index * 4) * 9)];
         const start = points[edgeIndex];
         const end = points[(edgeIndex + 1) % points.length];
         const edgeLength = Math.hypot(end[0] - start[0], end[1] - start[1]) || 1;
+        const along = noise(index * 4 + 1);
+        let edgeNormalX = (end[1] - start[1]) / edgeLength;
+        let edgeNormalY = -(end[0] - start[0]) / edgeLength;
+        const middleX = (start[0] + end[0]) * .5;
+        const middleY = (start[1] + end[1]) * .5;
+        if (edgeNormalX * (middleX - center[0]) + edgeNormalY * (middleY - center[1]) < 0) {
+          edgeNormalX *= -1;
+          edgeNormalY *= -1;
+        }
+        const outward = escaping ? 3 + noise(index * 4 + 2) * 14 : 5 + noise(index * 4 + 2) * 42;
+        const anchorX = start[0] + (end[0] - start[0]) * along + edgeNormalX * outward;
+        const anchorY = start[1] + (end[1] - start[1]) * along + edgeNormalY * outward;
+        const escapeX = .68 + noise(index * 4 + 10) * .48;
+        const escapeY = -.62 + noise(index * 4 + 11) * .48;
         return {
-          edgeIndex,
-          along: noise(index * 4 + 1),
-          outward: 1.5 + noise(index * 4 + 2) * 54,
-          radius: .5 + noise(index * 4 + 3) * 1.6,
+          anchorX,
+          anchorY,
+          x: anchorX,
+          y: anchorY,
+          vx: 0,
+          vy: 0,
+          radius: .55 + noise(index * 4 + 3) * 1.45,
           phase: noise(index * 4 + 4) * Math.PI * 2,
-          speed: .18 + noise(index * 4 + 5) * .36,
-          scatterX: (noise(index * 4 + 6) - .5) * 90,
-          scatterY: (noise(index * 4 + 7) - .5) * 74,
-          edgeNormalX: (end[1] - start[1]) / edgeLength,
-          edgeNormalY: -(end[0] - start[0]) / edgeLength,
+          speed: 1.8 + noise(index * 4 + 5) * 2.5,
+          depth: noise(index * 4 + 6),
+          binary: noise(index * 4 + 7) > (escaping ? .45 : .92),
+          bit: index % 2 ? "0" : "1",
+          escaping,
+          escapeX,
+          escapeY,
+          escapeCycle: -1,
+          node: noise(index * 4 + 8) > .985,
+          edgeNormalX,
+          edgeNormalY,
         };
       });
     }
 
-    function transitionAmount(role, energy, cellOrder, fraction) {
-      if (!role || energy <= .015) return 0;
-      const scatter = role === "outgoing"
-        ? energy * .82
-        : .45 * (1 - smoothstep(fraction / .83));
-      return smoothstep((scatter - cellOrder * .2) / .58);
+    function mutateFace(face, time, enabled) {
+      if (!enabled || time < face.nextMutationAt) return;
+      face.mutationTick++;
+      const share = .02 + noise(face.seed * 37 + face.mutationTick * 11) * .05;
+      const changedCount = Math.max(1, Math.round(face.cells.length * share));
+      for (let offset = 0; offset < changedCount; offset++) {
+        const cellIndex = Math.floor(noise(face.seed * 61 + face.mutationTick * 29 + offset * 17) * face.cells.length);
+        const cell = face.cells[cellIndex];
+        if (!cell) continue;
+        cell.bit = cell.bit === "0" ? "1" : "0";
+        cell.flashUntil = time + 180 + noise(face.mutationTick + offset * 31) * 150;
+      }
+      face.nextMutationAt = time + 120 + noise(face.seed * 73 + face.mutationTick * 19) * 130;
     }
 
-    function drawFace(face, baseAlpha, isActive, role, energy, fraction, time) {
-      const active = isActive;
-      context.fillStyle = face.kind === "side"
-        ? (active ? "#9ccfff" : "#5988bd")
-        : (active ? "#dceeff" : "#83b4e8");
-      const radius = Math.min(pointer.width, pointer.height) * .19;
+    function drawFace(face, previewAlpha, activeAlpha, roleState, transition, time, enabled) {
+      const current = roleState.role === "current";
+      const currentness = roleState.currentness;
+      const baseAlpha = previewAlpha + (activeAlpha - previewAlpha) * currentness;
+      const colors = face.kind === "side" || face.kind === "top"
+        ? [blendHex("#53708f", "#568dc7", currentness), blendHex("#8eb9e7", "#95caff", currentness), blendHex("#cfe6ff", "#f2f9ff", currentness)]
+        : face.kind === "rear"
+          ? [blendHex("#293c55", "#456c9a", currentness), blendHex("#567ca8", "#79aee7", currentness), blendHex("#9fcaff", "#d5eaff", currentness)]
+        : [blendHex("#54708f", "#76a9e6", currentness), blendHex("#9fbeea", "#a8d0ff", currentness), blendHex("#d8ecff", "#ffffff", currentness)];
+      mutateFace(face, time, enabled);
+      const radius = Math.max(120, Math.min(200, Math.min(pointer.width, pointer.height) * .55));
       face.cells.forEach((cell) => {
-        if (!active && cell.sparse < .2) return;
-        const scatter = transitionAmount(role, energy, cell.order, fraction);
+        const interior = cell.edgeGlow < .32;
+        if (face.kind === "front" && interior && cell.sparse < .48) return;
+        if (face.kind === "middle" && cell.sparse < .66) return;
+        if (face.kind === "rear" && cell.sparse < .72) return;
+        if (face.kind !== "front" && face.kind !== "middle" && face.kind !== "rear" && cell.sparse < .18) return;
+        if (face.kind === "front" && cell.breach && cell.edgeGlow < .7) return;
+        if (face.kind === "front" && cell.edgeSample && cell.u > .64 && cell.v < .46 && cell.sparse < .16) return;
+        if (face.kind === "front" && cell.edgeSample && cell.u > .96 && cell.sparse < .12) return;
+        if (!current && roleState.assembly < .02 && cell.sparse < .36) return;
+        const scatter = current
+          ? smoothstep((transition.dissolution - cell.order * .22) / .78)
+          : 0;
+        const resolved = current ? 1 : smoothstep((roleState.assembly - cell.order * .35) / .65);
+        const assemblyScatter = current ? 0 : (1 - resolved) * .12;
         const dx = cell.x - pointer.x;
         const dy = cell.y - pointer.y;
         const local = pointer.strength * Math.exp(-(dx * dx + dy * dy) / (2 * radius * radius));
         const distance = Math.hypot(dx, dy) || 1;
-        const pointerWarp = local * (active ? 13 : 7);
-        const driftX = Math.sin(time * .00031 + cell.phase) * .34;
-        const driftY = Math.cos(time * .00039 + cell.phase * 1.3) * .44;
-        const x = cell.x + cell.scatterX * scatter + dx / distance * pointerWarp + driftX;
-        const y = cell.y + cell.scatterY * scatter + dy / distance * pointerWarp + driftY;
-        const flicker = Math.sin(time * (.00055 + cell.sparse * .00065) + cell.phase);
-        const changed = flicker > .985;
-        const bit = changed ? (cell.baseBit === "0" ? "1" : "0") : cell.baseBit;
-        const shimmer = .86 + (flicker + 1) * .07;
-        const contour = .78 + cell.edgeGlow * (active ? .78 : .34);
-        const disturbed = local * (active ? .28 : .12);
-        const coherence = 1 - scatter * (role === "outgoing" ? .2 : .1);
-        const lightAlpha = baseAlpha * contour * shimmer * cell.glow * (1 + disturbed) * coherence;
-        context.globalAlpha = Math.min(active ? 1 : .5, lightAlpha);
-        context.fillStyle = active && cell.edgeGlow > .48 ? "#f0f8ff" : (face.kind === "side"
-          ? (active ? "#9ccfff" : "#5988bd")
-          : (active ? "#dceeff" : "#83b4e8"));
-        context.fillText(bit, x, y);
+        const pointerWarp = local * (current ? 15 : 3.5);
+        const driftX = enabled ? Math.sin(time * .00046 + cell.phase) * .34 : 0;
+        const driftY = enabled ? Math.cos(time * .00053 + cell.phase * 1.3) * .38 : 0;
+        const edgeJitter = transition.edgeInstability * cell.edgeGlow * Math.sin(time * .004 + transition.fraction * 19 + cell.phase) * 1.8;
+        const surfaceX = cell.fieldX * (cell.edgeSample ? .55 : 1);
+        const surfaceY = cell.fieldY * (cell.edgeSample ? .55 : 1);
+        const x = cell.x + surfaceX + cell.scatterX * (scatter * 1.25 + assemblyScatter) + dx / distance * pointerWarp + driftX + edgeJitter;
+        const y = cell.y + surfaceY + cell.scatterY * (scatter * 1.25 + assemblyScatter) + dy / distance * pointerWarp + driftY - edgeJitter * .45;
+        const pulse = 1 + Math.sin(time * .0013 + cell.phase) * .115 * cell.sparse + transition.edgeInstability * cell.edgeGlow * .08;
+        const flash = time < cell.flashUntil ? 1.12 : 1;
+        const edge = Math.pow(cell.edgeGlow, 1.72);
+        const contour = face.kind === "front"
+          ? .32 + edge * (.94 + currentness * .18) + (cell.edgeSample ? .2 : 0)
+          : face.kind === "middle" ? .16 + edge * .42
+            : face.kind === "rear" ? .1 + edge * .3
+              : .14 + edge * .52;
+        const disturbed = local * (current ? .32 : .08);
+        const coherence = current ? 1 - scatter * .74 : .82 + resolved * .18;
+        const emission = face.kind === "front" && cell.edgeGlow > .76 ? 1.28 : 1;
+        const lightAlpha = baseAlpha * contour * pulse * flash * cell.glow * emission * (1 + disturbed) * coherence;
+        context.globalAlpha = Math.min(.88 + currentness * .12, lightAlpha);
+        context.fillStyle = cell.edgeSample || cell.edgeGlow > .76 ? colors[2] : cell.edgeGlow > .3 ? colors[1] : colors[0];
+        const fontSize = (pointer.width < 245 ? 6.5 : 8) * (cell.sizeTier === 2 ? 1.45 : cell.sizeTier === 1 ? 1.06 : 1);
+        context.font = fontSize.toFixed(1) + "px ui-monospace, SFMono-Regular, Consolas, monospace";
+        context.shadowColor = face.kind === "front" ? "rgba(112, 181, 255, .9)" : "rgba(73, 145, 235, .52)";
+        context.shadowBlur = cell.edgeSample ? 1.6 + currentness * (5.5 + cell.edgeGlow * 3) : face.kind === "front" && cell.edgeGlow > .78 ? 2 + currentness * 4 : (face.kind === "side" || face.kind === "top") && cell.edgeGlow > .52 ? 1.4 + currentness * 3 : 0;
+        context.fillText(cell.bit, x, y);
       });
-    }
-
-    function drawParticles(points, isActive, role, energy, fraction, time) {
-      const active = isActive;
-      const pointerRadius = Math.min(pointer.width, pointer.height) * .2;
-      const amount = active ? system.particles.length : Math.min(68, system.particles.length);
-      for (let index = 0; index < amount; index++) {
-        const particle = system.particles[index];
-        const start = points[particle.edgeIndex];
-        const end = points[(particle.edgeIndex + 1) % points.length];
-        const along = (particle.along + time * .000016 * particle.speed) % 1;
-        const scatter = transitionAmount(role, energy, noise(index + 61), fraction);
-        const baseX = start[0] + (end[0] - start[0]) * along + particle.edgeNormalX * particle.outward;
-        const baseY = start[1] + (end[1] - start[1]) * along + particle.edgeNormalY * particle.outward;
-        const dx = baseX - pointer.x;
-        const dy = baseY - pointer.y;
-        const falloff = pointer.strength * Math.exp(-(dx * dx + dy * dy) / (2 * pointerRadius * pointerRadius));
-        const distance = Math.hypot(dx, dy) || 1;
-        const float = Math.sin(time * .00055 + particle.phase) * (active ? 2.4 : 1.1);
-        const x = baseX + particle.scatterX * (scatter * .42) + dx / distance * falloff * 11;
-        const y = baseY + particle.scatterY * (scatter * .42) + float + dy / distance * falloff * 11;
-        const alpha = (active ? .78 : .15) * (.46 + (Math.sin(time * .0012 + particle.phase) + 1) * .27) * (1 - scatter * .4);
-        context.globalAlpha = alpha;
-        context.fillStyle = "#d9eeff";
-        context.shadowColor = "rgba(111, 184, 255, .86)";
-        context.shadowBlur = active ? 8 : 2;
-        context.beginPath();
-        context.arc(x, y, particle.radius * (active ? 1.25 : .78), 0, Math.PI * 2);
-        context.fill();
-      }
       context.shadowBlur = 0;
     }
 
-    function draw(position, time) {
+    function drawParticles(points, roleState, transition, time, deltaMs) {
+      const current = roleState.role === "current";
+      const pointerRadius = Math.max(120, Math.min(200, Math.min(pointer.width, pointer.height) * .55));
+      const delta = motionPaused && !pointer.recovering ? 0 : Math.min(.05, Math.max(0, deltaMs) / 1000);
+      const previewAmount = Math.min(104, system.particles.length);
+      const amount = Math.round(previewAmount + (system.particles.length - previewAmount) * roleState.currentness);
+      const transitionKick = current ? transition.dissolution : roleState.assembly * (1 - roleState.assembly);
+      let maxDisplacement = 0;
+      let maxVelocity = 0;
+      for (let index = 0; index < amount; index++) {
+        const particle = system.particles[index];
+        let release = 0;
+        if (delta > 0) {
+          const orbit = time * .002 * particle.speed + particle.phase;
+          const lifeClock = time * .00058 * particle.speed + particle.phase / (Math.PI * 2);
+          const life = lifeClock - Math.floor(lifeClock);
+          const cycle = Math.floor(lifeClock);
+          if (particle.escaping && cycle !== particle.escapeCycle) {
+            particle.escapeCycle = cycle;
+            particle.x = particle.anchorX;
+            particle.y = particle.anchorY;
+            particle.vx = 0;
+            particle.vy = 0;
+          }
+          release = particle.escaping && !(motionPaused && pointer.recovering) ? smoothstep((life - .06) / .2) * (1 - smoothstep((life - .76) / .2)) : 0;
+          const travel = particle.escaping && !motionPaused ? smoothstep((life - .04) / .72) : 0;
+          const escapeDistance = particle.escaping && !motionPaused ? 8 + pointer.width * .095 * travel : 0;
+          const escapeHeight = particle.escaping && !motionPaused ? 5 + pointer.height * .055 * travel : 0;
+          const homeX = particle.anchorX + particle.escapeX * escapeDistance + (motionPaused ? 0 : Math.cos(orbit) * (particle.escaping ? 5 : 18));
+          const homeY = particle.anchorY + particle.escapeY * escapeHeight + (motionPaused ? 0 : Math.sin(orbit * 1.31) * (particle.escaping ? 5 : 14));
+          const dx = particle.x - pointer.x;
+          const dy = particle.y - pointer.y;
+          const distance = Math.hypot(dx, dy) || .001;
+          const awayX = dx / distance;
+          const awayY = dy / distance;
+          const local = pointer.strength * Math.exp(-(distance * distance) / (2 * pointerRadius * pointerRadius));
+          const repulsion = local * (current ? 2450 : 620);
+          const outward = local * (current ? 420 : 110);
+          const transitionFlow = current ? transition.dissolution * 560 : 0;
+          const accelerationX = (homeX - particle.x) * (particle.escaping ? 8 : 11.5) - particle.vx * (particle.escaping ? 5.2 : 6.6) + awayX * (repulsion + outward * particle.edgeNormalX) + particle.edgeNormalX * outward * .22 + transitionFlow;
+          const accelerationY = (homeY - particle.y) * (particle.escaping ? 8 : 11.5) - particle.vy * (particle.escaping ? 5.2 : 6.6) + awayY * (repulsion + outward * particle.edgeNormalY) + particle.edgeNormalY * outward * .22;
+          particle.vx += accelerationX * delta;
+          particle.vy += accelerationY * delta;
+          const speed = Math.hypot(particle.vx, particle.vy);
+          const maxSpeed = current ? 520 : 210;
+          if (speed > maxSpeed) {
+            particle.vx = particle.vx / speed * maxSpeed;
+            particle.vy = particle.vy / speed * maxSpeed;
+          }
+          particle.x += particle.vx * delta;
+          particle.y += particle.vy * delta;
+        }
+        maxDisplacement = Math.max(maxDisplacement, Math.hypot(particle.x - particle.anchorX, particle.y - particle.anchorY));
+        maxVelocity = Math.max(maxVelocity, Math.hypot(particle.vx, particle.vy));
+        const transitionFactor = 1 + transitionKick * .72;
+        const depthScale = .72 + particle.depth * .64;
+        const pulse = .72 + (Math.sin(time * .0035 * particle.speed + particle.phase) + 1) * .14;
+        const baseAlpha = current ? .72 : .42;
+        const releaseAlpha = particle.escaping ? .14 + release * .86 : 1;
+        const alpha = baseAlpha * pulse * depthScale * transitionFactor * releaseAlpha;
+        context.globalAlpha = alpha;
+        context.fillStyle = particle.node ? "#f1f8ff" : "#b7dcff";
+        context.shadowColor = "rgba(91, 169, 255, .7)";
+        context.shadowBlur = particle.node ? 5 : particle.depth > .8 ? 3 : 1.2;
+        if (particle.binary && (transitionKick > .08 || particle.escaping)) {
+          context.font = "9px ui-monospace, SFMono-Regular, Consolas, monospace";
+          context.textAlign = "center";
+          context.textBaseline = "middle";
+          context.fillText(particle.bit, particle.x, particle.y);
+        } else {
+          context.beginPath();
+          context.arc(particle.x, particle.y, particle.radius * depthScale * (particle.node ? 1.45 : 1), 0, Math.PI * 2);
+          context.fill();
+        }
+      }
+      context.shadowBlur = 0;
+      if (motionPaused && pointer.recovering && pointer.strength < .01 && pointer.targetStrength < .01 && maxDisplacement < 1.4 && maxVelocity < 3) pointer.recovering = false;
+      system.needsRecovery = motionPaused && pointer.recovering;
+      folder.dataset.particleCount = String(amount);
+      folder.dataset.particleDisplacement = maxDisplacement.toFixed(1);
+    }
+
+    function draw(position, time, deltaMs = 0) {
       context.setTransform(pointer.ratio, 0, 0, pointer.ratio, 0, 0);
       context.clearRect(0, 0, pointer.width, pointer.height);
-      const front = polygon(pointer.width, pointer.height);
       const bottom = system.bottom;
-      const back = [
-        [pointer.width * .14, pointer.height * .075],
-        [pointer.width * .375, pointer.height * .075],
-        [pointer.width * .46, pointer.height * .195],
-        [pointer.width * .965, pointer.height * .195],
-        [pointer.width * .94, pointer.height * (bottom - .012)],
-        [pointer.width * .09, pointer.height * (bottom + .012)],
-      ];
-      const sideRight = [front[3], front[4], back[4], back[3]];
-      const sideBottom = [front[4], front[5], back[5], back[4]];
-      const active = folder.classList.contains("is-active");
+      const depth = pointer.width * .16;
+      const front = polygon(pointer.width, pointer.height, 0, 0);
+      const middle = polygon(pointer.width, pointer.height, -depth * .48, .8);
+      const back = polygon(pointer.width, pointer.height, -depth, 1.6);
+      const band = (from, to, start, end) => [...from.slice(start, end + 1), ...to.slice(start, end + 1).reverse()];
+      const sideRight = band(front, middle, 6, 7);
+      const sideBottom = band(front, middle, 7, 8);
+      const sideTop = band(front, middle, 2, 6);
+      const rearRight = band(middle, back, 6, 7);
+      const rearBottom = band(middle, back, 7, 8);
       const transition = transitionState(position);
-      const role = folderIndex === transition.segment ? "outgoing" : folderIndex === transition.segment + 1 ? "incoming" : "";
-      const energy = role ? transition.energy : 0;
+      const role = folderIndex === transition.currentIndex ? "current" : folderIndex === transition.nextIndex ? "next" : "hidden";
+      if (role === "hidden") {
+        if (reflectionContext) reflectionContext.clearRect(0, 0, reflectionCanvas.width, reflectionCanvas.height);
+        return;
+      }
+      const roleState = {
+        role,
+        assembly: role === "next" ? transition.reconstruction : 0,
+        currentness: role === "current" ? 1 : transition.reconstruction,
+      };
 
       context.textAlign = "center";
       context.textBaseline = "middle";
-      context.font = (pointer.width < 245 ? 7 : 9) + "px ui-monospace, SFMono-Regular, Consolas, monospace";
-      drawFace(system.faces[0], active ? .36 : .1, active, role, energy, transition.fraction, time);
-      drawFace(system.faces[1], active ? .34 : .12, active, role, energy, transition.fraction, time);
-      drawFace(system.faces[2], active ? .29 : .1, active, role, energy, transition.fraction, time);
-      context.font = (pointer.width < 245 ? 10 : 13) + "px ui-monospace, SFMono-Regular, Consolas, monospace";
-      drawFace(system.faces[3], active ? 1.1 : .53, active, role, energy, transition.fraction, time);
-      drawParticles(front, active, role, energy, transition.fraction, time);
+      const enabled = !motionPaused && !reduceMotion.matches;
+      drawFace(system.faces[0], .4, .4, roleState, transition, time, enabled);
+      drawFace(system.faces[1], .2, .72, roleState, transition, time, enabled);
+      drawFace(system.faces[2], .19, .62, roleState, transition, time, enabled);
+      drawFace(system.faces[3], .14, .25, roleState, transition, time, enabled);
+      drawFace(system.faces[4], .12, .23, roleState, transition, time, enabled);
+      drawFace(system.faces[5], .16, .56, roleState, transition, time, enabled);
+      drawFace(system.faces[6], .18, .38, roleState, transition, time, enabled);
+      drawFace(system.faces[7], .91, 1.02, roleState, transition, time, enabled);
+      drawParticles(front, roleState, transition, time, deltaMs);
       context.globalAlpha = 1;
 
       if (reflectionContext) {
@@ -509,13 +740,32 @@
         reflectionContext.save();
         reflectionContext.translate(0, reflectionCanvas.height);
         reflectionContext.scale(1, -1);
-        reflectionContext.drawImage(canvas, 0, pointer.height * .11 * pointer.ratio, canvas.width, pointer.height * bottom * pointer.ratio, 0, 0, reflectionCanvas.width, reflectionCanvas.height);
+        reflectionContext.drawImage(canvas, 0, pointer.height * .11 * pointer.ratio, canvas.width, pointer.height * (bottom - .11) * pointer.ratio, 0, 0, reflectionCanvas.width, reflectionCanvas.height);
         reflectionContext.restore();
+        reflectionCanvas.style.opacity = String(.055 + .275 * roleState.currentness);
       }
       folder.dataset.pointerForce = pointer.strength.toFixed(3);
+      folder.dataset.particleEnergy = (pointer.strength + (role === "current" ? transition.dissolution : transition.reconstruction)).toFixed(3);
     }
 
     system.draw = draw;
+    system.resetAmbient = () => {
+      pointer.x = -1000;
+      pointer.y = -1000;
+      pointer.strength = 0;
+      pointer.targetStrength = 0;
+      pointer.recovering = false;
+      system.particles.forEach((particle) => {
+        particle.x = particle.anchorX;
+        particle.y = particle.anchorY;
+        particle.vx = 0;
+        particle.vy = 0;
+      });
+      folder.dataset.pointerForce = "0.000";
+      folder.dataset.particleCount = "0";
+      folder.dataset.particleDisplacement = "0";
+      system.needsRecovery = false;
+    };
     folderSystems[folderIndex] = system;
 
     function resize() {
@@ -530,23 +780,30 @@
         reflectionCanvas.width = canvas.width;
         reflectionCanvas.height = Math.round(canvas.height * (isMobileScene() ? .34 : .43));
       }
-      const front = polygon(pointer.width, pointer.height);
       const bottom = system.bottom;
-      const back = [
-        [pointer.width * .14, pointer.height * .075], [pointer.width * .375, pointer.height * .075],
-        [pointer.width * .46, pointer.height * .195], [pointer.width * .965, pointer.height * .195],
-        [pointer.width * .94, pointer.height * (bottom - .012)], [pointer.width * .09, pointer.height * (bottom + .012)],
-      ];
-      const sideRight = [front[3], front[4], back[4], back[3]];
-      const sideBottom = [front[4], front[5], back[5], back[4]];
+      const depth = pointer.width * .16;
+      const front = polygon(pointer.width, pointer.height, 0, 0);
+      const middle = polygon(pointer.width, pointer.height, -depth * .48, .8);
+      const back = polygon(pointer.width, pointer.height, -depth, 1.6);
+      const band = (from, to, start, end) => [...from.slice(start, end + 1), ...to.slice(start, end + 1).reverse()];
+      const sideRight = band(front, middle, 6, 7);
+      const sideBottom = band(front, middle, 7, 8);
+      const sideTop = band(front, middle, 2, 6);
+      const rearRight = band(middle, back, 6, 7);
+      const rearBottom = band(middle, back, 7, 8);
       system.faces = [
         makeFace(back, 14, 16, 19, "rear"),
         makeFace(sideRight, 11, 14, 5, "side"),
         makeFace(sideBottom, 11, 14, 7, "side"),
+        makeFace(rearRight, 10, 12, 23, "side"),
+        makeFace(rearBottom, 10, 12, 29, "side"),
+        makeFace(sideTop, 10, 12, 31, "top"),
+        makeFace(middle, 15, 17, 37, "middle"),
         makeFace(front, pointer.width < 245 ? 12.5 : 14, pointer.width < 245 ? 14 : 15, 11, "front"),
       ];
+      folder.dataset.edgeGlyphCount = String(system.faces[7].cells.filter((cell) => cell.edgeSample).length);
       system.particles = makeEdgeParticles(front, 260);
-      draw(visualPosition, performance.now());
+      draw(visualPosition, sceneTime, 0);
       requestSceneAnimation();
     }
 
@@ -556,10 +813,12 @@
       pointer.x = (event.clientX - bounds.left) / Math.max(1, bounds.width) * pointer.width;
       pointer.y = (event.clientY - bounds.top) / Math.max(1, bounds.height) * pointer.height;
       pointer.targetStrength = .95;
+      pointer.recovering = false;
       requestSceneAnimation();
     }, { passive: true });
     const releasePointer = () => {
       pointer.targetStrength = 0;
+      if (!reduceMotion.matches) pointer.recovering = true;
       requestSceneAnimation();
     };
     canvas.addEventListener("pointerleave", releasePointer, { passive: true });
@@ -589,14 +848,14 @@
   window.addEventListener("resize", onScroll, { passive: true });
   reduceMotion.addEventListener("change", () => {
     folderSystems.forEach((system) => {
-      system.pointer.strength = 0;
-      system.pointer.targetStrength = 0;
-      system.draw(targetPosition, performance.now());
+      if (!system?.visible) return;
+      if (reduceMotion.matches) system.resetAmbient();
+      system.draw(targetPosition, sceneTime, 0);
     });
     if (sceneFrame) cancelAnimationFrame(sceneFrame);
     sceneFrame = 0;
     visualPosition = reduceMotion.matches ? activeIndex : targetPosition;
-    paintScene(visualPosition, performance.now());
+    paintScene(visualPosition, sceneTime);
     onScroll();
   });
   document.addEventListener("visibilitychange", () => {
