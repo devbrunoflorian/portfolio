@@ -607,7 +607,7 @@
       && event.clientY >= bounds.top && event.clientY <= bounds.bottom;
     if (!insideField) {
       ambientPointer.targetStrength = 0;
-      ambientPointer.recovering = ambientPointer.strength > .01;
+      if (ambientPointer.strength > .01) ambientPointer.recovering = true;
       requestSceneAnimation();
       return;
     }
