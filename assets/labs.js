@@ -118,11 +118,12 @@
       const radius = 1.04 + particle.radiusFactor * .42;
       x = current.x + Math.cos(particle.angle) * current.width * .5 * radius;
       y = current.y + Math.sin(particle.angle) * current.height * .5 * radius;
+    } else if (particle.zone === "corridor" && !layout.next) {
+      const radius = 1.38 + particle.radiusFactor * .32;
+      x = current.x + Math.cos(particle.angle) * current.width * .5 * radius;
+      y = current.y + Math.sin(particle.angle) * current.height * .5 * radius;
     } else if (particle.zone === "corridor") {
-      const next = layout.next || {
-        x: current.x + current.width * .72,
-        y: current.y + current.height * .04,
-      };
+      const next = layout.next;
       const dx = next.x - current.x;
       const dy = next.y - current.y;
       const distance = Math.hypot(dx, dy) || 1;
