@@ -333,7 +333,7 @@
       const x = isCurrent ? 0 : step * .5 * (1 - assembling);
       const y = isCurrent ? 0 : 10 * (1 - assembling);
       const z = isCurrent ? 20 : -320 + 340 * assembling;
-      const rotation = isCurrent ? -18 : -14 - 4 * assembling;
+      const rotation = isCurrent ? 18 : 14 + 4 * assembling;
       const scale = isCurrent ? 1 : .78 + .22 * assembling;
       const opacity = isCurrent ? transition.currentPresence : transition.nextPresence;
       const blur = isCurrent ? 0 : (1 - assembling) * 2.2;
