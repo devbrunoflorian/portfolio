@@ -688,8 +688,10 @@
           edgeNormalY *= -1;
         }
         const outward = 5 + noise(index * 4 + 2) * 42;
-        const anchorX = start[0] + (end[0] - start[0]) * along + edgeNormalX * outward;
-        const anchorY = start[1] + (end[1] - start[1]) * along + edgeNormalY * outward;
+        const rawAnchorX = start[0] + (end[0] - start[0]) * along + edgeNormalX * outward;
+        const rawAnchorY = start[1] + (end[1] - start[1]) * along + edgeNormalY * outward;
+        const anchorX = clamp(rawAnchorX, 0, pointer.width);
+        const anchorY = clamp(rawAnchorY, 0, pointer.height);
         return {
           anchorX,
           anchorY,
