@@ -1060,8 +1060,8 @@
   });
   if ("IntersectionObserver" in window) {
     new IntersectionObserver(([entry]) => {
-      sceneVisible = entry.isIntersecting && entry.intersectionRatio >= .98;
-      ambientCanvas.style.visibility = sceneVisible ? "visible" : "hidden";
+      sceneVisible = entry.isIntersecting;
+      ambientCanvas.style.visibility = entry.isIntersecting && entry.intersectionRatio >= .01 ? "visible" : "hidden";
       if (sceneVisible) requestSceneAnimation();
       else {
         resetAmbientField();
@@ -1070,7 +1070,7 @@
           sceneFrame = 0;
         }
       }
-    }, { threshold: [.01, .98] }).observe(stage);
+    }, { threshold: [.01] }).observe(stage);
   }
 
   controls.hidden = false;
