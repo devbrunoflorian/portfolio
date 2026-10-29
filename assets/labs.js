@@ -256,7 +256,7 @@
       folderSystems.forEach((system) => {
         if (!system?.visible) return;
         const deltaStrength = system.pointer.targetStrength - system.pointer.strength;
-        system.pointer.strength += deltaStrength * (1 - Math.exp(-canvasDelta * (deltaStrength < 0 ? .022 : .013)));
+        system.pointer.strength += deltaStrength * (1 - Math.exp(-canvasDelta * (deltaStrength < 0 ? .007 : .028)));
         if (Math.abs(deltaStrength) < .006) system.pointer.strength = system.pointer.targetStrength;
           const interactionActive = system.pointer.targetStrength > .01 || system.pointer.strength > .01 || system.pointer.recovering;
           system.draw(visualPosition, sceneTime, motionPaused && !interactionActive ? 0 : canvasDelta);
@@ -491,10 +491,7 @@
     function makeEdgeParticles(points, amount) {
       const center = points.reduce((sum, point) => [sum[0] + point[0] / points.length, sum[1] + point[1] / points.length], [0, 0]);
       return Array.from({ length: amount }, (_, index) => {
-        const escaping = noise(index * 4 + 9) > .85;
-        const edgeIndex = escaping
-          ? [4, 5, 6, 6, 6, 6, 6][Math.floor(noise(index * 4) * 7)]
-          : [0, 1, 2, 3, 4, 5, 5, 6, 7][Math.floor(noise(index * 4) * 9)];
+        const edgeIndex = [0, 1, 2, 3, 4, 5, 5, 6, 7][Math.floor(noise(index * 4) * 9)];
         const start = points[edgeIndex];
         const end = points[(edgeIndex + 1) % points.length];
         const edgeLength = Math.hypot(end[0] - start[0], end[1] - start[1]) || 1;
@@ -507,11 +504,9 @@
           edgeNormalX *= -1;
           edgeNormalY *= -1;
         }
-        const outward = escaping ? 3 + noise(index * 4 + 2) * 14 : 5 + noise(index * 4 + 2) * 42;
+        const outward = 5 + noise(index * 4 + 2) * 42;
         const anchorX = start[0] + (end[0] - start[0]) * along + edgeNormalX * outward;
         const anchorY = start[1] + (end[1] - start[1]) * along + edgeNormalY * outward;
-        const escapeX = .68 + noise(index * 4 + 10) * .48;
-        const escapeY = -.62 + noise(index * 4 + 11) * .48;
         return {
           anchorX,
           anchorY,
@@ -522,13 +517,13 @@
           radius: .55 + noise(index * 4 + 3) * 1.45,
           phase: noise(index * 4 + 4) * Math.PI * 2,
           speed: 1.8 + noise(index * 4 + 5) * 2.5,
+          orbitSpeed: .7 + noise(index * 4 + 10) * .65,
+          orbitRadiusX: 3 + noise(index * 4 + 11) * 6,
+          orbitRadiusY: 3 + noise(index * 4 + 12) * 6,
+          maxHoverDisplacement: 35 + noise(index * 4 + 13) * 30,
           depth: noise(index * 4 + 6),
-          binary: noise(index * 4 + 7) > (escaping ? .45 : .92),
+          binary: noise(index * 4 + 7) > .88,
           bit: index % 2 ? "0" : "1",
-          escaping,
-          escapeX,
-          escapeY,
-          escapeCycle: -1,
           node: noise(index * 4 + 8) > .985,
           edgeNormalX,
           edgeNormalY,
@@ -561,7 +556,7 @@
           ? [blendHex("#293c55", "#456c9a", currentness), blendHex("#567ca8", "#79aee7", currentness), blendHex("#9fcaff", "#d5eaff", currentness)]
         : [blendHex("#54708f", "#76a9e6", currentness), blendHex("#9fbeea", "#a8d0ff", currentness), blendHex("#d8ecff", "#ffffff", currentness)];
       mutateFace(face, time, enabled);
-      const radius = Math.max(120, Math.min(200, Math.min(pointer.width, pointer.height) * .55));
+      const radius = Math.max(80, Math.min(125, Math.min(pointer.width, pointer.height) * .24));
       face.cells.forEach((cell) => {
         const interior = cell.edgeGlow < .32;
         if (face.kind === "front" && interior && cell.sparse < .48) return;
@@ -614,7 +609,7 @@
 
     function drawParticles(points, roleState, transition, time, deltaMs) {
       const current = roleState.role === "current";
-      const pointerRadius = Math.max(120, Math.min(200, Math.min(pointer.width, pointer.height) * .55));
+      const pointerRadius = Math.max(80, Math.min(125, Math.min(pointer.width, pointer.height) * .24));
       const delta = motionPaused && !pointer.recovering ? 0 : Math.min(.05, Math.max(0, deltaMs) / 1000);
       const previewAmount = Math.min(104, system.particles.length);
       const amount = Math.round(previewAmount + (system.particles.length - previewAmount) * roleState.currentness);
@@ -623,46 +618,49 @@
       let maxVelocity = 0;
       for (let index = 0; index < amount; index++) {
         const particle = system.particles[index];
-        let release = 0;
         if (delta > 0) {
-          const orbit = time * .002 * particle.speed + particle.phase;
-          const lifeClock = time * .00058 * particle.speed + particle.phase / (Math.PI * 2);
-          const life = lifeClock - Math.floor(lifeClock);
-          const cycle = Math.floor(lifeClock);
-          if (particle.escaping && cycle !== particle.escapeCycle) {
-            particle.escapeCycle = cycle;
-            particle.x = particle.anchorX;
-            particle.y = particle.anchorY;
-            particle.vx = 0;
-            particle.vy = 0;
-          }
-          release = particle.escaping && !(motionPaused && pointer.recovering) ? smoothstep((life - .06) / .2) * (1 - smoothstep((life - .76) / .2)) : 0;
-          const travel = particle.escaping && !motionPaused ? smoothstep((life - .04) / .72) : 0;
-          const escapeDistance = particle.escaping && !motionPaused ? 8 + pointer.width * .095 * travel : 0;
-          const escapeHeight = particle.escaping && !motionPaused ? 5 + pointer.height * .055 * travel : 0;
-          const homeX = particle.anchorX + particle.escapeX * escapeDistance + (motionPaused ? 0 : Math.cos(orbit) * (particle.escaping ? 5 : 18));
-          const homeY = particle.anchorY + particle.escapeY * escapeHeight + (motionPaused ? 0 : Math.sin(orbit * 1.31) * (particle.escaping ? 5 : 14));
+          const orbit = time * .00035 * particle.orbitSpeed + particle.phase;
+          const homeX = particle.anchorX + (motionPaused ? 0 : Math.cos(orbit) * particle.orbitRadiusX);
+          const homeY = particle.anchorY + (motionPaused ? 0 : Math.sin(orbit * 1.31) * particle.orbitRadiusY);
           const dx = particle.x - pointer.x;
           const dy = particle.y - pointer.y;
           const distance = Math.hypot(dx, dy) || .001;
           const awayX = dx / distance;
           const awayY = dy / distance;
           const local = pointer.strength * Math.exp(-(distance * distance) / (2 * pointerRadius * pointerRadius));
-          const repulsion = local * (current ? 2450 : 620);
-          const outward = local * (current ? 420 : 110);
+          const repulsion = local * (current ? 1100 : 260);
+          const outward = local * (current ? 145 : 36);
           const transitionFlow = current ? transition.dissolution * 560 : 0;
-          const accelerationX = (homeX - particle.x) * (particle.escaping ? 8 : 11.5) - particle.vx * (particle.escaping ? 5.2 : 6.6) + awayX * (repulsion + outward * particle.edgeNormalX) + particle.edgeNormalX * outward * .22 + transitionFlow;
-          const accelerationY = (homeY - particle.y) * (particle.escaping ? 8 : 11.5) - particle.vy * (particle.escaping ? 5.2 : 6.6) + awayY * (repulsion + outward * particle.edgeNormalY) + particle.edgeNormalY * outward * .22;
+          const accelerationX = (homeX - particle.x) * 6.2 - particle.vx * 7 + awayX * (repulsion + outward * particle.edgeNormalX) + particle.edgeNormalX * outward * .22 + transitionFlow;
+          const accelerationY = (homeY - particle.y) * 6.2 - particle.vy * 7 + awayY * (repulsion + outward * particle.edgeNormalY) + particle.edgeNormalY * outward * .22;
           particle.vx += accelerationX * delta;
           particle.vy += accelerationY * delta;
           const speed = Math.hypot(particle.vx, particle.vy);
-          const maxSpeed = current ? 520 : 210;
+          const transitioning = transitionKick > .02;
+          const maxSpeed = transitioning ? (current ? 520 : 210) : (current ? 170 : 95);
           if (speed > maxSpeed) {
             particle.vx = particle.vx / speed * maxSpeed;
             particle.vy = particle.vy / speed * maxSpeed;
           }
           particle.x += particle.vx * delta;
           particle.y += particle.vy * delta;
+          if (!transitioning) {
+            const offsetX = particle.x - particle.anchorX;
+            const offsetY = particle.y - particle.anchorY;
+            const offset = Math.hypot(offsetX, offsetY);
+            if (offset > particle.maxHoverDisplacement) {
+              const scale = particle.maxHoverDisplacement / offset;
+              particle.x = particle.anchorX + offsetX * scale;
+              particle.y = particle.anchorY + offsetY * scale;
+              const outwardVelocity = particle.vx * offsetX + particle.vy * offsetY;
+              if (outwardVelocity > 0) {
+                particle.vx -= outwardVelocity / (offset * offset) * offsetX;
+                particle.vy -= outwardVelocity / (offset * offset) * offsetY;
+              }
+            }
+          }
+          particle.x = Math.max(0, Math.min(pointer.width, particle.x));
+          particle.y = Math.max(0, Math.min(pointer.height, particle.y));
         }
         maxDisplacement = Math.max(maxDisplacement, Math.hypot(particle.x - particle.anchorX, particle.y - particle.anchorY));
         maxVelocity = Math.max(maxVelocity, Math.hypot(particle.vx, particle.vy));
@@ -670,13 +668,12 @@
         const depthScale = .72 + particle.depth * .64;
         const pulse = .72 + (Math.sin(time * .0035 * particle.speed + particle.phase) + 1) * .14;
         const baseAlpha = current ? .72 : .42;
-        const releaseAlpha = particle.escaping ? .14 + release * .86 : 1;
-        const alpha = baseAlpha * pulse * depthScale * transitionFactor * releaseAlpha;
+        const alpha = baseAlpha * pulse * depthScale * transitionFactor;
         context.globalAlpha = alpha;
         context.fillStyle = particle.node ? "#f1f8ff" : "#b7dcff";
         context.shadowColor = "rgba(91, 169, 255, .7)";
         context.shadowBlur = particle.node ? 5 : particle.depth > .8 ? 3 : 1.2;
-        if (particle.binary && (transitionKick > .08 || particle.escaping)) {
+        if (particle.binary) {
           context.font = "9px ui-monospace, SFMono-Regular, Consolas, monospace";
           context.textAlign = "center";
           context.textBaseline = "middle";
