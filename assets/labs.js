@@ -22,6 +22,13 @@
 
   if (!runway || !stage || !collection || folders.length !== 5 || !controls || !motionControl) return;
 
+  const ambientCanvas = document.createElement("canvas");
+  ambientCanvas.className = "lab-ambient-field";
+  ambientCanvas.dataset.labAmbientField = "true";
+  ambientCanvas.setAttribute("aria-hidden", "true");
+  document.body.appendChild(ambientCanvas);
+  const ambientContext = ambientCanvas.getContext("2d", { alpha: true });
+
   const isEnglish = document.documentElement.lang.toLowerCase().startsWith("en");
   const labs = [
     {
@@ -46,6 +53,151 @@
     const t = clamp(value);
     return t * t * (3 - 2 * t);
   };
+  function fieldNoise(value) {
+    const raw = Math.sin(value * 12.9898 + 78.233) * 43758.5453;
+    return raw - Math.floor(raw);
+  }
+
+  function makeAmbientParticles() {
+    const amount = isMobileScene() ? 84 : 180;
+    return Array.from({ length: amount }, (_, index) => {
+      const region = [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 4, 4][index % 20];
+      const horizontal = fieldNoise(index * 13 + 1);
+      const vertical = fieldNoise(index * 17 + 2);
+      let x;
+      let y;
+      if (region === 0) {
+        x = ambientWidth * (.24 + horizontal * .2);
+        y = ambientHeight * (.12 + vertical * .72);
+      } else if (region === 1) {
+        x = ambientWidth * (.035 + horizontal * .29);
+        y = ambientHeight * (.2 + vertical * .66);
+      } else if (region === 2) {
+        x = ambientWidth * (.06 + horizontal * .78);
+        y = ambientHeight * (.72 + vertical * .27);
+      } else if (region === 3) {
+        x = ambientWidth * (.02 + horizontal * .96);
+        y = ambientHeight * (.008 + vertical * .084);
+      } else {
+        x = ambientWidth * (.49 + horizontal * .46);
+        y = ambientHeight * (.14 + vertical * .68);
+      }
+      const alpha = .2 + fieldNoise(index * 19 + 3) * .25;
+      return {
+        anchorX: x,
+        anchorY: y,
+        x,
+        y,
+        vx: 0,
+        vy: 0,
+        radius: .65 + fieldNoise(index * 23 + 4) * 1.25,
+        alpha,
+        phase: fieldNoise(index * 29 + 5) * Math.PI * 2,
+        orbitSpeed: .55 + fieldNoise(index * 31 + 6) * .5,
+        pulseSpeed: 1.4 + fieldNoise(index * 37 + 7) * 1.7,
+        orbitRadiusX: 3 + fieldNoise(index * 41 + 8) * 6,
+        orbitRadiusY: 3 + fieldNoise(index * 43 + 9) * 6,
+        maxHoverDisplacement: 35 + fieldNoise(index * 47 + 10) * 30,
+        binary: fieldNoise(index * 53 + 11) > .92,
+        bit: index % 2 ? "0" : "1",
+        node: fieldNoise(index * 59 + 12) > .978,
+      };
+    });
+  }
+
+  function drawAmbientField(time, deltaMs) {
+    if (!ambientContext) return;
+    ambientContext.setTransform(ambientRatio, 0, 0, ambientRatio, 0, 0);
+    ambientContext.clearRect(0, 0, ambientWidth, ambientHeight);
+    if (!sceneVisible) return;
+
+    const delta = motionPaused && !ambientPointer.recovering ? 0 : Math.min(.05, Math.max(0, deltaMs) / 1000);
+    const pointerRadius = Math.max(80, Math.min(125, Math.min(ambientWidth, ambientHeight) * .24));
+    let maxDisplacement = 0;
+    let maxVelocity = 0;
+    for (const particle of ambientParticles) {
+      if (delta > 0) {
+        const orbit = time * .00035 * particle.orbitSpeed + particle.phase;
+        const homeX = particle.anchorX + (motionPaused ? 0 : Math.cos(orbit) * particle.orbitRadiusX);
+        const homeY = particle.anchorY + (motionPaused ? 0 : Math.sin(orbit * 1.31) * particle.orbitRadiusY);
+        const dx = particle.x - ambientPointer.x;
+        const dy = particle.y - ambientPointer.y;
+        const distance = Math.hypot(dx, dy) || .001;
+        const awayX = dx / distance;
+        const awayY = dy / distance;
+        const local = ambientPointer.strength * Math.exp(-(distance * distance) / (2 * pointerRadius * pointerRadius));
+        const accelerationX = (homeX - particle.x) * 6.2 - particle.vx * 7 + awayX * local * 1100;
+        const accelerationY = (homeY - particle.y) * 6.2 - particle.vy * 7 + awayY * local * 1100;
+        particle.vx += accelerationX * delta;
+        particle.vy += accelerationY * delta;
+        const speed = Math.hypot(particle.vx, particle.vy);
+        if (speed > 170) {
+          particle.vx = particle.vx / speed * 170;
+          particle.vy = particle.vy / speed * 170;
+        }
+        particle.x += particle.vx * delta;
+        particle.y += particle.vy * delta;
+        const offsetX = particle.x - particle.anchorX;
+        const offsetY = particle.y - particle.anchorY;
+        const offset = Math.hypot(offsetX, offsetY);
+        if (offset > particle.maxHoverDisplacement) {
+          const scale = particle.maxHoverDisplacement / offset;
+          particle.x = particle.anchorX + offsetX * scale;
+          particle.y = particle.anchorY + offsetY * scale;
+          const outwardVelocity = particle.vx * offsetX + particle.vy * offsetY;
+          if (outwardVelocity > 0) {
+            particle.vx -= outwardVelocity / (offset * offset) * offsetX;
+            particle.vy -= outwardVelocity / (offset * offset) * offsetY;
+          }
+        }
+        particle.x = clamp(particle.x, 0, ambientWidth);
+        particle.y = clamp(particle.y, 0, ambientHeight);
+      }
+
+      const displacement = Math.hypot(particle.x - particle.anchorX, particle.y - particle.anchorY);
+      maxDisplacement = Math.max(maxDisplacement, displacement);
+      maxVelocity = Math.max(maxVelocity, Math.hypot(particle.vx, particle.vy));
+      const pulse = .58 + (Math.sin(time * .002 * particle.pulseSpeed + particle.phase) + 1) * .21;
+      ambientContext.globalAlpha = particle.alpha * pulse * (1 + ambientPointer.strength * .24);
+      ambientContext.fillStyle = particle.node ? "#d8eaff" : "#9ecbfa";
+      ambientContext.shadowColor = "rgba(91, 169, 255, .42)";
+      ambientContext.shadowBlur = particle.node ? 2.2 : 1.1;
+      if (particle.binary) {
+        ambientContext.font = "8px ui-monospace, SFMono-Regular, Consolas, monospace";
+        ambientContext.textAlign = "center";
+        ambientContext.textBaseline = "middle";
+        ambientContext.fillText(particle.bit, particle.x, particle.y);
+      } else {
+        ambientContext.beginPath();
+        ambientContext.arc(particle.x, particle.y, particle.radius * (particle.node ? 1.3 : 1), 0, Math.PI * 2);
+        ambientContext.fill();
+      }
+    }
+    ambientContext.globalAlpha = 1;
+    ambientContext.shadowBlur = 0;
+    ambientCanvas.dataset.particleCount = String(ambientParticles.length);
+    ambientCanvas.dataset.particleDisplacement = maxDisplacement.toFixed(1);
+    ambientCanvas.dataset.pointerForce = ambientPointer.strength.toFixed(3);
+    ambientCanvas.dataset.pointerTarget = ambientPointer.targetStrength.toFixed(3);
+    if (ambientPointer.recovering && ambientPointer.strength < .01 && ambientPointer.targetStrength < .01 && maxVelocity < 3 && (!motionPaused || maxDisplacement < 1.4)) ambientPointer.recovering = false;
+  }
+
+  function resetAmbientField() {
+    ambientPointer.x = -1000;
+    ambientPointer.y = -1000;
+    ambientPointer.strength = 0;
+    ambientPointer.targetStrength = 0;
+    ambientPointer.recovering = false;
+    ambientParticles.forEach((particle) => {
+      particle.x = particle.anchorX;
+      particle.y = particle.anchorY;
+      particle.vx = 0;
+      particle.vy = 0;
+    });
+    ambientCanvas.dataset.pointerForce = "0.000";
+    ambientCanvas.dataset.pointerTarget = "0.000";
+    ambientCanvas.dataset.particleDisplacement = "0";
+  }
   let targetPosition = 0;
   let visualPosition = 0;
   let activeIndex = 0;
@@ -60,6 +212,11 @@
   let stageWidth = 1;
   let stageHeight = 1;
   let stageRatio = 1;
+  let ambientWidth = 1;
+  let ambientHeight = 1;
+  let ambientRatio = 1;
+  let ambientParticles = [];
+  const ambientPointer = { x: -1000, y: -1000, strength: 0, targetStrength: 0, recovering: false };
   const folderSystems = [];
 
   const transitionCanvas = document.createElement("canvas");
@@ -258,13 +415,18 @@
         const deltaStrength = system.pointer.targetStrength - system.pointer.strength;
         system.pointer.strength += deltaStrength * (1 - Math.exp(-canvasDelta * (deltaStrength < 0 ? .007 : .028)));
         if (Math.abs(deltaStrength) < .006) system.pointer.strength = system.pointer.targetStrength;
-          const interactionActive = system.pointer.targetStrength > .01 || system.pointer.strength > .01 || system.pointer.recovering;
-          system.draw(visualPosition, sceneTime, motionPaused && !interactionActive ? 0 : canvasDelta);
+        const interactionActive = system.pointer.targetStrength > .01 || system.pointer.strength > .01 || system.pointer.recovering;
+        system.draw(visualPosition, sceneTime, motionPaused && !interactionActive ? 0 : canvasDelta);
       });
+      const ambientDeltaStrength = ambientPointer.targetStrength - ambientPointer.strength;
+      ambientPointer.strength += ambientDeltaStrength * (1 - Math.exp(-canvasDelta * (ambientDeltaStrength < 0 ? .007 : .028)));
+      if (Math.abs(ambientDeltaStrength) < .006) ambientPointer.strength = ambientPointer.targetStrength;
+      const ambientInteractionActive = ambientPointer.targetStrength > .01 || ambientPointer.strength > .01 || ambientPointer.recovering;
+      drawAmbientField(sceneTime, motionPaused && !ambientInteractionActive ? 0 : canvasDelta);
     }
 
-    const pointerInMotion = folderSystems.some((system) => system?.visible && Math.abs(system.pointer.targetStrength - system.pointer.strength) > .006);
-    const pointerActive = folderSystems.some((system) => system?.visible && (system.pointer.targetStrength > .01 || system.pointer.strength > .01 || system.pointer.recovering));
+    const pointerInMotion = Math.abs(ambientPointer.targetStrength - ambientPointer.strength) > .006 || folderSystems.some((system) => system?.visible && Math.abs(system.pointer.targetStrength - system.pointer.strength) > .006);
+    const pointerActive = ambientPointer.targetStrength > .01 || ambientPointer.strength > .01 || ambientPointer.recovering || folderSystems.some((system) => system?.visible && (system.pointer.targetStrength > .01 || system.pointer.strength > .01 || system.pointer.recovering));
     if (!reduceMotion.matches && (!motionPaused || Math.abs(targetPosition - visualPosition) > .002 || pointerInMotion || pointerActive)) {
       sceneFrame = requestAnimationFrame(animateScene);
     }
@@ -278,6 +440,7 @@
       folderSystems.forEach((system) => {
         if (system?.visible) system.draw(visualPosition, sceneTime, 0);
       });
+      drawAmbientField(sceneTime, 0);
       return;
     }
     lastFrameTime = 0;
@@ -343,6 +506,26 @@
     scrollToIndex(activeIndex + (deltaX < 0 ? 1 : -1));
   });
   stage.addEventListener("pointercancel", () => { pointerGesture = null; });
+
+  window.addEventListener("pointermove", (event) => {
+    if (!sceneVisible || reduceMotion.matches || event.pointerType === "touch") return;
+    ambientPointer.x = event.clientX;
+    ambientPointer.y = event.clientY;
+    ambientPointer.targetStrength = .95;
+    ambientPointer.recovering = false;
+    requestSceneAnimation();
+  }, { passive: true });
+  const releaseAmbientPointer = () => {
+    ambientPointer.targetStrength = 0;
+    if (!reduceMotion.matches) ambientPointer.recovering = true;
+    requestSceneAnimation();
+  };
+  window.addEventListener("pointerleave", releaseAmbientPointer, { passive: true });
+  window.addEventListener("pointercancel", releaseAmbientPointer, { passive: true });
+  window.addEventListener("blur", releaseAmbientPointer, { passive: true });
+  document.addEventListener("pointerout", (event) => {
+    if (!event.relatedTarget) releaseAmbientPointer();
+  }, { passive: true });
 
   folders.forEach((folder, folderIndex) => {
     const canvas = folder.querySelector("[data-folder-canvas]");
@@ -834,6 +1017,18 @@
     transitionCanvas.height = Math.round(stageHeight * stageRatio);
     transitionCanvas.style.width = stageWidth + "px";
     transitionCanvas.style.height = stageHeight + "px";
+    ambientWidth = Math.max(1, window.innerWidth);
+    ambientHeight = Math.max(1, window.innerHeight);
+    ambientRatio = Math.min(window.devicePixelRatio || 1, 1);
+    ambientCanvas.width = Math.round(ambientWidth * ambientRatio);
+    ambientCanvas.height = Math.round(ambientHeight * ambientRatio);
+    ambientCanvas.style.width = ambientWidth + "px";
+    ambientCanvas.style.height = ambientHeight + "px";
+    ambientParticles = makeAmbientParticles();
+    resetAmbientField();
+    ambientCanvas.style.visibility = sceneVisible ? "visible" : "hidden";
+    stage.dataset.ambientParticleCount = String(ambientParticles.length);
+    drawAmbientField(sceneTime, 0);
     requestSceneAnimation();
   }
 
@@ -849,10 +1044,12 @@
       if (reduceMotion.matches) system.resetAmbient();
       system.draw(targetPosition, sceneTime, 0);
     });
+    if (reduceMotion.matches) resetAmbientField();
     if (sceneFrame) cancelAnimationFrame(sceneFrame);
     sceneFrame = 0;
     visualPosition = reduceMotion.matches ? activeIndex : targetPosition;
     paintScene(visualPosition, sceneTime);
+    drawAmbientField(sceneTime, 0);
     onScroll();
   });
   document.addEventListener("visibilitychange", () => {
@@ -863,13 +1060,17 @@
   });
   if ("IntersectionObserver" in window) {
     new IntersectionObserver(([entry]) => {
-      sceneVisible = entry.isIntersecting;
+      sceneVisible = entry.isIntersecting && entry.intersectionRatio >= .98;
+      ambientCanvas.style.visibility = sceneVisible ? "visible" : "hidden";
       if (sceneVisible) requestSceneAnimation();
-      else if (sceneFrame) {
-        cancelAnimationFrame(sceneFrame);
-        sceneFrame = 0;
+      else {
+        resetAmbientField();
+        if (sceneFrame) {
+          cancelAnimationFrame(sceneFrame);
+          sceneFrame = 0;
+        }
       }
-    }, { threshold: .01 }).observe(stage);
+    }, { threshold: [.01, .98] }).observe(stage);
   }
 
   controls.hidden = false;
