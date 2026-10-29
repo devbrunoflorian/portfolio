@@ -542,7 +542,7 @@
 
     function polygon(width, height, depth = 0, layer = 0) {
       const bottom = isMobileScene() ? .67 : .87;
-      const yaw = -.55;
+      const yaw = -.58;
       const pitch = -.14;
       const centerX = width * .5;
       const centerY = height * .52;
@@ -878,7 +878,7 @@
       context.setTransform(pointer.ratio, 0, 0, pointer.ratio, 0, 0);
       context.clearRect(0, 0, pointer.width, pointer.height);
       const bottom = system.bottom;
-      const depth = pointer.width * .16;
+      const depth = pointer.width * .3;
       const front = polygon(pointer.width, pointer.height, 0, 0);
       const middle = polygon(pointer.width, pointer.height, -depth * .48, .8);
       const back = polygon(pointer.width, pointer.height, -depth, 1.6);
@@ -922,7 +922,7 @@
         reflectionContext.scale(1, -1);
         reflectionContext.drawImage(canvas, 0, pointer.height * .11 * pointer.ratio, canvas.width, pointer.height * (bottom - .11) * pointer.ratio, 0, 0, reflectionCanvas.width, reflectionCanvas.height);
         reflectionContext.restore();
-        reflectionCanvas.style.opacity = String(.055 + .275 * roleState.currentness);
+        reflectionCanvas.style.opacity = String(.055 + .325 * roleState.currentness);
       }
       folder.dataset.pointerForce = pointer.strength.toFixed(3);
       folder.dataset.particleEnergy = (pointer.strength + (role === "current" ? transition.dissolution : transition.reconstruction)).toFixed(3);
@@ -961,7 +961,7 @@
         reflectionCanvas.height = Math.round(canvas.height * (isMobileScene() ? .34 : .43));
       }
       const bottom = system.bottom;
-      const depth = pointer.width * .16;
+      const depth = pointer.width * .3;
       const front = polygon(pointer.width, pointer.height, 0, 0);
       const middle = polygon(pointer.width, pointer.height, -depth * .48, .8);
       const back = polygon(pointer.width, pointer.height, -depth, 1.6);
