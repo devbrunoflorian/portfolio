@@ -201,6 +201,8 @@
     let maxVelocity = 0;
     for (const particle of ambientParticles) {
       const anchor = ambientAnchor(particle, layout);
+      particle.x += anchor.x - particle.anchorX;
+      particle.y += anchor.y - particle.anchorY;
       particle.anchorX = anchor.x;
       particle.anchorY = anchor.y;
       if (delta > 0) {
@@ -237,9 +239,9 @@
             particle.vy -= outwardVelocity / (offset * offset) * offsetY;
           }
         }
-        particle.x = clamp(particle.x, 0, ambientWidth);
-        particle.y = clamp(particle.y, 0, ambientHeight);
       }
+      particle.x = clamp(particle.x, 0, ambientWidth);
+      particle.y = clamp(particle.y, 0, ambientHeight);
 
       const displacement = Math.hypot(particle.x - particle.anchorX, particle.y - particle.anchorY);
       maxDisplacement = Math.max(maxDisplacement, displacement);
