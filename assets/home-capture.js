@@ -1,0 +1,154 @@
+const enabled = new URLSearchParams(location.search).get("home-capture") === "1";
+
+function createCapture() {
+  const seed = 0x484f4d45;
+  let randomState = seed;
+  let time = 0;
+  let delta = 16;
+  let nextTimer = 1;
+  let scene;
+  let systems;
+  let resolveReady;
+  let disposed = false;
+  const timers = new Map();
+  const animations = new Map();
+  const ready = new Promise((resolve) => { resolveReady = resolve; });
+  const frame = document.querySelector("#scene-frame");
+
+  function random() {
+    randomState = (randomState * 1664525 + 1013904223) >>> 0;
+    return randomState / 0x100000000;
+  }
+
+  function syncAnimations() {
+    const current = new Set(document.getAnimations());
+    for (const animation of animations.keys()) {
+      if (!current.has(animation)) animations.delete(animation);
+    }
+    for (const animation of current) {
+      if (!animations.has(animation)) animations.set(animation, time);
+      animation.pause();
+      animation.currentTime = time - animations.get(animation);
+      const timing = animation.effect?.getComputedTiming();
+      if (timing && time - animations.get(animation) >= timing.endTime) {
+        animation.finish();
+      }
+    }
+  }
+
+  function schedule(callback, delay = 0, repeat = false) {
+    const id = nextTimer++;
+    const interval = Math.max(repeat ? 1 : 0, Number(delay) || 0);
+    timers.set(id, { callback, at: time + interval, interval, repeat });
+    return id;
+  }
+
+  function runTimers(until) {
+    while (true) {
+      let next;
+      for (const entry of timers) {
+        if (entry[1].at <= until && (!next || entry[1].at < next[1].at)) next = entry;
+      }
+      if (!next) break;
+      const [id, timer] = next;
+      time = timer.at;
+      if (timer.repeat) timer.at += timer.interval;
+      else timers.delete(id);
+      timer.callback();
+      syncAnimations();
+    }
+  }
+
+  function setTime(seconds) {
+    const target = Number(seconds) * 1000;
+    if (!Number.isFinite(target) || target < time) {
+      throw new RangeError("Home capture time must be finite and monotonic; reload to rewind interaction history.");
+    }
+    if (!scene) throw new Error("Wait for Home capture readiness before setting time.");
+    while (time < target) {
+      const previous = time;
+      const next = Math.min(target, previous + 1000 / 60);
+      runTimers(next);
+      time = next;
+      delta = next - previous;
+      scene.render(time);
+      syncAnimations();
+    }
+    frame.dataset.captureTime = (time / 1000).toFixed(3);
+    return snapshot();
+  }
+
+  function snapshot() {
+    return {
+      time: time / 1000,
+      seed,
+      scene: { ...frame.dataset },
+      systems: systems?.snapshot(),
+      renderer: scene?.info(),
+      pendingTimers: timers.size,
+    };
+  }
+
+  const observer = new MutationObserver(() => { if (!disposed) syncAnimations(); });
+  observer.observe(document.documentElement, { attributes: true, childList: true, subtree: true });
+  syncAnimations();
+
+  const api = {
+    ready,
+    setTime,
+    setPointer(x, y) {
+      if (x == null && y == null) {
+        document.querySelector(".hero-screen").dispatchEvent(new PointerEvent("pointerleave"));
+      } else {
+        if (!Number.isFinite(x) || !Number.isFinite(y)) throw new TypeError("Home capture pointer must be finite or null.");
+        document.querySelector(".hero-screen").dispatchEvent(new PointerEvent("pointermove", {
+          clientX: x, clientY: y, pointerType: "mouse", bubbles: true,
+        }));
+      }
+    },
+    setScroll(pixels) {
+      if (!Number.isFinite(pixels) || pixels < 0) throw new TypeError("Home capture scroll must be finite and nonnegative.");
+      window.scrollTo({ top: pixels, behavior: "instant" });
+      scene?.updateProgress();
+      syncAnimations();
+    },
+    trigger(name) {
+      systems?.trigger(name);
+      syncAnimations();
+      return snapshot();
+    },
+    snapshot,
+    dispose() {
+      disposed = true;
+      observer.disconnect();
+      timers.clear();
+      for (const animation of animations.keys()) animation.cancel();
+      animations.clear();
+      delete window.__homeCapture;
+    },
+  };
+  window.__homeCapture = Object.freeze(api);
+  frame.dataset.captureSeed = `0x${seed.toString(16)}`;
+
+  return {
+    random,
+    get delta() { return delta; },
+    setTimeout: (callback, delay) => schedule(callback, delay),
+    setInterval: (callback, delay) => schedule(callback, delay, true),
+    clearTimer: (id) => timers.delete(id),
+    bindSystems(value) { systems = value; },
+    bindScene(value) {
+      scene = value;
+      scene.render(time);
+      syncAnimations();
+      frame.dataset.captureReady = "true";
+      resolveReady(true);
+    },
+    fallback() {
+      frame.dataset.captureReady = "true";
+      resolveReady(false);
+    },
+  };
+}
+
+export const homeCapture = enabled ? createCapture() : null;

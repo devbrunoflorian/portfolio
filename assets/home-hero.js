@@ -1,4 +1,5 @@
 import { initializeMobileHome, revealMobileCopy } from "./home-mobile.js?v=pbr-tight-1";
+import { homeCapture } from "./home-capture.js";
 
 const frame = document.querySelector("#scene-frame");
 const status = document.querySelector("#scene-status");
@@ -12,6 +13,7 @@ frame.dataset.debugMode = String(debugMode);
 initializeMobileHome();
 
 function showStaticScene() {
+  homeCapture?.fallback();
   revealMobileCopy();
   frame.dataset.sceneState = "poster";
   frame.dataset.modelReady = "false";
@@ -33,6 +35,7 @@ function loadSceneWhenAppropriate() {
   if (sceneModulePromise) return;
   frame.dataset.sceneState = "loading";
   sceneModulePromise = import("./home-hero-scene.js?v=pbr-tight-1").catch((error) => {
+    homeCapture?.fallback();
     revealMobileCopy();
     sceneModulePromise = null;
     frame.dataset.sceneState = "poster";

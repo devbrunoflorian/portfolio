@@ -6,6 +6,7 @@ import { SimplifyModifier } from "three/addons/modifiers/SimplifyModifier.js";
 import { createSpatialEnvironment } from "./home-environment-scene.js?v=pbr-tight-1";
 import { homeEnvironment } from "./home-environment.js?v=pbr-tight-1";
 import { mobileViewport, revealMobileCopy, updateMobileProgress } from "./home-mobile.js?v=pbr-tight-1";
+import { homeCapture } from "./home-capture.js";
 
 const frame = document.querySelector("#scene-frame");
 const canvas = document.querySelector("#scene-canvas");
@@ -77,6 +78,7 @@ function smoothstep(edge0, edge1, value) {
 }
 
 function queueFrame() {
+  if (homeCapture) return;
   if (!renderer || !sceneVisible || frameRequest) return;
   frameRequest = requestAnimationFrame(renderFrame);
 }
@@ -452,7 +454,7 @@ function renderFrame(timestamp) {
       return;
     }
   }
-  const elapsed = lastFrameAt ? Math.min(80, timestamp - lastFrameAt) : 16;
+  const elapsed = homeCapture ? homeCapture.delta : lastFrameAt ? Math.min(80, timestamp - lastFrameAt) : 16;
   lastFrameAt = timestamp;
   const smoothing = 1 - Math.exp(-elapsed / 105);
   yaw += (targetYaw - yaw) * smoothing;
@@ -500,6 +502,7 @@ function renderFrame(timestamp) {
 }
 
 function setStaticFallback(message) {
+  homeCapture?.fallback();
   revealMobileCopy();
   homeEnvironment?.setActive(false);
   if (renderer) {
@@ -632,6 +635,22 @@ async function startScene() {
         : "3D scene active. Pointer movement is optional; projects and navigation remain available.";
     resizeScene();
     updateSceneProgress();
+    homeCapture?.bindScene({
+      render: renderFrame,
+      updateProgress: updateSceneProgress,
+      info: () => ({
+        programs: renderer.info.programs.length,
+        calls: renderer.info.render.calls,
+        geometries: renderer.info.memory.geometries,
+        textures: renderer.info.memory.textures,
+        backend: renderer.getContext().getParameter(renderer.getContext().RENDERER),
+        device: (() => {
+          const gl = renderer.getContext();
+          const extension = gl.getExtension("WEBGL_debug_renderer_info");
+          return extension ? gl.getParameter(extension.UNMASKED_RENDERER_WEBGL) : "unavailable";
+        })(),
+      }),
+    });
     queueFrame();
   } catch (error) {
     console.error("Portfolio hero scene unavailable; keeping static model preview.", error);

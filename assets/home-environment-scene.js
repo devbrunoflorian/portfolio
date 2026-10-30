@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { homeCapture } from "./home-capture.js";
 
 function createObsidianGeometry(width, height, depth, cut) {
   const x = width / 2;
@@ -568,13 +569,13 @@ export function createSpatialEnvironment(scene, floorY, renderer, camera) {
       }
       if (environment.animating && !activeEffect && timestamp >= nextEffectAt) {
         const choices = eligible.filter((index) => index !== lastEffectIndex);
-        const index = choices[Math.floor(Math.random() * choices.length)];
+        const index = choices[Math.floor((homeCapture?.random ?? Math.random)() * choices.length)];
         const duration = index < pulseOffset ? signals[index].duration * 1000
           : index < svgOffset ? pulseDurations[index - pulseOffset] * 1000
             : parseFloat(svgSignals[index - svgOffset].style.getPropertyValue("--signal-duration")) * 1000;
         activeEffect = { index, startedAt: timestamp, duration, rate: 3000 / duration };
         lastEffectIndex = index;
-        const quietGap = (700 + Math.random() * 1600) * (mobileMode ? 1 + environment.phase.coherence * 0.7 : 1);
+        const quietGap = (700 + (homeCapture?.random ?? Math.random)() * 1600) * (mobileMode ? 1 + environment.phase.coherence * 0.7 : 1);
         nextEffectAt = timestamp + duration + quietGap;
       }
       const effectIndex = activeEffect?.index ?? -1;
@@ -615,7 +616,7 @@ export function createSpatialEnvironment(scene, floorY, renderer, camera) {
       if (nextReconstructionAt === null) nextReconstructionAt = timestamp + 13000;
       if (mobileMode && environment.animating && environment.phase.coherence < 1 && timestamp >= nextReconstructionAt) {
         reconstructionStartedAt = timestamp;
-        nextReconstructionAt = timestamp + 22000 + Math.random() * 14000;
+        nextReconstructionAt = timestamp + 22000 + (homeCapture?.random ?? Math.random)() * 14000;
       }
       const age = timestamp - reconstructionStartedAt;
       const shear = mobileMode && environment.animating && age < 260 ? Math.sin(age / 260 * Math.PI) * 0.022 : 0;

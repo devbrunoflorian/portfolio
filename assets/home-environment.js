@@ -1,3 +1,5 @@
+import { homeCapture } from "./home-capture.js";
+
 const hero = document.querySelector(".hero-screen");
 const frame = document.querySelector("#scene-frame");
 const heroTitle = document.querySelector("#hero-title");
@@ -28,6 +30,11 @@ function goldenSpiralPath() {
 }
 
 function createEnvironment() {
+  const setTimeout = homeCapture?.setTimeout ?? window.setTimeout.bind(window);
+  const setInterval = homeCapture?.setInterval ?? window.setInterval.bind(window);
+  const clearTimeout = homeCapture?.clearTimer ?? window.clearTimeout.bind(window);
+  const clearInterval = homeCapture?.clearTimer ?? window.clearInterval.bind(window);
+  const random = homeCapture?.random ?? Math.random;
   if (!hero || debug) return null;
   let existing = hero.querySelector(".hero-environment");
   if (existing) existing.remove();
@@ -374,7 +381,7 @@ function createEnvironment() {
     analyzeCycleTimer = setInterval(() => {
       // Rapid cycling for unresolved slots
       for (let i = resolvedCount; i < analyzeSlots.length; i++) {
-        analyzeSlots[i].textContent = Math.random() > 0.5 ? "1" : "0";
+        analyzeSlots[i].textContent = random() > 0.5 ? "1" : "0";
       }
     }, 45);
 
@@ -552,7 +559,7 @@ function createEnvironment() {
     let resolvedCount = 0;
     systemCycleTimer = setInterval(() => {
       for (let i = resolvedCount; i < systemSlots.length; i++) {
-        systemSlots[i].textContent = Math.random() > 0.5 ? "1" : "0";
+        systemSlots[i].textContent = random() > 0.5 ? "1" : "0";
       }
     }, 45);
 
@@ -809,6 +816,18 @@ function createEnvironment() {
   }
 
   const nodes = element.querySelectorAll("[data-kinetic]");
+  homeCapture?.bindSystems({
+    trigger(name) {
+      if (["analyze", "design", "compose", "iterate", "concept", "system", "execution", "impact"].includes(name)) {
+        dispatchKinetic(name);
+      } else if (["think", "ship", "build", "improve"].includes(name)) {
+        activateCadenceStep(name);
+      } else {
+        throw new TypeError("Unknown Home capture interaction.");
+      }
+    },
+    snapshot: () => ({ families: structuredClone(interactionState), resetting: isGlobalResetting }),
+  });
   nodes.forEach((node) => {
     const kind = node.dataset.kinetic;
     const onTrigger = (e) => {
