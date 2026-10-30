@@ -12,6 +12,7 @@ function createCapture() {
   let nextTimer = 1;
   let scene;
   let systems;
+  let bootstrap;
   let resolveReady;
   let disposed = false;
   const timers = new Map();
@@ -120,6 +121,8 @@ function createCapture() {
     },
     snapshot,
     dispose() {
+      bootstrap?.dispose?.();
+      scene?.dispose?.();
       disposed = true;
       observer.disconnect();
       timers.clear();
@@ -138,6 +141,7 @@ function createCapture() {
     setInterval: (callback, delay) => schedule(callback, delay, true),
     clearTimer: (id) => timers.delete(id),
     bindSystems(value) { systems = value; },
+    bindBootstrap(value) { bootstrap = value; },
     bindScene(value) {
       scene = value;
       scene.render(clock.t * 1000);
