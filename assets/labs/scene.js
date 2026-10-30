@@ -18,6 +18,7 @@ const {
   scene,
   folderRoot,
   reducedMotion,
+  clock,
 } = ctx;
 const cameraRig = createLabsCamera(ctx);
 const { camera, cameraTarget } = cameraRig;
@@ -46,8 +47,6 @@ let pointerController = null;
 let geometryDebug = null;
 let transitions = null;
 let idleFrame = 0;
-let previousIdleTime = 0;
-let frozenTime = captureEnabled ? 0 : null;
 
 function disposeSceneResources() {
   if (resourcesDisposed) return;
@@ -97,7 +96,8 @@ function setIdleTime(seconds) {
 function setTime(seconds) {
   const nextTime = Number(seconds);
   if (!Number.isFinite(nextTime)) throw new TypeError('Labs capture time must be a finite number.');
-  frozenTime = nextTime;
+  clock.pause();
+  clock.seek(nextTime);
   setIdleTime(nextTime);
   pointerController?.resetCaptureRecoil(nextTime);
   canvas.dataset.captureTime = nextTime.toFixed(3);
@@ -113,21 +113,20 @@ function animateIdle(timestamp) {
     canvas.dataset.idleRunning = 'false';
     return;
   }
-  const seconds = frozenTime ?? timestamp * 0.001;
-  const delta = frozenTime === null && previousIdleTime
-    ? Math.min((timestamp - previousIdleTime) * 0.001, 0.05)
-    : 0;
-  previousIdleTime = timestamp;
+  const tick = clock.sample(timestamp);
+  // Keep the existing shader epoch while sharing capture and frame-delta control.
+  const seconds = clock.paused ? clock.t : tick.timestamp;
+  const delta = tick.dt;
   setIdleTime(seconds);
   pointerController.update(delta);
   fireflyField?.updateRecoil(delta, seconds);
   composer.render();
-  if (frozenTime === null) idleFrame = requestAnimationFrame(animateIdle);
+  if (!clock.paused) idleFrame = requestAnimationFrame(animateIdle);
 }
 
 function startIdle() {
   if (!geometryDebugEnabled && !captureEnabled && !idleFrame && !document.hidden && !reducedMotion.matches) {
-    previousIdleTime = 0;
+    clock.resetFrame();
     canvas.dataset.idleRunning = 'true';
     idleFrame = requestAnimationFrame(animateIdle);
   }
@@ -188,7 +187,7 @@ try {
     binary,
     fireflies: fireflyField,
     render: () => composer.render(),
-    getCaptureTime: () => frozenTime ?? 0,
+    getCaptureTime: () => clock.paused ? clock.t : 0,
   });
   background = createLabsBackground(ctx, glyphs);
   const floor = background.floor;

@@ -5,6 +5,8 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { createClock } from '../../shared/clock.js';
+import { createSeededRandom } from '../../shared/random.js';
 
 const RANDOM_SEED = 0x4c414253;
 
@@ -22,14 +24,6 @@ const glowProfiles = {
   'blue-middle': { strength: 1.2, radius: 0.65, threshold: 0.17, faceEmission: 3.5, perimeterEmission: 1.4 },
   'blue-middle-edge': { strength: 1.2, radius: 0.65, threshold: 0.17, faceEmission: 3.5, perimeterEmission: 1.6 },
 };
-
-function createSeededRandom(seed) {
-  let state = seed;
-  return () => {
-    state = (state * 1664525 + 1013904223) >>> 0;
-    return state / 0x100000000;
-  };
-}
 
 export function createLabsContext(stage) {
   const canvas = document.createElement('canvas');
@@ -80,11 +74,7 @@ export function createLabsContext(stage) {
   scene.add(folderRoot);
 
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
-  const clock = {
-    frozenTime: captureEnabled ? 0 : null,
-    previousIdleTime: 0,
-    idleFrame: 0,
-  };
+  const clock = createClock({ paused: captureEnabled });
 
   return {
     THREE,

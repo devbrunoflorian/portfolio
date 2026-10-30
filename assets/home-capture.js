@@ -1,8 +1,12 @@
+import { createClock } from "./shared/clock.js";
+import { createSeededRandom } from "./shared/random.js";
+
 const enabled = new URLSearchParams(location.search).get("home-capture") === "1";
 
 function createCapture() {
   const seed = 0x484f4d45;
-  let randomState = seed;
+  const random = createSeededRandom(seed);
+  const clock = createClock({ paused: true });
   let time = 0;
   let delta = 16;
   let nextTimer = 1;
@@ -15,22 +19,17 @@ function createCapture() {
   const ready = new Promise((resolve) => { resolveReady = resolve; });
   const frame = document.querySelector("#scene-frame");
 
-  function random() {
-    randomState = (randomState * 1664525 + 1013904223) >>> 0;
-    return randomState / 0x100000000;
-  }
-
   function syncAnimations() {
     const current = new Set(document.getAnimations());
     for (const animation of animations.keys()) {
       if (!current.has(animation)) animations.delete(animation);
     }
     for (const animation of current) {
-      if (!animations.has(animation)) animations.set(animation, time);
+      if (!animations.has(animation)) animations.set(animation, clock.t * 1000);
       animation.pause();
-      animation.currentTime = time - animations.get(animation);
+      animation.currentTime = clock.t * 1000 - animations.get(animation);
       const timing = animation.effect?.getComputedTiming();
-      if (timing && time - animations.get(animation) >= timing.endTime) {
+      if (timing && clock.t * 1000 - animations.get(animation) >= timing.endTime) {
         animation.finish();
       }
     }
@@ -52,6 +51,7 @@ function createCapture() {
       if (!next) break;
       const [id, timer] = next;
       time = timer.at;
+      clock.seek(time / 1000);
       if (timer.repeat) timer.at += timer.interval;
       else timers.delete(id);
       timer.callback();
@@ -70,8 +70,9 @@ function createCapture() {
       const next = Math.min(target, previous + 1000 / 60);
       runTimers(next);
       time = next;
+      clock.seek(time / 1000);
       delta = next - previous;
-      scene.render(time);
+      scene.render(clock.t * 1000);
       syncAnimations();
     }
     frame.dataset.captureTime = (time / 1000).toFixed(3);
@@ -80,7 +81,7 @@ function createCapture() {
 
   function snapshot() {
     return {
-      time: time / 1000,
+      time: clock.t,
       seed,
       scene: { ...frame.dataset },
       systems: systems?.snapshot(),
@@ -139,7 +140,7 @@ function createCapture() {
     bindSystems(value) { systems = value; },
     bindScene(value) {
       scene = value;
-      scene.render(time);
+      scene.render(clock.t * 1000);
       syncAnimations();
       frame.dataset.captureReady = "true";
       resolveReady(true);
