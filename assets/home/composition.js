@@ -42,6 +42,7 @@ function mountHomeScene() {
     frame: ctx.frame,
     heroScreen: ctx.heroScreen,
     revealCopy: revealMobileCopy,
+    ctx,
   });
   const pointerScroll = createPointerScroll(ctx);
   ctx.updateSceneProgress = pointerScroll.updateSceneProgress;
@@ -84,6 +85,7 @@ function mountHomeScene() {
       ctx.pointerWorld.set(0, 0, 0);
     }
     ctx.modelPivot.rotation.set(ctx.pitch, FRONTAL_MODEL_YAW + ctx.yaw, 0);
+    ctx.openingController.update(timestamp);
     const profileAmount = clamp(Math.abs(ctx.yaw) / MAX_YAW);
     const rimStrength = ctx.mobileViewport.matches && !ctx.debugMode ? 1.4 : 0.85 + smoothstep(0.6, 1, profileAmount) * 0.55;
     for (const uniform of ctx.rimStrengthUniforms) uniform.value = rimStrength;
@@ -255,7 +257,7 @@ function mountHomeScene() {
       ctx.knight.scale.multiplyScalar(modelScale);
       ctx.modelPivot.add(ctx.knight);
       ctx.trackingCenterLocal.copy(findTrackingCenter(ctx, ctx.knight));
-      await prepareKnight(ctx, ctx.knight);
+      await prepareKnight(ctx, ctx.knight, ctx.homeCapture?.chunkCount ?? 32);
       if (ctx.disposed) return;
 
       createReflectiveFloor(ctx);

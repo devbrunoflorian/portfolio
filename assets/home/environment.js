@@ -501,6 +501,15 @@ export function createSpatialEnvironment(scene, floorY, renderer, camera) {
   let nextReconstructionAt = null;
   let reconstructionStartedAt = -Infinity;
   let disposed = false;
+  let worldVisible = true;
+  let showingReflection = false;
+
+  function syncWorldVisibility() {
+    backdrop.visible = worldVisible && !showingReflection;
+    reflectionGroup.visible = worldVisible && showingReflection;
+    signalGroup.visible = worldVisible && !showingReflection;
+    floorGroup.visible = worldVisible && !showingReflection;
+  }
   const pulseDurations = [];
   const point = new THREE.Vector3();
 
@@ -657,10 +666,12 @@ export function createSpatialEnvironment(scene, floorY, renderer, camera) {
       }
     },
     setReflectionVisible(visible) {
-      backdrop.visible = !visible;
-      reflectionGroup.visible = visible;
-      signalGroup.visible = !visible;
-      floorGroup.visible = !visible;
+      showingReflection = visible;
+      syncWorldVisibility();
+    },
+    setWorldVisible(visible) {
+      worldVisible = visible;
+      syncWorldVisibility();
     },
     dispose() {
       if (disposed) return;

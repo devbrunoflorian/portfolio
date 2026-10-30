@@ -1,11 +1,47 @@
 import * as THREE from "three";
 import { SimplifyModifier } from "three/addons/modifiers/SimplifyModifier.js";
 import { FLOOR_Y, smoothstep } from "./context.js";
+import { createSeededRandom } from "../shared/random.js";
+import { ASSEMBLY_DURATION, annotateFragmentEdges, createFragmentedGeometry } from "./fragment-geometry.js";
 
 const LOW_POLY_FACET_VERTEX_BUDGET = 1100;
 const EDGE_THRESHOLD_ANGLE_DEG = 24;
+const FRAGMENT_SEED = 0x484f4d45;
+const FRAGMENT_VERTEX_GLSL = `
+  attribute float aFragmentId;
+  attribute vec3 aFragCenter;
+  attribute vec4 aFragAxisAngle;
+  attribute float aFragDelay;
+  uniform float uAssembly;
+  uniform float uFragmentSpread;
+  uniform vec3 uFragmentOrigin;
+  vec3 rotateFragmentVector(vec3 value, vec3 axis, float angle) {
+    float cosine = cos(angle);
+    float sine = sin(angle);
+    return value * cosine + cross(axis, value) * sine + axis * dot(axis, value) * (1.0 - cosine);
+  }
+  float fragmentAssemblyProgress() {
+    return smoothstep(aFragDelay, aFragDelay + ${ASSEMBLY_DURATION.toFixed(2)}, uAssembly);
+  }
+  vec3 deformFragmentPosition(vec3 sourcePosition) {
+    if (uAssembly >= 1.0) return sourcePosition;
+    float progress = fragmentAssemblyProgress();
+    float amount = 1.0 - progress;
+    vec3 axis = normalize(aFragAxisAngle.xyz);
+    vec3 rotated = rotateFragmentVector(sourcePosition - aFragCenter, axis, aFragAxisAngle.w * amount);
+    vec3 radial = aFragCenter - uFragmentOrigin;
+    if (dot(radial, radial) < 0.0001) radial = axis;
+    radial = normalize(radial);
+    return aFragCenter + rotated + radial * uFragmentSpread * amount;
+  }
+  vec3 deformFragmentNormal(vec3 sourceNormal) {
+    if (uAssembly >= 1.0) return sourceNormal;
+    float amount = 1.0 - fragmentAssemblyProgress();
+    return normalize(rotateFragmentVector(sourceNormal, normalize(aFragAxisAngle.xyz), aFragAxisAngle.w * amount));
+  }
+`;
 
-export function createRevealMaterial() {
+export function createRevealMaterial(ctx) {
   return new THREE.ShaderMaterial({
     uniforms: {
       uPointer: { value: new THREE.Vector3() },
@@ -14,11 +50,16 @@ export function createRevealMaterial() {
       uRestingColor: { value: new THREE.Color("#7e848e") },
       uRevealColor: { value: new THREE.Color("#a8adb4") },
       uAccentColor: { value: new THREE.Color("#e62035") },
+      uAssembly: ctx.assemblyUniform,
+      uFragmentSpread: ctx.fragmentSpreadUniform,
+      uFragmentOrigin: ctx.fragmentOriginUniform,
     },
     vertexShader: `
+      ${FRAGMENT_VERTEX_GLSL}
       varying vec3 vWorldPosition;
       void main() {
-        vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+        vec3 localPosition = deformFragmentPosition(position);
+        vec4 worldPosition = modelMatrix * vec4(localPosition, 1.0);
         vWorldPosition = worldPosition.xyz;
         vec4 viewPosition = viewMatrix * worldPosition;
         viewPosition.xyz += normalize(-viewPosition.xyz) * 0.0012;
@@ -51,18 +92,24 @@ export function createRevealMaterial() {
   });
 }
 
-export function createSilhouetteMaterial() {
+export function createSilhouetteMaterial(ctx) {
   return new THREE.ShaderMaterial({
     uniforms: {
       uWhite: { value: new THREE.Color("#e6e9ef") },
       uRed: { value: new THREE.Color("#ff1230") },
+      uAssembly: ctx.assemblyUniform,
+      uFragmentSpread: ctx.fragmentSpreadUniform,
+      uFragmentOrigin: ctx.fragmentOriginUniform,
     },
     vertexShader: `
+      ${FRAGMENT_VERTEX_GLSL}
       varying float vWorldSide;
       void main() {
-        vec3 viewNormal = normalize(normalMatrix * normal);
+        vec3 localPosition = deformFragmentPosition(position);
+        vec3 localNormal = deformFragmentNormal(normal);
+        vec3 viewNormal = normalize(normalMatrix * localNormal);
         vWorldSide = dot(viewNormal, normalize(mat3(viewMatrix) * vec3(1.0, 0.0, 0.0)));
-        vec4 viewPosition = modelViewMatrix * vec4(position, 1.0);
+        vec4 viewPosition = modelViewMatrix * vec4(localPosition, 1.0);
         viewPosition.xyz += viewNormal * 0.006;
         gl_Position = projectionMatrix * viewPosition;
       }
@@ -84,10 +131,11 @@ export function createSilhouetteMaterial() {
   });
 }
 
-export async function prepareKnight(ctx, root) {
+export async function prepareKnight(ctx, root, chunkCount = 32) {
   const meshes = [];
   root.traverse((object) => { if (object.isMesh) meshes.push(object); });
   const simplifier = new SimplifyModifier();
+  const chunkPlans = [];
 
   for (const mesh of meshes) {
     const wireSource = mesh.geometry.clone();
@@ -102,6 +150,22 @@ export async function prepareKnight(ctx, root) {
       wireSource.dispose();
     }
     lowPolyGeometry.computeVertexNormals();
+
+    lowPolyGeometry.computeBoundingBox();
+    const origin = lowPolyGeometry.boundingBox.getCenter(new THREE.Vector3());
+    const bounds = {
+      minY: lowPolyGeometry.boundingBox.min.y,
+      maxY: lowPolyGeometry.boundingBox.max.y,
+    };
+    ctx.fragmentOriginUniform.value.copy(origin);
+    const fragmentPlan = createFragmentedGeometry(lowPolyGeometry, {
+      chunkCount,
+      random: createSeededRandom(FRAGMENT_SEED),
+      modelBounds: bounds,
+    });
+    chunkPlans.push(fragmentPlan);
+    lowPolyGeometry.dispose();
+    lowPolyGeometry = fragmentPlan.geometry;
 
     // The base sculpture receives the low-poly faceted geometry with flatShading
     // so individual polygon planes define the horse through lighting.
@@ -118,6 +182,10 @@ export async function prepareKnight(ctx, root) {
       });
       const rimStrength = { value: 0 };
       material.onBeforeCompile = (shader) => {
+        shader.uniforms.uAssembly = ctx.assemblyUniform;
+        shader.uniforms.uFragmentSpread = ctx.fragmentSpreadUniform;
+        shader.uniforms.uFragmentOrigin = ctx.fragmentOriginUniform;
+        shader.uniforms.uRimAssembly = ctx.rimAssemblyUniform;
         shader.uniforms.uRedRimColor = { value: new THREE.Color("#ff1230") };
         shader.uniforms.uWhiteRimColor = { value: new THREE.Color("#e6e9ef") };
         shader.uniforms.uRimStrength = rimStrength;
@@ -126,7 +194,20 @@ export async function prepareKnight(ctx, root) {
           `#include <common>
           uniform vec3 uRedRimColor;
           uniform vec3 uWhiteRimColor;
-          uniform float uRimStrength;`,
+          uniform float uRimStrength;
+          uniform float uRimAssembly;`,
+        );
+        shader.vertexShader = shader.vertexShader.replace(
+          "#include <common>",
+          `#include <common>\n${FRAGMENT_VERTEX_GLSL}`,
+        );
+        shader.vertexShader = shader.vertexShader.replace(
+          "#include <beginnormal_vertex>",
+          "#include <beginnormal_vertex>\nobjectNormal = deformFragmentNormal(normal);",
+        );
+        shader.vertexShader = shader.vertexShader.replace(
+          "#include <begin_vertex>",
+          "vec3 transformed = deformFragmentPosition(position);",
         );
         shader.fragmentShader = shader.fragmentShader.replace(
           "#include <opaque_fragment>",
@@ -140,10 +221,11 @@ export async function prepareKnight(ctx, root) {
           outgoingLight = outgoingLight * mix(0.85, 1.0, rim);
           outgoingLight += rim * (uRedRimColor * redSideMask * uRimStrength
             + uWhiteRimColor * whiteSideMask * 0.85);
+          outgoingLight += rim * uRedRimColor * (0.25 + 0.75 * redSideMask) * uRimAssembly;
           #include <opaque_fragment>`,
         );
       };
-      material.customProgramCacheKey = () => "knight-two-sided-silhouette-rim-v4";
+      material.customProgramCacheKey = () => "knight-fragmented-silhouette-rim-v5";
       ctx.rimStrengthUniforms.push(rimStrength);
       return material;
     });
@@ -152,7 +234,7 @@ export async function prepareKnight(ctx, root) {
     mesh.material = Array.isArray(mesh.material) ? materials : materials[0];
 
     // The opaque body occludes this thin shell, leaving only its outer contour.
-    const silhouette = new THREE.Mesh(lowPolyGeometry, createSilhouetteMaterial());
+    const silhouette = new THREE.Mesh(lowPolyGeometry, createSilhouetteMaterial(ctx));
     silhouette.renderOrder = -1;
     silhouette.raycast = () => {};
     mesh.add(silhouette);
@@ -163,13 +245,29 @@ export async function prepareKnight(ctx, root) {
     // Suppresses 60-80% of internal triangulation lines, keeping only meaningful structural creases:
     // silhouette contours, cheek/jaw transitions, neck contours, selected mane blocks, chest, pedestal edges.
     const edgeGeometry = new THREE.EdgesGeometry(lowPolyGeometry, EDGE_THRESHOLD_ANGLE_DEG);
-    const wireframe = new THREE.LineSegments(edgeGeometry, createRevealMaterial());
+    annotateFragmentEdges(edgeGeometry, fragmentPlan);
+    const wireframe = new THREE.LineSegments(edgeGeometry, createRevealMaterial(ctx));
     wireframe.renderOrder = 1;
     wireframe.raycast = () => {};
     mesh.add(wireframe);
     ctx.wireframes.push(wireframe);
     ctx.revealMaterials.push(wireframe.material);
   }
+
+  const allChunks = chunkPlans.flatMap((plan) => plan.chunks);
+  ctx.fragmentStats = {
+    chunkCount: allChunks.length,
+    faceCount: chunkPlans.reduce((sum, plan) => sum + plan.faceCount, 0),
+    faceCounts: chunkPlans.flatMap((plan) => plan.faceCounts),
+    regionCounts: chunkPlans.reduce((counts, plan) => {
+      for (const [region, count] of Object.entries(plan.regionCounts)) counts[region] = (counts[region] || 0) + count;
+      return counts;
+    }, {}),
+  };
+  ctx.frame.dataset.fragmentChunks = String(ctx.fragmentStats.chunkCount);
+  ctx.frame.dataset.fragmentFaceCounts = ctx.fragmentStats.faceCounts.join(",");
+  ctx.frame.dataset.fragmentRegionCounts = JSON.stringify(ctx.fragmentStats.regionCounts);
+  ctx.frame.dataset.fragmentBoundaryVertices = String(chunkPlans.reduce((sum, plan) => sum + plan.boundaryVertexCount, 0));
 }
 
 export function disposeKnightResources(root) {

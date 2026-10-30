@@ -19,6 +19,8 @@ export function createStudioLighting(ctx) {
   const whiteLight = new THREE.DirectionalLight(0xffffff, 0.65);
   whiteLight.name = "fixed-white-left-light";
   whiteLight.position.set(-4, 2, 5);
+  ctx.whiteRevealLight = whiteLight;
+  ctx.whiteRevealIntensity = whiteLight.intensity;
   addStudioLight(ctx, whiteLight);
   const redLight = new THREE.DirectionalLight(0xf02a3a, 0.55);
   redLight.name = "fixed-red-right-light";
@@ -46,6 +48,15 @@ export function createReflectiveFloor(ctx) {
   });
   reflectiveFloor.rotation.x = -Math.PI / 2;
   reflectiveFloor.position.y = FLOOR_Y;
+  if (ctx.homeCapture) {
+    ctx.reflectorOpacityUniform.value = 0;
+    reflectiveFloor.material.uniforms.uAssemblyFloorOpacity = ctx.reflectorOpacityUniform;
+    reflectiveFloor.material.fragmentShader = reflectiveFloor.material.fragmentShader
+      .replace("uniform vec3 color;", "uniform vec3 color;\nuniform float uAssemblyFloorOpacity;")
+      .replace("gl_FragColor = vec4( blendOverlay( base.rgb, color ), 1.0 );", "gl_FragColor = vec4( blendOverlay( base.rgb, color ), uAssemblyFloorOpacity );");
+    reflectiveFloor.material.transparent = true;
+    reflectiveFloor.material.depthWrite = false;
+  }
   reflectiveFloor.material.uniforms.uMobileBlur = { value: 0 };
   reflectiveFloor.material.uniforms.uReflectionTexel = { value: new THREE.Vector2(1 / 720, 1 / 480) };
   reflectiveFloor.material.fragmentShader = reflectiveFloor.material.fragmentShader.replace(

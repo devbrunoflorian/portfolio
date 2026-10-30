@@ -2,6 +2,8 @@ import { createClock } from "./shared/clock.js";
 import { createSeededRandom } from "./shared/random.js";
 
 const enabled = new URLSearchParams(location.search).get("home-capture") === "1";
+const requestedChunks = Number(new URLSearchParams(location.search).get("chunks"));
+const chunkCount = enabled && [24, 32, 40].includes(requestedChunks) ? requestedChunks : 32;
 
 function createCapture() {
   const seed = 0x484f4d45;
@@ -133,8 +135,10 @@ function createCapture() {
   };
   window.__homeCapture = Object.freeze(api);
   frame.dataset.captureSeed = `0x${seed.toString(16)}`;
+  frame.dataset.captureChunks = String(chunkCount);
 
   return {
+    chunkCount,
     random,
     get delta() { return delta; },
     setTimeout: (callback, delay) => schedule(callback, delay),
