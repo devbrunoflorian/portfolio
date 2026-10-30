@@ -85,6 +85,16 @@
 .labs-sticky[data-final="true"] .lab-handoff a { color: #fff; }
 
 .lab-scene { position: absolute; z-index: 2; inset: 0; overflow: hidden; outline: none; perspective: 1250px; perspective-origin: 57% 51%; touch-action: pan-y; }
+.lab-geometry-debug { position: fixed; z-index: 10000; top: 12px; right: 12px; display: flex; gap: 6px; padding: 6px; border: 1px solid rgba(161, 195, 229, .3); border-radius: 8px; background: rgba(3, 6, 10, .94); box-shadow: 0 8px 30px rgba(0, 0, 0, .55); }
+.lab-geometry-debug button { min-height: 34px; padding: 0 10px; border: 1px solid rgba(154, 190, 235, .25); border-radius: 5px; background: #090e16; color: #dce9f8; cursor: pointer; font: 600 11px/1 ui-sans-serif, sans-serif; }
+.lab-geometry-debug button:hover, .lab-geometry-debug button[aria-pressed="true"] { border-color: #62aaff; background: #10233a; color: #fff; }
+.lab-geometry-debug button:focus-visible { outline: 2px solid #8bc0ff; outline-offset: 2px; }
+.lab-webgl-canvas { position: absolute; z-index: 2; inset: 0; width: 100%; height: 100%; opacity: 0; pointer-events: none; }
+.lab-scene.labs-webgl-static .lab-webgl-canvas { opacity: 1; }
+.lab-scene.labs-webgl-static .lab-horizon,
+.lab-scene.labs-webgl-static .lab-floor,
+.lab-scene.labs-webgl-static .lab-collection { visibility: hidden; }
+.lab-scene.labs-webgl-static .lab-collection .lab-folder { visibility: hidden; }
 .lab-scene:focus-visible { outline: 2px solid rgba(109, 181, 255, .75); outline-offset: -5px; }
 .lab-horizon { position: absolute; top: 68%; left: 8%; width: 108%; height: 1px; background: linear-gradient(90deg, transparent, rgba(55, 137, 245, .035), rgba(185, 220, 255, .11), transparent); box-shadow: 0 0 18px 3px rgba(45, 139, 255, .025); transform: rotate(-2deg); }
 .lab-floor { position: absolute; top: 68%; left: 7%; width: 112%; height: 42%; transform: perspective(500px) rotateX(69deg); transform-origin: top center; background-image: linear-gradient(rgba(138, 182, 233, .035) 1px, transparent 1px), linear-gradient(90deg, rgba(138, 182, 233, .025) 1px, transparent 1px); background-size: 56px 38px; mask-image: linear-gradient(to bottom, rgba(0, 0, 0, .45), transparent 83%); opacity: .32; }
@@ -122,6 +132,8 @@
 .lab-scroll-progress span { width: 100%; height: 20%; background: #4ba6ff; box-shadow: 0 0 10px #4ba6ff; transform-origin: top; }
 .labs-footer { position: relative; z-index: 2; margin: 0 clamp(20px, 3.2vw, 52px); padding: 12px 0 18px; border-color: rgba(139, 175, 220, .14); color: rgba(194, 210, 229, .48); }
 .labs-footer a { color: rgba(194, 210, 229, .62); }
+.labs-model-credit { flex: 1 1 100%; color: rgba(194, 210, 229, .45); font-size: 10px; line-height: 1.5; }
+.labs-model-credit a { font-size: inherit; }
 
 @media (max-width: 780px) {
   .folder-reflection { top: 67%; height: 34%; }
