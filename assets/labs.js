@@ -18,9 +18,17 @@
   const progressBar = document.querySelector("[data-lab-progress]");
   const handoffLabel = document.querySelector("[data-lab-handoff-label]");
   const sticky = document.querySelector(".labs-sticky");
+  const header = document.querySelector(".labs-header");
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 
-  if (!runway || !stage || !collection || folders.length !== 5 || !controls || !motionControl) return;
+  if (!runway || !stage || !collection || !sticky || folders.length !== 5 || !controls || !motionControl) return;
+
+  const ambientCanvas = document.createElement("canvas");
+  ambientCanvas.className = "lab-ambient-field";
+  ambientCanvas.dataset.labAmbientField = "true";
+  ambientCanvas.setAttribute("aria-hidden", "true");
+  sticky.appendChild(ambientCanvas);
+  const ambientContext = ambientCanvas.getContext("2d", { alpha: true });
 
   const isEnglish = document.documentElement.lang.toLowerCase().startsWith("en");
   const labs = [
@@ -46,6 +54,243 @@
     const t = clamp(value);
     return t * t * (3 - 2 * t);
   };
+  function fieldNoise(value) {
+    const raw = Math.sin(value * 12.9898 + 78.233) * 43758.5453;
+    return raw - Math.floor(raw);
+  }
+
+  const ambientZoneShares = [
+    ["active", .7],
+    ["corridor", .15],
+    ["floor", .1],
+    ["stray", .05],
+  ];
+
+  function ambientZoneCounts(amount) {
+    const allocations = ambientZoneShares.map(([zone, share]) => {
+      const exact = amount * share;
+      const count = Math.floor(exact);
+      return { zone, count, remainder: exact - count };
+    });
+    const unassigned = amount - allocations.reduce((total, allocation) => total + allocation.count, 0);
+    allocations.sort((a, b) => b.remainder - a.remainder);
+    for (let index = 0; index < unassigned; index += 1) allocations[index].count += 1;
+    return Object.fromEntries(allocations.map(({ zone, count }) => [zone, count]));
+  }
+
+  function ambientLayout(position = visualPosition) {
+    const canvasBounds = ambientCanvas.getBoundingClientRect();
+    const transition = transitionState(position);
+    const toLocalBounds = (index) => {
+      if (index < 0) return null;
+      const bounds = folders[index].getBoundingClientRect();
+      const left = bounds.left - canvasBounds.left + bounds.width * .055;
+      const right = bounds.left - canvasBounds.left + bounds.width * .91;
+      const top = bounds.top - canvasBounds.top + bounds.height * .16;
+      const bottom = bounds.top - canvasBounds.top + bounds.height * .87;
+      return {
+        left,
+        top,
+        right,
+        bottom,
+        width: right - left,
+        height: bottom - top,
+        x: (left + right) * .5,
+        y: (top + bottom) * .5,
+      };
+    };
+
+    return {
+      current: toLocalBounds(transition.currentIndex),
+      next: toLocalBounds(transition.nextIndex),
+      width: ambientWidth,
+      height: ambientHeight,
+    };
+  }
+
+  function ambientAnchor(particle, layout) {
+    const current = layout.current;
+    if (!current) return { x: layout.width * .5, y: layout.height * .5 };
+
+    let x;
+    let y;
+    if (particle.zone === "active") {
+      const radius = 1.04 + particle.radiusFactor * .42;
+      x = current.x + Math.cos(particle.angle) * current.width * .5 * radius;
+      y = current.y + Math.sin(particle.angle) * current.height * .5 * radius;
+    } else if (particle.zone === "corridor") {
+      const next = layout.next || {
+        x: current.x + current.width * .72,
+        y: current.y + current.height * .04,
+      };
+      const dx = next.x - current.x;
+      const dy = next.y - current.y;
+      const distance = Math.hypot(dx, dy) || 1;
+      const along = .12 + particle.along * .76;
+      const curve = Math.sin(along * Math.PI);
+      const bend = particle.offset * curve;
+      x = current.x + dx * along - (dy / distance) * bend;
+      y = current.y + dy * along + (dx / distance) * bend - curve * 18;
+    } else if (particle.zone === "floor") {
+      x = current.left + current.width * (.06 + particle.along * .88);
+      y = current.bottom + 7 + particle.depth * Math.min(76, layout.height * .09);
+    } else {
+      const radius = 1.3 + particle.radiusFactor * .48;
+      x = current.x + Math.cos(particle.angle) * current.width * .5 * radius;
+      y = current.y + Math.sin(particle.angle) * current.height * .5 * radius;
+    }
+
+    return {
+      x: clamp(x, 0, layout.width),
+      y: clamp(y, 0, layout.height),
+    };
+  }
+
+  function makeAmbientParticles() {
+    const amount = isMobileScene() ? 84 : 180;
+    const zoneCounts = ambientZoneCounts(amount);
+    const zones = ambientZoneShares.flatMap(([zone]) => Array(zoneCounts[zone]).fill(zone));
+    const layout = ambientLayout();
+    ambientCanvas.dataset.particleZones = JSON.stringify(zoneCounts);
+
+    return zones.map((zone, index) => {
+      const particle = {
+        zone,
+        angle: fieldNoise(index * 101 + 1) * Math.PI * 2,
+        along: fieldNoise(index * 107 + 2),
+        offset: (fieldNoise(index * 113 + 3) - .5) * 104,
+        depth: fieldNoise(index * 127 + 4),
+        radiusFactor: fieldNoise(index * 131 + 5),
+        anchorX: 0,
+        anchorY: 0,
+        x: 0,
+        y: 0,
+        vx: 0,
+        vy: 0,
+        radius: .65 + fieldNoise(index * 23 + 4) * 1.25,
+        alpha: .2 + fieldNoise(index * 19 + 3) * .25,
+        phase: fieldNoise(index * 29 + 5) * Math.PI * 2,
+        orbitSpeed: .55 + fieldNoise(index * 31 + 6) * .5,
+        pulseSpeed: 1.4 + fieldNoise(index * 37 + 7) * 1.7,
+        orbitRadiusX: 3 + fieldNoise(index * 41 + 8) * 6,
+        orbitRadiusY: 3 + fieldNoise(index * 43 + 9) * 6,
+        maxHoverDisplacement: 35 + fieldNoise(index * 47 + 10) * 30,
+        binary: fieldNoise(index * 53 + 11) > .92,
+        bit: index % 2 ? "0" : "1",
+        node: fieldNoise(index * 59 + 12) > .978,
+      };
+      const anchor = ambientAnchor(particle, layout);
+      particle.anchorX = anchor.x;
+      particle.anchorY = anchor.y;
+      particle.x = anchor.x;
+      particle.y = anchor.y;
+      return particle;
+    });
+  }
+
+  function drawAmbientField(time, deltaMs) {
+    if (!ambientContext) return;
+    const layout = ambientLayout();
+    ambientContext.setTransform(ambientRatio, 0, 0, ambientRatio, 0, 0);
+    ambientContext.clearRect(0, 0, ambientWidth, ambientHeight);
+    if (!sceneVisible) return;
+
+    const delta = motionPaused && !ambientPointer.recovering ? 0 : Math.min(.05, Math.max(0, deltaMs) / 1000);
+    const pointerRadius = Math.max(80, Math.min(125, Math.min(ambientWidth, ambientHeight) * .24));
+    let maxDisplacement = 0;
+    let maxVelocity = 0;
+    for (const particle of ambientParticles) {
+      const anchor = ambientAnchor(particle, layout);
+      particle.x += anchor.x - particle.anchorX;
+      particle.y += anchor.y - particle.anchorY;
+      particle.anchorX = anchor.x;
+      particle.anchorY = anchor.y;
+      if (delta > 0) {
+        const orbit = time * .00035 * particle.orbitSpeed + particle.phase;
+        const homeX = particle.anchorX + (motionPaused ? 0 : Math.cos(orbit) * particle.orbitRadiusX);
+        const homeY = particle.anchorY + (motionPaused ? 0 : Math.sin(orbit * 1.31) * particle.orbitRadiusY);
+        const dx = particle.x - ambientPointer.x;
+        const dy = particle.y - ambientPointer.y;
+        const distance = Math.hypot(dx, dy) || .001;
+        const awayX = dx / distance;
+        const awayY = dy / distance;
+        const local = ambientPointer.strength * Math.exp(-(distance * distance) / (2 * pointerRadius * pointerRadius));
+        const accelerationX = (homeX - particle.x) * 6.2 - particle.vx * 7 + awayX * local * 1100;
+        const accelerationY = (homeY - particle.y) * 6.2 - particle.vy * 7 + awayY * local * 1100;
+        particle.vx += accelerationX * delta;
+        particle.vy += accelerationY * delta;
+        const speed = Math.hypot(particle.vx, particle.vy);
+        if (speed > 170) {
+          particle.vx = particle.vx / speed * 170;
+          particle.vy = particle.vy / speed * 170;
+        }
+        particle.x += particle.vx * delta;
+        particle.y += particle.vy * delta;
+        const offsetX = particle.x - particle.anchorX;
+        const offsetY = particle.y - particle.anchorY;
+        const offset = Math.hypot(offsetX, offsetY);
+        if (offset > particle.maxHoverDisplacement) {
+          const scale = particle.maxHoverDisplacement / offset;
+          particle.x = particle.anchorX + offsetX * scale;
+          particle.y = particle.anchorY + offsetY * scale;
+          const outwardVelocity = particle.vx * offsetX + particle.vy * offsetY;
+          if (outwardVelocity > 0) {
+            particle.vx -= outwardVelocity / (offset * offset) * offsetX;
+            particle.vy -= outwardVelocity / (offset * offset) * offsetY;
+          }
+        }
+      }
+      particle.x = clamp(particle.x, 0, ambientWidth);
+      particle.y = clamp(particle.y, 0, ambientHeight);
+
+      const displacement = Math.hypot(particle.x - particle.anchorX, particle.y - particle.anchorY);
+      maxDisplacement = Math.max(maxDisplacement, displacement);
+      maxVelocity = Math.max(maxVelocity, Math.hypot(particle.vx, particle.vy));
+      const pulse = .58 + (Math.sin(time * .002 * particle.pulseSpeed + particle.phase) + 1) * .21;
+      ambientContext.globalAlpha = particle.alpha * pulse * (1 + ambientPointer.strength * .24);
+      ambientContext.fillStyle = particle.node ? "#cfe5ff" : "#79b2f2";
+      ambientContext.shadowColor = "rgba(91, 169, 255, .42)";
+      ambientContext.shadowBlur = particle.node ? 2.2 : 1.1;
+      if (particle.binary) {
+        ambientContext.font = "8px ui-monospace, SFMono-Regular, Consolas, monospace";
+        ambientContext.textAlign = "center";
+        ambientContext.textBaseline = "middle";
+        ambientContext.fillText(particle.bit, particle.x, particle.y);
+      } else {
+        ambientContext.beginPath();
+        ambientContext.arc(particle.x, particle.y, particle.radius * (particle.node ? 1.3 : 1), 0, Math.PI * 2);
+        ambientContext.fill();
+      }
+    }
+    ambientContext.globalAlpha = 1;
+    ambientContext.shadowBlur = 0;
+    ambientCanvas.dataset.particleCount = String(ambientParticles.length);
+    ambientCanvas.dataset.particleDisplacement = maxDisplacement.toFixed(1);
+    ambientCanvas.dataset.pointerForce = ambientPointer.strength.toFixed(3);
+    ambientCanvas.dataset.pointerTarget = ambientPointer.targetStrength.toFixed(3);
+    if (ambientPointer.recovering && ambientPointer.strength < .01 && ambientPointer.targetStrength < .01 && maxVelocity < 3 && (!motionPaused || maxDisplacement < 1.4)) ambientPointer.recovering = false;
+  }
+
+  function resetAmbientField() {
+    const layout = ambientLayout();
+    ambientPointer.x = -1000;
+    ambientPointer.y = -1000;
+    ambientPointer.strength = 0;
+    ambientPointer.targetStrength = 0;
+    ambientPointer.recovering = false;
+    ambientParticles.forEach((particle) => {
+      const anchor = ambientAnchor(particle, layout);
+      particle.anchorX = anchor.x;
+      particle.anchorY = anchor.y;
+      particle.x = particle.anchorX;
+      particle.y = particle.anchorY;
+      particle.vx = 0;
+      particle.vy = 0;
+    });
+    ambientCanvas.dataset.pointerForce = "0.000";
+    ambientCanvas.dataset.pointerTarget = "0.000";
+    ambientCanvas.dataset.particleDisplacement = "0";
+  }
   let targetPosition = 0;
   let visualPosition = 0;
   let activeIndex = 0;
@@ -60,6 +305,11 @@
   let stageWidth = 1;
   let stageHeight = 1;
   let stageRatio = 1;
+  let ambientWidth = 1;
+  let ambientHeight = 1;
+  let ambientRatio = 1;
+  let ambientParticles = [];
+  const ambientPointer = { x: -1000, y: -1000, strength: 0, targetStrength: 0, recovering: false };
   const folderSystems = [];
 
   const transitionCanvas = document.createElement("canvas");
@@ -67,13 +317,13 @@
   transitionCanvas.setAttribute("aria-hidden", "true");
   stage.appendChild(transitionCanvas);
   const transitionContext = transitionCanvas.getContext("2d", { alpha: true });
-  const bridgeParticles = Array.from({ length: 156 }, (_, index) => ({
-    phase: index / 156,
-    drift: ((Math.sin(index * 71.73) + 1) * .5 - .5) * .12,
-    size: .45 + ((Math.sin(index * 18.91) + 1) * .5) * 1.25,
-    spreadX: Math.sin(index * 8.17) * (6 + ((Math.sin(index * 29.41) + 1) * .5) * 11),
-    spreadY: Math.cos(index * 12.37) * (8 + ((Math.sin(index * 41.03) + 1) * .5) * 15),
-    binary: index % 9 === 0,
+  const bridgeParticles = Array.from({ length: 224 }, (_, index) => ({
+    phase: index / 224,
+    drift: ((Math.sin(index * 71.73) + 1) * .5 - .5) * .1,
+    size: .7 + ((Math.sin(index * 18.91) + 1) * .5) * 1.1,
+    spreadX: Math.sin(index * 8.17) * (14 + ((Math.sin(index * 29.41) + 1) * .5) * 18),
+    spreadY: Math.cos(index * 12.37) * (12 + ((Math.sin(index * 41.03) + 1) * .5) * 16),
+    binary: index % 6 === 0,
     bit: index % 2 ? "0" : "1",
   }));
 
@@ -124,11 +374,11 @@
     const nextIndex = currentIndex < folders.length - 1 ? currentIndex + 1 : -1;
     const fraction = nextIndex < 0 ? 0 : clamp(bounded - currentIndex);
     const edgeInstability = nextIndex < 0 ? 0 : smoothstep((fraction - .08) / .26);
-    const dissolution = nextIndex < 0 ? 0 : smoothstep((fraction - .18) / .6);
-    const reconstruction = nextIndex < 0 ? 0 : smoothstep((fraction - .18) / .6);
+    const dissolution = nextIndex < 0 ? 0 : smoothstep((fraction - .12) / .7);
+    const reconstruction = nextIndex < 0 ? 0 : smoothstep((fraction - .22) / .7);
     const flow = nextIndex < 0 || reduceMotion.matches
       ? 0
-      : smoothstep((fraction - .16) / .25) * (1 - smoothstep((fraction - .82) / .18));
+      : smoothstep((fraction - .12) / .18) * (1 - smoothstep((fraction - .82) / .18));
 
     return {
       currentIndex,
@@ -138,7 +388,7 @@
       dissolution,
       reconstruction,
       currentPresence: 1 - dissolution,
-      nextPresence: nextIndex < 0 ? 0 : .52 + .48 * reconstruction,
+      nextPresence: nextIndex < 0 ? 0 : .42 + .58 * reconstruction,
       flow,
     };
   }
@@ -173,13 +423,13 @@
 
       const assembling = isNext ? transition.reconstruction : 0;
       const dissolving = isCurrent ? transition.dissolution : 0;
-      const x = isCurrent ? 0 : step * .78 * (1 - assembling);
-      const y = isCurrent ? 0 : 18 * (1 - assembling);
-      const z = isCurrent ? 20 : -155 + 175 * assembling;
-      const rotation = 0;
-      const scale = isCurrent ? 1 : .67 + .33 * assembling;
+      const x = isCurrent ? 0 : step * .5 * (1 - assembling);
+      const y = isCurrent ? 0 : 10 * (1 - assembling);
+      const z = isCurrent ? 20 : -320 + 340 * assembling;
+      const rotation = isCurrent ? 18 : 14 + 4 * assembling;
+      const scale = isCurrent ? 1 : .78 + .22 * assembling;
       const opacity = isCurrent ? transition.currentPresence : transition.nextPresence;
-      const blur = isCurrent ? 0 : (1 - assembling) * .65;
+      const blur = isCurrent ? 0 : (1 - assembling) * 2.2;
       folder.style.visibility = opacity > .005 ? "visible" : "hidden";
       folder.style.pointerEvents = isCurrent && opacity > .65 ? "auto" : "none";
       folder.style.willChange = "transform, opacity";
@@ -201,30 +451,30 @@
     const from = folders[transition.currentIndex].getBoundingClientRect();
     const to = folders[transition.nextIndex].getBoundingClientRect();
     const stageBounds = stage.getBoundingClientRect();
-    const startX = from.left - stageBounds.left + from.width * .56;
-    const startY = from.top - stageBounds.top + from.height * .53;
-    const endX = to.left - stageBounds.left + to.width * .48;
-    const endY = to.top - stageBounds.top + to.height * .51;
-    const controlAX = startX + Math.min(120, stageWidth * .1);
-    const controlAY = startY - Math.min(100, stageHeight * .12);
-    const controlBX = endX - Math.min(80, stageWidth * .07);
-    const controlBY = endY + Math.min(50, stageHeight * .06);
-    const travel = (transition.fraction - .1) / .8;
+    const startX = from.left - stageBounds.left + from.width * .2;
+    const startY = from.top - stageBounds.top + from.height * .38;
+    const endX = to.left - stageBounds.left + to.width * .68;
+    const endY = to.top - stageBounds.top + to.height * .52;
+    const controlAX = startX + Math.min(180, stageWidth * .12);
+    const controlAY = startY - Math.min(140, stageHeight * .16);
+    const controlBX = endX - Math.min(120, stageWidth * .08);
+    const controlBY = endY + Math.min(72, stageHeight * .08);
+    const travel = (transition.fraction - .06) / .88;
 
     bridgeParticles.forEach((particle) => {
-      const progress = clamp(travel + particle.phase * .2 - .1 + particle.drift);
+      const progress = clamp(travel + (particle.phase - .5) * .56 + particle.drift);
       const inverse = 1 - progress;
       const spread = Math.sin(progress * Math.PI);
       const x = inverse ** 3 * startX + 3 * inverse ** 2 * progress * controlAX + 3 * inverse * progress ** 2 * controlBX + progress ** 3 * endX + particle.spreadX * spread;
       const y = inverse ** 3 * startY + 3 * inverse ** 2 * progress * controlAY + 3 * inverse * progress ** 2 * controlBY + progress ** 3 * endY + particle.spreadY * spread;
-      const envelope = .2 + Math.sin(progress * Math.PI) * .8;
+      const envelope = .45 + Math.sin(progress * Math.PI) * .55;
       const pulse = .9 + Math.sin(time * .0032 + particle.phase * 28) * .1;
-      transitionContext.globalAlpha = transition.flow * envelope * pulse * (particle.binary ? 1.05 : .84);
-      transitionContext.fillStyle = particle.binary ? "#e1f2ff" : "#91c8ff";
-      transitionContext.shadowColor = "rgba(95, 174, 255, .7)";
-      transitionContext.shadowBlur = particle.binary ? 6 : 3;
+      transitionContext.globalAlpha = transition.flow * envelope * pulse * (particle.binary ? .92 : .64);
+      transitionContext.fillStyle = particle.binary ? "#8fcaff" : "#4f9ffc";
+      transitionContext.shadowColor = "rgba(76, 154, 255, .78)";
+      transitionContext.shadowBlur = particle.binary ? 5 : 2.5;
       if (particle.binary) {
-        transitionContext.font = "10px ui-monospace, SFMono-Regular, Consolas, monospace";
+        transitionContext.font = "11px ui-monospace, SFMono-Regular, Consolas, monospace";
         transitionContext.textAlign = "center";
         transitionContext.textBaseline = "middle";
         transitionContext.fillText(particle.bit, x, y);
@@ -258,13 +508,18 @@
         const deltaStrength = system.pointer.targetStrength - system.pointer.strength;
         system.pointer.strength += deltaStrength * (1 - Math.exp(-canvasDelta * (deltaStrength < 0 ? .007 : .028)));
         if (Math.abs(deltaStrength) < .006) system.pointer.strength = system.pointer.targetStrength;
-          const interactionActive = system.pointer.targetStrength > .01 || system.pointer.strength > .01 || system.pointer.recovering;
-          system.draw(visualPosition, sceneTime, motionPaused && !interactionActive ? 0 : canvasDelta);
+        const interactionActive = system.pointer.targetStrength > .01 || system.pointer.strength > .01 || system.pointer.recovering;
+        system.draw(visualPosition, sceneTime, motionPaused && !interactionActive ? 0 : canvasDelta);
       });
+      const ambientDeltaStrength = ambientPointer.targetStrength - ambientPointer.strength;
+      ambientPointer.strength += ambientDeltaStrength * (1 - Math.exp(-canvasDelta * (ambientDeltaStrength < 0 ? .007 : .028)));
+      if (Math.abs(ambientDeltaStrength) < .006) ambientPointer.strength = ambientPointer.targetStrength;
+      const ambientInteractionActive = ambientPointer.targetStrength > .01 || ambientPointer.strength > .01 || ambientPointer.recovering;
+      drawAmbientField(sceneTime, motionPaused && !ambientInteractionActive ? 0 : canvasDelta);
     }
 
-    const pointerInMotion = folderSystems.some((system) => system?.visible && Math.abs(system.pointer.targetStrength - system.pointer.strength) > .006);
-    const pointerActive = folderSystems.some((system) => system?.visible && (system.pointer.targetStrength > .01 || system.pointer.strength > .01 || system.pointer.recovering));
+    const pointerInMotion = Math.abs(ambientPointer.targetStrength - ambientPointer.strength) > .006 || folderSystems.some((system) => system?.visible && Math.abs(system.pointer.targetStrength - system.pointer.strength) > .006);
+    const pointerActive = ambientPointer.targetStrength > .01 || ambientPointer.strength > .01 || ambientPointer.recovering || folderSystems.some((system) => system?.visible && (system.pointer.targetStrength > .01 || system.pointer.strength > .01 || system.pointer.recovering));
     if (!reduceMotion.matches && (!motionPaused || Math.abs(targetPosition - visualPosition) > .002 || pointerInMotion || pointerActive)) {
       sceneFrame = requestAnimationFrame(animateScene);
     }
@@ -278,6 +533,7 @@
       folderSystems.forEach((system) => {
         if (system?.visible) system.draw(visualPosition, sceneTime, 0);
       });
+      drawAmbientField(sceneTime, 0);
       return;
     }
     lastFrameTime = 0;
@@ -344,6 +600,35 @@
   });
   stage.addEventListener("pointercancel", () => { pointerGesture = null; });
 
+  window.addEventListener("pointermove", (event) => {
+    if (!sceneVisible || reduceMotion.matches || event.pointerType === "touch") return;
+    const bounds = ambientCanvas.getBoundingClientRect();
+    const insideField = event.clientX >= bounds.left && event.clientX <= bounds.right
+      && event.clientY >= bounds.top && event.clientY <= bounds.bottom;
+    if (!insideField) {
+      ambientPointer.targetStrength = 0;
+      ambientPointer.recovering = ambientPointer.strength > .01;
+      requestSceneAnimation();
+      return;
+    }
+    ambientPointer.x = event.clientX - bounds.left;
+    ambientPointer.y = event.clientY - bounds.top;
+    ambientPointer.targetStrength = .95;
+    ambientPointer.recovering = false;
+    requestSceneAnimation();
+  }, { passive: true });
+  const releaseAmbientPointer = () => {
+    ambientPointer.targetStrength = 0;
+    if (!reduceMotion.matches) ambientPointer.recovering = true;
+    requestSceneAnimation();
+  };
+  window.addEventListener("pointerleave", releaseAmbientPointer, { passive: true });
+  window.addEventListener("pointercancel", releaseAmbientPointer, { passive: true });
+  window.addEventListener("blur", releaseAmbientPointer, { passive: true });
+  document.addEventListener("pointerout", (event) => {
+    if (!event.relatedTarget) releaseAmbientPointer();
+  }, { passive: true });
+
   folders.forEach((folder, folderIndex) => {
     const canvas = folder.querySelector("[data-folder-canvas]");
     if (!canvas) return;
@@ -359,7 +644,7 @@
 
     function polygon(width, height, depth = 0, layer = 0) {
       const bottom = isMobileScene() ? .67 : .87;
-      const yaw = -.55;
+      const yaw = -.58;
       const pitch = -.14;
       const centerX = width * .5;
       const centerY = height * .52;
@@ -373,7 +658,7 @@
         const localX = width * x + layerX - centerX;
         const localY = height * y + layerY - centerY;
         return [
-          centerX + localX * Math.cos(yaw) + depth * Math.sin(yaw),
+          centerX + localX + depth * Math.sin(yaw),
           centerY + localY * Math.cos(pitch) - depth * Math.sin(pitch),
         ];
       });
@@ -471,10 +756,10 @@
             normalX *= -1;
             normalY *= -1;
           }
-          const alongStep = Math.max(7, spacingX * .72);
+          const alongStep = Math.max(8, spacingX * .9);
           for (let along = alongStep * .5; along < edgeLength; along += alongStep) {
             const ratio = along / edgeLength;
-            for (const depth of [.24, .72, 1.2]) {
+            for (const depth of [.36, 1.08]) {
               const jitter = (noise(seed * 97 + edgeSample * 13) - .5) * spacingX * .12;
               const x = start[0] + edgeX * ratio - normalX * (spacingY * depth + jitter);
               const y = start[1] + edgeY * ratio - normalY * (spacingY * depth + jitter);
@@ -505,8 +790,10 @@
           edgeNormalY *= -1;
         }
         const outward = 5 + noise(index * 4 + 2) * 42;
-        const anchorX = start[0] + (end[0] - start[0]) * along + edgeNormalX * outward;
-        const anchorY = start[1] + (end[1] - start[1]) * along + edgeNormalY * outward;
+        const rawAnchorX = start[0] + (end[0] - start[0]) * along + edgeNormalX * outward;
+        const rawAnchorY = start[1] + (end[1] - start[1]) * along + edgeNormalY * outward;
+        const anchorX = clamp(rawAnchorX, 0, pointer.width);
+        const anchorY = clamp(rawAnchorY, 0, pointer.height);
         return {
           anchorX,
           anchorY,
@@ -551,15 +838,15 @@
       const currentness = roleState.currentness;
       const baseAlpha = previewAlpha + (activeAlpha - previewAlpha) * currentness;
       const colors = face.kind === "side" || face.kind === "top"
-        ? [blendHex("#53708f", "#568dc7", currentness), blendHex("#8eb9e7", "#95caff", currentness), blendHex("#cfe6ff", "#f2f9ff", currentness)]
+        ? [blendHex("#1d3550", "#294766", currentness), blendHex("#315678", "#3e78ad", currentness), blendHex("#4c80b5", "#5fa9ed", currentness)]
         : face.kind === "rear"
-          ? [blendHex("#293c55", "#456c9a", currentness), blendHex("#567ca8", "#79aee7", currentness), blendHex("#9fcaff", "#d5eaff", currentness)]
-        : [blendHex("#54708f", "#76a9e6", currentness), blendHex("#9fbeea", "#a8d0ff", currentness), blendHex("#d8ecff", "#ffffff", currentness)];
+          ? [blendHex("#14273b", "#1e3450", currentness), blendHex("#254261", "#315f8f", currentness), blendHex("#3c6991", "#3e78ad", currentness)]
+        : [blendHex("#27466e", "#315f8f", currentness), blendHex("#3f71a6", "#3e78ad", currentness), blendHex("#568cc4", "#75baf5", currentness)];
       mutateFace(face, time, enabled);
       const radius = Math.max(80, Math.min(125, Math.min(pointer.width, pointer.height) * .24));
       face.cells.forEach((cell) => {
         const interior = cell.edgeGlow < .32;
-        if (face.kind === "front" && interior && cell.sparse < .48) return;
+        if (face.kind === "front" && interior && cell.sparse < .18) return;
         if (face.kind === "middle" && cell.sparse < .66) return;
         if (face.kind === "rear" && cell.sparse < .72) return;
         if (face.kind !== "front" && face.kind !== "middle" && face.kind !== "rear" && cell.sparse < .18) return;
@@ -588,7 +875,7 @@
         const flash = time < cell.flashUntil ? 1.12 : 1;
         const edge = Math.pow(cell.edgeGlow, 1.72);
         const contour = face.kind === "front"
-          ? .32 + edge * (.94 + currentness * .18) + (cell.edgeSample ? .2 : 0)
+          ? .62 + edge * (.74 + currentness * .12) + (cell.edgeSample ? .06 : 0)
           : face.kind === "middle" ? .16 + edge * .42
             : face.kind === "rear" ? .1 + edge * .3
               : .14 + edge * .52;
@@ -598,9 +885,9 @@
         const lightAlpha = baseAlpha * contour * pulse * flash * cell.glow * emission * (1 + disturbed) * coherence;
         context.globalAlpha = Math.min(.88 + currentness * .12, lightAlpha);
         context.fillStyle = cell.edgeSample || cell.edgeGlow > .76 ? colors[2] : cell.edgeGlow > .3 ? colors[1] : colors[0];
-        const fontSize = (pointer.width < 245 ? 6.5 : 8) * (cell.sizeTier === 2 ? 1.45 : cell.sizeTier === 1 ? 1.06 : 1);
+        const fontSize = (pointer.width < 245 ? 6.5 : 8) * (cell.sizeTier === 2 ? 1.1 : cell.sizeTier === 1 ? 1.06 : 1);
         context.font = fontSize.toFixed(1) + "px ui-monospace, SFMono-Regular, Consolas, monospace";
-        context.shadowColor = face.kind === "front" ? "rgba(112, 181, 255, .9)" : "rgba(73, 145, 235, .52)";
+        context.shadowColor = face.kind === "front" ? "rgba(207, 234, 255, .78)" : "rgba(95, 169, 237, .44)";
         context.shadowBlur = cell.edgeSample ? 1.6 + currentness * (5.5 + cell.edgeGlow * 3) : face.kind === "front" && cell.edgeGlow > .78 ? 2 + currentness * 4 : (face.kind === "side" || face.kind === "top") && cell.edgeGlow > .52 ? 1.4 + currentness * 3 : 0;
         context.fillText(cell.bit, x, y);
       });
@@ -670,7 +957,7 @@
         const baseAlpha = current ? .72 : .42;
         const alpha = baseAlpha * pulse * depthScale * transitionFactor;
         context.globalAlpha = alpha;
-        context.fillStyle = particle.node ? "#f1f8ff" : "#b7dcff";
+        context.fillStyle = particle.node ? "#d8eaff" : "#85baf0";
         context.shadowColor = "rgba(91, 169, 255, .7)";
         context.shadowBlur = particle.node ? 5 : particle.depth > .8 ? 3 : 1.2;
         if (particle.binary) {
@@ -695,7 +982,7 @@
       context.setTransform(pointer.ratio, 0, 0, pointer.ratio, 0, 0);
       context.clearRect(0, 0, pointer.width, pointer.height);
       const bottom = system.bottom;
-      const depth = pointer.width * .16;
+      const depth = pointer.width * .3;
       const front = polygon(pointer.width, pointer.height, 0, 0);
       const middle = polygon(pointer.width, pointer.height, -depth * .48, .8);
       const back = polygon(pointer.width, pointer.height, -depth, 1.6);
@@ -739,7 +1026,7 @@
         reflectionContext.scale(1, -1);
         reflectionContext.drawImage(canvas, 0, pointer.height * .11 * pointer.ratio, canvas.width, pointer.height * (bottom - .11) * pointer.ratio, 0, 0, reflectionCanvas.width, reflectionCanvas.height);
         reflectionContext.restore();
-        reflectionCanvas.style.opacity = String(.055 + .275 * roleState.currentness);
+        reflectionCanvas.style.opacity = String(.055 + .325 * roleState.currentness);
       }
       folder.dataset.pointerForce = pointer.strength.toFixed(3);
       folder.dataset.particleEnergy = (pointer.strength + (role === "current" ? transition.dissolution : transition.reconstruction)).toFixed(3);
@@ -778,7 +1065,7 @@
         reflectionCanvas.height = Math.round(canvas.height * (isMobileScene() ? .34 : .43));
       }
       const bottom = system.bottom;
-      const depth = pointer.width * .16;
+      const depth = pointer.width * .3;
       const front = polygon(pointer.width, pointer.height, 0, 0);
       const middle = polygon(pointer.width, pointer.height, -depth * .48, .8);
       const back = polygon(pointer.width, pointer.height, -depth, 1.6);
@@ -834,11 +1121,33 @@
     transitionCanvas.height = Math.round(stageHeight * stageRatio);
     transitionCanvas.style.width = stageWidth + "px";
     transitionCanvas.style.height = stageHeight + "px";
+    const stickyBounds = sticky.getBoundingClientRect();
+    const headerBottom = header ? header.getBoundingClientRect().bottom : stickyBounds.top;
+    const ambientTop = clamp(headerBottom - stickyBounds.top, 0, sticky.clientHeight);
+    ambientWidth = Math.max(1, sticky.clientWidth);
+    ambientHeight = Math.max(1, sticky.clientHeight - ambientTop);
+    ambientRatio = Math.min(window.devicePixelRatio || 1, 1);
+    ambientCanvas.width = Math.round(ambientWidth * ambientRatio);
+    ambientCanvas.height = Math.round(ambientHeight * ambientRatio);
+    ambientCanvas.style.top = ambientTop + "px";
+    ambientCanvas.style.left = "0px";
+    ambientCanvas.style.width = ambientWidth + "px";
+    ambientCanvas.style.height = ambientHeight + "px";
+    ambientCanvas.dataset.headerClearance = ambientTop.toFixed(1);
+    ambientParticles = makeAmbientParticles();
+    resetAmbientField();
+    ambientCanvas.style.visibility = sceneVisible ? "visible" : "hidden";
+    stage.dataset.ambientParticleCount = String(ambientParticles.length);
+    drawAmbientField(sceneTime, 0);
     requestSceneAnimation();
   }
 
-  if ("ResizeObserver" in window) new ResizeObserver(resizeStage).observe(stage);
-  else window.addEventListener("resize", resizeStage, { passive: true });
+  if ("ResizeObserver" in window) {
+    const stageObserver = new ResizeObserver(resizeStage);
+    stageObserver.observe(stage);
+    stageObserver.observe(sticky);
+    if (header) stageObserver.observe(header);
+  } else window.addEventListener("resize", resizeStage, { passive: true });
   resizeStage();
 
   window.addEventListener("scroll", onScroll, { passive: true });
@@ -849,10 +1158,12 @@
       if (reduceMotion.matches) system.resetAmbient();
       system.draw(targetPosition, sceneTime, 0);
     });
+    if (reduceMotion.matches) resetAmbientField();
     if (sceneFrame) cancelAnimationFrame(sceneFrame);
     sceneFrame = 0;
     visualPosition = reduceMotion.matches ? activeIndex : targetPosition;
     paintScene(visualPosition, sceneTime);
+    drawAmbientField(sceneTime, 0);
     onScroll();
   });
   document.addEventListener("visibilitychange", () => {
@@ -864,12 +1175,16 @@
   if ("IntersectionObserver" in window) {
     new IntersectionObserver(([entry]) => {
       sceneVisible = entry.isIntersecting;
+      ambientCanvas.style.visibility = entry.isIntersecting && entry.intersectionRatio >= .01 ? "visible" : "hidden";
       if (sceneVisible) requestSceneAnimation();
-      else if (sceneFrame) {
-        cancelAnimationFrame(sceneFrame);
-        sceneFrame = 0;
+      else {
+        resetAmbientField();
+        if (sceneFrame) {
+          cancelAnimationFrame(sceneFrame);
+          sceneFrame = 0;
+        }
       }
-    }, { threshold: .01 }).observe(stage);
+    }, { threshold: [.01] }).observe(stage);
   }
 
   controls.hidden = false;
