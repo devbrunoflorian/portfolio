@@ -15,6 +15,7 @@ const contentTypes = new Map([
   [".mjs", "text/javascript; charset=utf-8"],
   [".png", "image/png"],
   [".svg", "image/svg+xml"],
+  [".webp", "image/webp"],
 ]);
 
 function send(response, status, body, contentType = "text/plain; charset=utf-8") {

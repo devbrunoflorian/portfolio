@@ -42,6 +42,25 @@ function createEnvironment() {
     target.addEventListener(type, handler, options);
     listeners.push(() => target.removeEventListener(type, handler, options));
   }
+  function listenButtonActivation(target, activate) {
+    let spacePressed = false;
+    listen(target, "keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        if (!event.repeat) activate();
+      } else if (event.key === " ") {
+        event.preventDefault();
+        spacePressed = true;
+      }
+    });
+    listen(target, "keyup", (event) => {
+      if (event.key !== " ") return;
+      event.preventDefault();
+      if (spacePressed && document.activeElement === target) activate();
+      spacePressed = false;
+    });
+    listen(target, "blur", () => { spacePressed = false; });
+  }
   function setTimeout(callback, delay) {
     let id;
     id = scheduleTimeout(() => {
@@ -69,13 +88,12 @@ function createEnvironment() {
 
   const element = document.createElement("div");
   element.className = "hero-environment";
-  element.setAttribute("aria-hidden", "true");
   element.dataset.phase = "structure";
   element.dataset.spatial = "false";
 
   element.innerHTML = `
     <!-- Layer A: Distant Horizon with atmospheric gradient and subtle noise texture -->
-    <div class="environment-horizon">
+    <div class="environment-horizon" aria-hidden="true">
       <svg class="environment-grain" width="100%" height="100%">
         <filter id="env-grain-filter">
           <feTurbulence type="fractalNoise" baseFrequency="0.68" numOctaves="3" seed="23" stitchTiles="stitch" />
@@ -85,7 +103,7 @@ function createEnvironment() {
     </div>
 
     <!-- Fallback 2D spatial grid shown before WebGL initializes or when WebGL is inactive -->
-    <svg class="environment-fallback" viewBox="0 0 1440 900" preserveAspectRatio="none">
+    <svg class="environment-fallback" viewBox="0 0 1440 900" preserveAspectRatio="none" aria-hidden="true">
       <g fill="#121418" stroke="#5d6067" stroke-opacity="0.24">
         <path d="M520 650V340l42-20v330Zm42-330 25 25v305h-25M1120 680V410l52-23v293Zm52-293 32 27v266h-32M620 670V490l38-16v196Zm38-196 24 19v177h-24M1260 690V280l46-18v428Zm46-428 29 24v404h-29M1030 680V550l38-14v144Zm38-144 25 21v123h-25M720 680V590h45v90Z"/>
       </g>
@@ -95,7 +113,7 @@ function createEnvironment() {
     </svg>
 
     <!-- Layer B: Golden Ratio and Construction Geometry (SVG) -->
-    <svg class="construction-map" viewBox="0 0 640 700" fill="none">
+    <svg class="construction-map" viewBox="0 0 640 700" fill="none" aria-hidden="true">
       <g class="construction-secondary">
         <path d="M35 108H582V602H96V176H538M0 350H640M320 24V676M94 70V620M546 62V644M30 530H609M158 96H603M46 594H568" />
         <circle cx="320" cy="350" r="246" />
@@ -131,7 +149,7 @@ function createEnvironment() {
       </g>
     </svg>
 
-    <div class="mobile-technical-labels">
+    <div class="mobile-technical-labels" aria-hidden="true">
       <span data-phase-label="idea">ANALYZE<br />DESIGN</span>
       <span data-phase-label="structure">COMPOSE<br />ITERATE<br />SYSTEM</span>
       <span data-phase-label="form">EXECUTION<br />IMPACT</span>
@@ -1011,7 +1029,7 @@ function createEnvironment() {
     listen(node, "pointerenter", onTrigger, { passive: true });
     listen(node, "mouseenter", onTrigger, { passive: true });
     listen(node, "click", onClick);
-    listen(node, "focus", onTrigger);
+    listenButtonActivation(node, onClick);
   });
 
   // Group C: Each word activated independently on hover (Rule 12)
@@ -1031,7 +1049,7 @@ function createEnvironment() {
     listen(step, "pointerenter", onStepTrigger, { passive: true });
     listen(step, "mouseenter", onStepTrigger, { passive: true });
     listen(step, "click", onStepClick);
-    listen(step, "focus", onStepTrigger);
+    listenButtonActivation(step, onStepClick);
   });
 
   // Mouse tracking: knight tracking continues uninterrupted!
