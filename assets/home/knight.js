@@ -4,7 +4,6 @@ import { FLOOR_Y, smoothstep } from "./context.js";
 import { createSeededRandom } from "../shared/random.js";
 import { ASSEMBLY_DURATION, annotateFragmentEdges, createFragmentedGeometry } from "./fragment-geometry.js";
 import { prepareVolumetricKnight } from "./volumetric-assembly.js";
-import { prepareFracturePulse } from "./fracture-pulse.js";
 
 const LOW_POLY_FACET_VERTEX_BUDGET = 1100;
 const EDGE_THRESHOLD_ANGLE_DEG = 24;
@@ -315,7 +314,6 @@ export async function prepareKnight(ctx, root, chunkCount = 32) {
 
   if (volumetricMode && !ctx.mobileViewport.matches) {
     await prepareVolumetricKnight(ctx, root);
-    await prepareFracturePulse(ctx, root);
     ctx.frame.dataset.volumetricAssembly = "ready";
   }
 }

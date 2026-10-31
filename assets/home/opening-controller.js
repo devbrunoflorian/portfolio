@@ -46,7 +46,6 @@ export function createOpeningController({ frame, heroScreen, revealCopy, ctx }) 
     const timelineTime = assemblyOnly ? Math.min(2.35, time) : time;
 
     ctx.assemblyTimeUniform.value = assemblyOnly ? timelineTime : 0;
-    ctx.fracturePulse?.setTime(assemblyOnly ? timelineTime : 0);
     ctx.assemblyUniform.value = getAssemblyProgress(timelineTime);
     ctx.rimAssemblyUniform.value = getAssemblyRim(timelineTime);
     const facetReveal = assemblyOnly ? 0 : smoothstep(2.0, 2.25, time);
