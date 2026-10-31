@@ -25,20 +25,26 @@ function createCapture() {
   let disposed = false;
   const timers = new Map();
   const animations = new Map();
+  const frozenAnimations = new Map();
   const ready = new Promise((resolve) => { resolveReady = resolve; });
   const frame = document.querySelector("#scene-frame");
 
   function syncAnimations() {
     const current = new Set(document.getAnimations());
     for (const animation of animations.keys()) {
-      if (!current.has(animation)) animations.delete(animation);
+      if (!current.has(animation)) {
+        animations.delete(animation);
+        frozenAnimations.delete(animation);
+      }
     }
     for (const animation of current) {
       if (!animations.has(animation)) animations.set(animation, clock.t * 1000);
       animation.pause();
-      animation.currentTime = clock.t * 1000 - animations.get(animation);
+      animation.currentTime = frozenAnimations.has(animation)
+        ? frozenAnimations.get(animation)
+        : clock.t * 1000 - animations.get(animation);
       const timing = animation.effect?.getComputedTiming();
-      if (timing && clock.t * 1000 - animations.get(animation) >= timing.endTime) {
+      if (!frozenAnimations.has(animation) && timing && clock.t * 1000 - animations.get(animation) >= timing.endTime) {
         animation.finish();
       }
     }
@@ -49,6 +55,25 @@ function createCapture() {
     animations.set(animation, offsetMilliseconds);
     animation.pause();
     animation.currentTime = clock.t * 1000 - offsetMilliseconds;
+  }
+
+  function freezeAnimation(animation) {
+    if (disposed || !(animation instanceof Animation)) return null;
+    syncAnimations();
+    const currentTime = Number(animation.currentTime ?? 0);
+    frozenAnimations.set(animation, currentTime);
+    animation.pause();
+    animation.currentTime = currentTime;
+    return currentTime;
+  }
+
+  function resumeAnimation(animation) {
+    if (disposed || !(animation instanceof Animation) || !frozenAnimations.has(animation)) return;
+    const currentTime = frozenAnimations.get(animation);
+    frozenAnimations.delete(animation);
+    animations.set(animation, clock.t * 1000 - currentTime);
+    animation.pause();
+    animation.currentTime = currentTime;
   }
 
   function schedule(callback, delay = 0, repeat = false) {
@@ -113,6 +138,8 @@ function createCapture() {
   const api = {
     ready,
     registerAnimation,
+    freezeAnimation,
+    resumeAnimation,
     setTime,
     setPointer(x, y) {
       if (x == null && y == null) {
@@ -144,6 +171,7 @@ function createCapture() {
       timers.clear();
       for (const animation of animations.keys()) animation.cancel();
       animations.clear();
+      frozenAnimations.clear();
       delete window.__homeCapture;
     },
   };
@@ -157,6 +185,8 @@ function createCapture() {
     focusLayer,
     openingSequence,
     registerAnimation,
+    freezeAnimation,
+    resumeAnimation,
     random,
     get delta() { return delta; },
     setTimeout: (callback, delay) => schedule(callback, delay),

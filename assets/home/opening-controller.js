@@ -1,4 +1,4 @@
-import { clamp, smoothstep } from "./context.js";
+import { clamp, smoothstep, FRONTAL_MODEL_YAW, RESTING_LEFT_YAW, RESTING_PITCH } from "./context.js";
 
 const KNIGHT_START = 1.35;
 const OBSIDIAN_START = 1.0;
@@ -61,6 +61,7 @@ export function createOpeningController({ frame, heroScreen, revealCopy, ctx }) 
   let sequenceMode = chooseOpeningMode(ctx);
   let sequenceStarted = false;
   let sequenceFinished = false;
+  let sequenceStartTimestamp = 0;
   let visibleElapsed = 0;
   let lastVisibleTimestamp = null;
   let waitVisibleMs = 0;
@@ -193,7 +194,7 @@ export function createOpeningController({ frame, heroScreen, revealCopy, ctx }) 
       { duration, easing: "cubic-bezier(.4, 0, .6, 1)", fill: "both" },
     );
     animation.pause();
-    ctx.homeCapture?.registerAnimation(animation, start * 1000);
+    ctx.homeCapture?.registerAnimation(animation, sequenceStartTimestamp + start * 1000);
     entryAnimations.push({ animation, start });
   }
 
@@ -221,6 +222,7 @@ export function createOpeningController({ frame, heroScreen, revealCopy, ctx }) 
   function startSequence(timestamp) {
     if (sequenceStarted || sequenceMode === "none" || disposed) return;
     sequenceStarted = true;
+    sequenceStartTimestamp = timestamp;
     waitTimer && clearInterval(waitTimer);
     waitTimer = 0;
     markSessionConsumed();
@@ -244,7 +246,7 @@ export function createOpeningController({ frame, heroScreen, revealCopy, ctx }) 
   }
 
   function readLiveElapsed(timestamp) {
-    if (ctx.homeCapture) return Math.max(0, timestamp / 1000);
+    if (ctx.homeCapture) return Math.max(0, (timestamp - sequenceStartTimestamp) / 1000);
     if (document.visibilityState !== "visible") {
       lastVisibleTimestamp = null;
       performanceLastFrame = null;
@@ -337,7 +339,7 @@ export function createOpeningController({ frame, heroScreen, revealCopy, ctx }) 
     frame.dataset.volumetricHandoff = String(volumetricHandoff);
     frame.dataset.openingTime = t.toFixed(3);
     setEntryAnimations(t);
-    if (t >= FINAL_TIME) completeSequence(false);
+    if (t >= FINAL_TIME) completeSequence(sequenceMode === "replay");
   }
 
   function completeSequence(focus) {
@@ -513,8 +515,60 @@ export function createOpeningController({ frame, heroScreen, revealCopy, ctx }) 
 
   return {
     update,
-    get usesVolumetricAssembly() { return ["capture", "forced", "first-visit"].includes(sequenceMode); },
+    get usesVolumetricAssembly() { return ["capture", "forced", "first-visit", "replay"].includes(sequenceMode); },
     disableSequence,
+    async prepareReplay() {
+      if (disposed) return false;
+      if (ctx.mobileViewport.matches || ctx.reducedMotion.matches) return "static";
+      if (typeof ctx.prepareOpeningReplay !== "function") return false;
+      return ctx.prepareOpeningReplay();
+    },
+    replay(timestamp = ctx.homeCapture ? ctx.homeCapture.snapshot().time * 1000 : performance.now()) {
+      if (disposed || ctx.mobileViewport.matches || ctx.reducedMotion.matches) return false;
+      if (!ctx.homeCapture) {
+        window.scrollTo(0, 0);
+        ctx.sceneVisible = true;
+      }
+      ctx.updateSceneProgress?.();
+      ctx.yaw = ctx.targetYaw = RESTING_LEFT_YAW;
+      ctx.pitch = ctx.targetPitch = RESTING_PITCH;
+      ctx.revealAmount = ctx.targetReveal = 0;
+      ctx.pointerWorld?.set(0, 0, 0);
+      ctx.pointerTarget?.set(0, 0, 0);
+      ctx.modelPivot?.rotation.set(RESTING_PITCH, FRONTAL_MODEL_YAW + RESTING_LEFT_YAW, 0);
+      ctx.lastFrameAt = 0;
+      entryAnimations.forEach(({ animation }) => animation.cancel());
+      entryAnimations = [];
+      sequenceMode = "replay";
+      sequenceStarted = false;
+      sequenceFinished = false;
+      visibleElapsed = 0;
+      lastVisibleTimestamp = null;
+      degraded = false;
+      degradedAt = 0;
+      degradedTimeline = 0;
+      performanceStart = null;
+      performanceLastFrame = null;
+      performanceDiscarded = 0;
+      performanceSamples.length = 0;
+      finalCaptureState = false;
+      ctx.openingMode = true;
+      document.body.removeAttribute("data-home-opening-complete");
+      delete frame.dataset.openingDegraded;
+      delete frame.dataset.openingReplay;
+      ctx.poster.hidden = true;
+      ctx.fallback.hidden = true;
+      ctx.canvas.hidden = false;
+      ctx.frame.dataset.sceneState = "live";
+      ctx.homeEnvironment?.setActive(false);
+      createSkipButton();
+      startSequence(timestamp);
+      frame.dataset.openingReplay = "started";
+      skipButton?.focus({ preventScroll: true });
+      ctx.updateSceneProgress?.();
+      ctx.queueFrame?.();
+      return sequenceStarted;
+    },
     presentFirstInteractiveFrame(timestamp = performance.now()) {
       if (disposed || frame.dataset.sceneState !== "loading") return;
       if (!ctx.homeCapture && sequenceMode !== "none" && document.visibilityState !== "visible") return;

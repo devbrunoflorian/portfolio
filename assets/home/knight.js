@@ -327,6 +327,15 @@ export async function prepareKnight(ctx, root, chunkCount = 32) {
   }
 }
 
+export async function ensureVolumetricKnight(ctx, root = ctx.knight) {
+  if (ctx.volumetricMesh) return true;
+  if (!root || ctx.mobileViewport.matches || ctx.disposed) return false;
+  await prepareVolumetricKnight(ctx, root);
+  if (!ctx.volumetricMesh || ctx.disposed) return false;
+  ctx.renderer?.compile(ctx.scene, ctx.camera);
+  return true;
+}
+
 export function disposeKnightResources(root) {
   const geometries = new Set();
   const materials = new Set();

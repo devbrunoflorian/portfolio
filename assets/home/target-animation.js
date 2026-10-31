@@ -413,7 +413,10 @@ export function createTargetAnimation(svg, renderer, camera, scene, { includeSta
 
   const group = new THREE.Group();
   group.name = "home-target-animation";
-  group.add(tracing, anchors);
+  const glitchLayer = new THREE.Group();
+  glitchLayer.name = "home-target-glitch-layer";
+  glitchLayer.add(tracing, anchors);
+  group.add(glitchLayer);
   scene.add(group);
 
   const diagnostics = {
@@ -492,6 +495,21 @@ export function createTargetAnimation(svg, renderer, camera, scene, { includeSta
     if (!disposed) group.visible = Boolean(visible);
   }
 
+  function setGlitch(amount = 0, elapsed = 0) {
+    if (disposed) return;
+    const strength = THREE.MathUtils.clamp(amount, 0, 1);
+    const phase = Math.max(0, elapsed) * Math.PI * 2;
+    const burst = Math.sin(phase * 2.1 + 0.8) > 0.25 ? 1 : 0.2;
+    glitchLayer.position.set(
+      Math.sin(phase * 3.1) * 0.012 * strength * burst,
+      Math.cos(phase * 2.7 + 1.1) * 0.008 * strength * burst,
+      Math.sin(phase * 2.4 + 0.4) * 0.006 * strength * burst,
+    );
+    glitchLayer.rotation.z = Math.sin(phase * 1.4) * 0.006 * strength * burst;
+    glitchLayer.rotation.x = Math.sin(phase * 1.2 + 0.8) * 0.004 * strength * burst;
+    glitchLayer.scale.setScalar(1 + Math.sin(phase * 2.1) * 0.004 * strength);
+  }
+
   function setNeonSignal(index, progress) {
     if (!disposed && index >= 0 && index < 3) {
       lineMaterial.uniforms.uSvgSignals.value.setComponent(index, progress);
@@ -501,7 +519,7 @@ export function createTargetAnimation(svg, renderer, camera, scene, { includeSta
   setTime(0);
   setPointerOffset();
   setVisible(false);
-  return { object: group, setTime, updatePointer: setPointerOffset, setVisible, setNeonSignal, dispose, diagnostics };
+  return { object: group, setTime, updatePointer: setPointerOffset, setVisible, setNeonSignal, setGlitch, dispose, diagnostics };
 }
 
 function samplePathPoint(points, progress, target) {

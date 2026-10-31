@@ -20,9 +20,11 @@ import {
   smoothstep,
 } from "./context.js";
 import { createOpeningController } from "./opening-controller.js";
+import { createCompletionGlitch } from "./completion-glitch.js";
 import {
   disposeKnight,
   disposeKnightResources,
+  ensureVolumetricKnight,
   findTrackingCenter,
   prepareKnight,
   updateKnightMaterialProgress,
@@ -44,11 +46,13 @@ function mountHomeScene() {
     revealCopy: revealMobileCopy,
     ctx,
   });
+  const completionGlitch = createCompletionGlitch({ ctx, homeEnvironment });
+  homeEnvironment?.setCompletionPresenter(completionGlitch);
   const pointerScroll = createPointerScroll(ctx);
   ctx.updateSceneProgress = pointerScroll.updateSceneProgress;
   ctx.queueFrame = () => {
     if (ctx.homeCapture) return;
-    if (!ctx.renderer || !ctx.sceneVisible || ctx.frameRequest) return;
+    if (!ctx.renderer || ctx.frameRequest || (!ctx.sceneVisible && !completionGlitch.active)) return;
     ctx.frameRequest = requestAnimationFrame(renderFrame);
   };
   const listeners = [];
@@ -62,7 +66,7 @@ function mountHomeScene() {
 
   function renderFrame(timestamp) {
     ctx.frameRequest = 0;
-    if (!ctx.renderer || !ctx.knight || (!ctx.sceneVisible && !ctx.homeCapture)) return;
+    if (!ctx.renderer || !ctx.knight) return;
     if (ctx.mobileViewport.matches && !ctx.debugMode) {
       const copyBounds = ctx.heroCopy.getBoundingClientRect();
       const sceneBounds = ctx.frame.getBoundingClientRect();
@@ -87,6 +91,8 @@ function mountHomeScene() {
     }
     ctx.modelPivot.rotation.set(ctx.pitch, FRONTAL_MODEL_YAW + ctx.yaw, 0);
     ctx.openingController.update(timestamp);
+    const glitchState = completionGlitch.update(timestamp);
+    ctx.spatialEnvironment?.setCompletionGlitch(glitchState);
     const profileAmount = clamp(Math.abs(ctx.yaw) / MAX_YAW);
     const rimStrength = ctx.mobileViewport.matches && !ctx.debugMode ? 1.4 : 0.85 + smoothstep(0.6, 1, profileAmount) * 0.55;
     for (const uniform of ctx.rimStrengthUniforms) uniform.value = rimStrength;
@@ -96,13 +102,15 @@ function mountHomeScene() {
       material.uniforms.uReveal.value = ctx.revealAmount;
     }
     updateKnightMaterialProgress(ctx);
-    if (ctx.spatialEnvironment && homeEnvironment) {
+    if (ctx.sceneVisible && ctx.spatialEnvironment && homeEnvironment) {
       ctx.spatialEnvironment.update(timestamp, homeEnvironment);
       homeEnvironment.update(timestamp, elapsed);
       homeEnvironment.setAnchor(pointerScroll.projectTrackingCenter(), ctx.frame.getBoundingClientRect());
     }
-    ctx.spatialEnvironment?.render(ctx.renderer, ctx.camera);
-    ctx.renderer.render(ctx.scene, ctx.camera);
+    if (ctx.sceneVisible || ctx.homeCapture) {
+      ctx.spatialEnvironment?.render(ctx.renderer, ctx.camera);
+      ctx.renderer.render(ctx.scene, ctx.camera);
+    }
     ctx.frame.dataset.modelYaw = ctx.yaw.toFixed(4);
     ctx.frame.dataset.modelPitch = ctx.pitch.toFixed(4);
     ctx.frame.dataset.pointerReveal = ctx.revealAmount.toFixed(3);
@@ -112,7 +120,9 @@ function mountHomeScene() {
       || Math.abs(ctx.pitch - ctx.targetPitch) > 0.001
       || Math.abs(ctx.revealAmount - ctx.targetReveal) > 0.005
       || ctx.pointerWorld.distanceToSquared(ctx.pointerTarget) > 0.00001;
-    if (settling || (ctx.spatialEnvironment && !ctx.reducedMotion.matches && ctx.sceneVisible)) ctx.queueFrame();
+    if (settling || (ctx.spatialEnvironment && !ctx.reducedMotion.matches && ctx.sceneVisible) || completionGlitch.active) {
+      ctx.queueFrame();
+    }
   }
 
   function setStaticFallback(message) {
@@ -190,6 +200,7 @@ function mountHomeScene() {
     visibilityObserver?.disconnect();
     for (const remove of listeners.splice(0)) remove();
     ctx.openingController.dispose();
+    completionGlitch.dispose();
     homeEnvironment?.dispose?.();
     ctx.spatialEnvironment?.dispose();
     disposeKnight(ctx);
@@ -287,6 +298,56 @@ function mountHomeScene() {
           openingMode,
           settledTargetMode,
         });
+        ctx.prepareOpeningReplay = async () => {
+          if (ctx.disposed || ctx.mobileViewport.matches || ctx.reducedMotion.matches) return "static";
+          if (!ctx.renderer || !ctx.knight || !ctx.spatialEnvironment) return false;
+
+          const restoreStableHome = () => {
+            if (ctx.volumetricMesh) ctx.volumetricMesh.visible = false;
+            ctx.volumetricBaseMeshes?.forEach((mesh) => { mesh.visible = true; });
+            ctx.volumetricBaseLines?.forEach((line) => { line.visible = true; });
+            if (ctx.reflectiveFloor) ctx.reflectiveFloor.visible = true;
+            if (ctx.whiteRevealLight) ctx.whiteRevealLight.intensity = ctx.whiteRevealIntensity;
+            ctx.assemblyLights.forEach(({ light, intensity }) => { light.intensity = intensity; });
+            ctx.spatialEnvironment?.cancelReplayLayers?.();
+            homeEnvironment?.setActive(true);
+          };
+
+          try {
+            const knightReady = await ensureVolumetricKnight(ctx, ctx.knight);
+            if (!knightReady || ctx.disposed || ctx.mobileViewport.matches || ctx.reducedMotion.matches) {
+              restoreStableHome();
+              return false;
+            }
+            const layersReady = await ctx.spatialEnvironment.prepareReplayLayers();
+            if (!layersReady || ctx.disposed || ctx.mobileViewport.matches || ctx.reducedMotion.matches) {
+              restoreStableHome();
+              return false;
+            }
+
+            ctx.volumetricMesh.visible = false;
+            ctx.volumetricBaseMeshes?.forEach((mesh) => { mesh.visible = false; });
+            ctx.volumetricBaseLines?.forEach((line) => { line.visible = false; });
+            if (ctx.reflectiveFloor) ctx.reflectiveFloor.visible = false;
+            ctx.spatialEnvironment.setTargetTime(0);
+            ctx.spatialEnvironment.setObsidianTime(0);
+            ctx.spatialEnvironment.setFloorTime(0);
+            ctx.spatialEnvironment.setTargetVisible(true);
+            ctx.spatialEnvironment.setWorldVisible(false);
+            ctx.spatialEnvironment.setFloorVisible(false);
+            ctx.spatialEnvironment.setReflectionVisible(false);
+            ctx.canvas.hidden = false;
+            ctx.poster.hidden = true;
+            ctx.fallback.hidden = true;
+            ctx.frame.dataset.sceneState = "live";
+            ctx.frame.dataset.volumetricAssembly = "ready";
+            return true;
+          } catch (error) {
+            console.error("[Home completion] Entrance replay assets could not be prepared.", error);
+            restoreStableHome();
+            return false;
+          }
+        };
         if (openingMode) {
           const openingLayersReady = await ctx.spatialEnvironment.prepareOpeningLayers();
           if (!openingLayersReady) {

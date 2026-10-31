@@ -2,7 +2,6 @@ import { homeCapture } from "../home-capture.js";
 
 const hero = document.querySelector(".hero-screen");
 const frame = document.querySelector("#scene-frame");
-const heroTitle = document.querySelector("#hero-title");
 const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
 export const mobileViewport = matchMedia("(max-width: 640px), (max-width: 900px) and (orientation: landscape) and (max-height: 520px)");
 const mobile = mobileViewport;
@@ -345,15 +344,22 @@ function createEnvironment() {
   };
 
   let isGlobalResetting = false;
+  let completionTimer = null;
+  let completionPresenter = null;
   let analyzeCycleTimer = null;
   let analyzeResolveTimer = null;
   let systemCycleTimer = null;
   let systemResolveTimer = null;
+  let designTimer = null;
+  let impactTimer = null;
   let conceptTimers = [];
   let composeTimers = [];
   let execTimers = [];
   let iterateInterval = null;
   let iterateCoordIndex = 4;
+  let synthesisReplayVersion = 0;
+  let synthesisReplayTimer = null;
+  let synthesisReplayActive = false;
 
   const pointer = { x: 0, y: 0 };
   const target = { x: 0, y: 0 };
@@ -383,10 +389,14 @@ function createEnvironment() {
   }
 
   function onInteractionComplete() {
-    if (isGlobalResetting) return;
-    if (checkAllFamiliesCompleted()) {
-      setTimeout(triggerGlobalCompletionSequence, 320);
-    }
+    if (isGlobalResetting || !checkAllFamiliesCompleted()) return;
+    isGlobalResetting = true;
+    completionTimer = setTimeout(() => {
+      completionTimer = null;
+      if (disposed) return;
+      if (completionPresenter) completionPresenter.start();
+      else resetAfterCompletion();
+    }, 320);
   }
 
   /* -------------------------------------------------------------
@@ -397,8 +407,8 @@ function createEnvironment() {
   const analyzeWord = "ANALYZE";
   const initialAnalyzeBinary = ["0", "1", "0", "1", "0", "1", "1"];
 
-  function triggerAnalyze() {
-    if (reducedMotion.matches || interactionState.synthesis.analyze || isGlobalResetting) return;
+  function triggerAnalyze({ replay = false, onFinished } = {}) {
+    if (reducedMotion.matches || (interactionState.synthesis.analyze && !replay) || isGlobalResetting) return;
 
     nodeAnalyze?.classList.add("is-active");
     groupA?.classList.add("has-active");
@@ -426,18 +436,19 @@ function createEnvironment() {
         analyzeCycleTimer = null;
         analyzeResolveTimer = null;
 
-        interactionState.synthesis.analyze = true;
+        if (!replay) interactionState.synthesis.analyze = true;
         nodeAnalyze?.classList.add("is-resolved");
         nodeAnalyze?.classList.remove("is-active");
 
-        onInteractionComplete();
+        if (!replay) onInteractionComplete();
+        onFinished?.();
       }
     }, 140);
   }
 
   // 2. DESIGN: Clean technical presentation (restrained construction rule & marker flash)
-  function triggerDesign() {
-    if (reducedMotion.matches || interactionState.synthesis.design || isGlobalResetting) return;
+  function triggerDesign({ replay = false, onFinished } = {}) {
+    if (reducedMotion.matches || (interactionState.synthesis.design && !replay) || isGlobalResetting) return;
 
     nodeDesign?.classList.add("is-active");
     groupA?.classList.add("has-active");
@@ -453,17 +464,21 @@ function createEnvironment() {
       );
     }
 
-    setTimeout(() => {
-      interactionState.synthesis.design = true;
+    if (designTimer) clearTimeout(designTimer);
+    designTimer = setTimeout(() => {
+      designTimer = null;
+      if (disposed) return;
+      if (!replay) interactionState.synthesis.design = true;
       nodeDesign?.classList.add("is-resolved");
       nodeDesign?.classList.remove("is-active");
-      onInteractionComplete();
+      if (!replay) onInteractionComplete();
+      onFinished?.();
     }, 280);
   }
 
   // 3. COMPOSE: Weighted architectural drop assembling letters -> turns crimson on landing
-  function triggerCompose() {
-    if (reducedMotion.matches || interactionState.synthesis.compose || isGlobalResetting || !composeLetters.length) return;
+  function triggerCompose({ replay = false, onFinished } = {}) {
+    if (reducedMotion.matches || (interactionState.synthesis.compose && !replay) || isGlobalResetting || !composeLetters.length) return;
 
     nodeCompose?.classList.add("is-active");
     groupA?.classList.add("has-active");
@@ -483,21 +498,25 @@ function createEnvironment() {
         letter.style.opacity = "1";
 
         if (index === composeLetters.length - 1) {
-          interactionState.synthesis.compose = true;
+          if (!replay) interactionState.synthesis.compose = true;
           nodeCompose?.classList.add("is-resolved");
           nodeCompose?.classList.remove("is-active");
 
-          // Displace ITERATE vertically, but DO NOT auto-complete it (Rule 4)!
-          nodeIterate?.animate(
-            [
-              { transform: "translateY(0)" },
-              { transform: "translateY(4px)" },
-              { transform: "translateY(0)" },
-            ],
-            { duration: 250, easing: "cubic-bezier(0.25, 0.1, 0.25, 1)" }
-          );
+          // Displace ITERATE after the first Compose completion only; the replay
+          // sequence gives it its own later beat.
+          if (!replay) {
+            nodeIterate?.animate(
+              [
+                { transform: "translateY(0)" },
+                { transform: "translateY(4px)" },
+                { transform: "translateY(0)" },
+              ],
+              { duration: 250, easing: "cubic-bezier(0.25, 0.1, 0.25, 1)" }
+            );
+          }
 
-          onInteractionComplete();
+          if (!replay) onInteractionComplete();
+          onFinished?.();
         }
       }, index * stepDelay);
       composeTimers.push(t);
@@ -505,10 +524,10 @@ function createEnvironment() {
   }
 
   // 4. ITERATE: Requires its own interaction to complete (Rule 4), then loops subtly
-  function triggerIterate() {
-    if (reducedMotion.matches || interactionState.synthesis.iterate || isGlobalResetting) return;
+  function triggerIterate({ replay = false, onFinished } = {}) {
+    if (reducedMotion.matches || (interactionState.synthesis.iterate && !replay) || isGlobalResetting) return;
 
-    interactionState.synthesis.iterate = true;
+    if (!replay) interactionState.synthesis.iterate = true;
     groupA?.classList.add("has-active");
     nodeIterate?.classList.add("is-looping", "is-resolved");
     if (iterateCrimsonDot) iterateCrimsonDot.classList.add("is-active");
@@ -537,7 +556,8 @@ function createEnvironment() {
     if (iterateInterval) clearInterval(iterateInterval);
     iterateInterval = setInterval(runCycle, 2200);
 
-    onInteractionComplete();
+    if (!replay) onInteractionComplete();
+    else setTimeout(() => onFinished?.(), 480);
   }
 
   /* -------------------------------------------------------------
@@ -545,8 +565,8 @@ function createEnvironment() {
   ------------------------------------------------------------- */
 
   // 5. CONCEPT: Neon circuit power-up letter by letter
-  function triggerConcept() {
-    if (reducedMotion.matches || interactionState.realization.concept || isGlobalResetting || !conceptChars.length) return;
+  function triggerConcept({ replay = false, onFinished } = {}) {
+    if (reducedMotion.matches || (interactionState.realization.concept && !replay) || isGlobalResetting || !conceptChars.length) return;
 
     nodeConcept?.classList.add("is-active");
     groupB?.classList.add("has-active");
@@ -562,10 +582,11 @@ function createEnvironment() {
         conceptTimers.push(t2);
 
         if (idx === conceptChars.length - 1) {
-          interactionState.realization.concept = true;
+          if (!replay) interactionState.realization.concept = true;
           nodeConcept?.classList.add("is-resolved");
           nodeConcept?.classList.remove("is-active");
-          onInteractionComplete();
+          if (!replay) onInteractionComplete();
+          onFinished?.();
         }
       }, idx * stepDelay);
       conceptTimers.push(t1);
@@ -576,8 +597,8 @@ function createEnvironment() {
   const systemWord = "SYSTEM";
   const initialSystemBinary = ["1", "0", "1", "0", "1", "1"];
 
-  function triggerSystem() {
-    if (reducedMotion.matches || interactionState.realization.system || isGlobalResetting) return;
+  function triggerSystem({ replay = false, onFinished } = {}) {
+    if (reducedMotion.matches || (interactionState.realization.system && !replay) || isGlobalResetting) return;
 
     nodeSystem?.classList.add("is-active");
     groupB?.classList.add("has-active");
@@ -604,18 +625,19 @@ function createEnvironment() {
         systemCycleTimer = null;
         systemResolveTimer = null;
 
-        interactionState.realization.system = true;
+        if (!replay) interactionState.realization.system = true;
         nodeSystem?.classList.add("is-resolved");
         nodeSystem?.classList.remove("is-active");
 
-        onInteractionComplete();
+        if (!replay) onInteractionComplete();
+        onFinished?.();
       }
     }, 130);
   }
 
   // 7. EXECUTION: Mechanical scan line unmasking segments + checkmark confirmation
-  function triggerExecution() {
-    if (reducedMotion.matches || interactionState.realization.execution || isGlobalResetting) return;
+  function triggerExecution({ replay = false, onFinished } = {}) {
+    if (reducedMotion.matches || (interactionState.realization.execution && !replay) || isGlobalResetting) return;
 
     nodeExecution?.classList.add("is-active");
     groupB?.classList.add("has-active");
@@ -640,17 +662,18 @@ function createEnvironment() {
 
     const tFinal = setTimeout(() => {
       if (execMarker) execMarker.classList.add("is-confirmed");
-      interactionState.realization.execution = true;
+      if (!replay) interactionState.realization.execution = true;
       nodeExecution?.classList.add("is-resolved");
       nodeExecution?.classList.remove("is-active");
-      onInteractionComplete();
+      if (!replay) onInteractionComplete();
+      onFinished?.();
     }, 320);
     execTimers.push(tFinal);
   }
 
   // 8. IMPACT: Punch scale 0.82 -> 1.12 -> 1.0 (210ms) + crimson impulse
-  function triggerImpact() {
-    if (reducedMotion.matches || interactionState.realization.impact || isGlobalResetting) return;
+  function triggerImpact({ replay = false, onFinished } = {}) {
+    if (reducedMotion.matches || (interactionState.realization.impact && !replay) || isGlobalResetting) return;
 
     nodeImpact?.classList.add("is-active");
     groupB?.classList.add("has-active");
@@ -675,21 +698,25 @@ function createEnvironment() {
       );
     }
 
-    setTimeout(() => {
-      interactionState.realization.impact = true;
+    if (impactTimer) clearTimeout(impactTimer);
+    impactTimer = setTimeout(() => {
+      impactTimer = null;
+      if (disposed) return;
+      if (!replay) interactionState.realization.impact = true;
       nodeImpact?.classList.add("is-resolved");
       nodeImpact?.classList.remove("is-active");
-      onInteractionComplete();
+      if (!replay) onInteractionComplete();
+      onFinished?.();
     }, 210);
   }
 
   /* -------------------------------------------------------------
      GROUP C: INDIVIDUAL ACTIVATION
   ------------------------------------------------------------- */
-  function activateCadenceStep(stepName) {
-    if (reducedMotion.matches || isGlobalResetting || interactionState.cadence[stepName]) return;
+  function activateCadenceStep(stepName, { replay = false, onFinished } = {}) {
+    if (reducedMotion.matches || isGlobalResetting || (interactionState.cadence[stepName] && !replay)) return;
 
-    interactionState.cadence[stepName] = true;
+    if (!replay) interactionState.cadence[stepName] = true;
     groupC?.classList.add("has-active");
 
     const stepEl = element.querySelector(`.chain-step[data-step="${stepName}"]`);
@@ -705,56 +732,28 @@ function createEnvironment() {
       );
     }
 
-    onInteractionComplete();
-  }
-
-  /* -------------------------------------------------------------
-     GLOBAL COMPLETION SEQUENCE & COUCH HACK RESET (Rules 9, 10, 11)
-  ------------------------------------------------------------- */
-  function triggerGlobalCompletionSequence() {
-    if (isGlobalResetting) return;
-    isGlobalResetting = true;
-
-    // 1. Restrained H1 glyph specular sweep (~650ms, strictly inside typography)
-    if (heroTitle) {
-      heroTitle.classList.remove("h1-specular-sweep");
-      void heroTitle.offsetWidth; // force reflow
-      heroTitle.classList.add("h1-specular-sweep");
-      setTimeout(() => heroTitle.classList.remove("h1-specular-sweep"), 650);
-    }
-
-    // 2. Coordinated hack glitch across technical systems (~350ms)
-    setTimeout(() => {
-      element.classList.add("is-glitching-reconstruction");
-
-      const glitchChars = ["0", "1", "/", "_", "%", "□", "X", "7", "!"];
-      const slots = element.querySelectorAll(".slot, .circuit-char, .sys-slot, .chain-word");
-      slots.forEach((s, i) => {
-        s.textContent = glitchChars[i % glitchChars.length];
-      });
-
-      // Quick secondary corruption wave
-      setTimeout(() => {
-        slots.forEach((s, i) => {
-          s.textContent = glitchChars[(i + 3) % glitchChars.length];
-        });
-      }, 120);
-
-      // 3. Complete programmatic reset: return all systems to fresh dormant states
-      setTimeout(() => {
-        element.classList.remove("is-glitching-reconstruction");
-        resetAllSystems();
-        isGlobalResetting = false;
-      }, 350);
-    }, 450);
+    if (!replay) onInteractionComplete();
+    else setTimeout(() => onFinished?.(), 240);
   }
 
   function resetAllSystems() {
+    synthesisReplayVersion++;
+    synthesisReplayActive = false;
+    if (synthesisReplayTimer) {
+      clearTimeout(synthesisReplayTimer);
+      synthesisReplayTimer = null;
+    }
+    if (completionTimer) {
+      clearTimeout(completionTimer);
+      completionTimer = null;
+    }
     // 1. Clear all active timers
     if (analyzeCycleTimer) { clearInterval(analyzeCycleTimer); analyzeCycleTimer = null; }
     if (analyzeResolveTimer) { clearInterval(analyzeResolveTimer); analyzeResolveTimer = null; }
     if (systemCycleTimer) { clearInterval(systemCycleTimer); systemCycleTimer = null; }
     if (systemResolveTimer) { clearInterval(systemResolveTimer); systemResolveTimer = null; }
+    if (designTimer) { clearTimeout(designTimer); designTimer = null; }
+    if (impactTimer) { clearTimeout(impactTimer); impactTimer = null; }
     if (iterateInterval) { clearInterval(iterateInterval); iterateInterval = null; }
     conceptTimers.forEach(clearTimeout); conceptTimers = [];
     composeTimers.forEach(clearTimeout); composeTimers = [];
@@ -828,29 +827,168 @@ function createEnvironment() {
     });
   }
 
+  function resetAfterCompletion() {
+    resetAllSystems();
+    isGlobalResetting = false;
+  }
+
   /* -------------------------------------------------------------
      EVENT BINDINGS (MOUSE, POINTER, KEYBOARD ACCESSIBILITY)
   ------------------------------------------------------------- */
-  function dispatchKinetic(kind) {
+  function dispatchKinetic(kind, options = {}) {
     switch (kind) {
-      case "analyze": triggerAnalyze(); break;
-      case "design": triggerDesign(); break;
-      case "compose": triggerCompose(); break;
-      case "iterate": triggerIterate(); break;
-      case "concept": triggerConcept(); break;
-      case "system": triggerSystem(); break;
-      case "execution": triggerExecution(); break;
-      case "impact": triggerImpact(); break;
+      case "analyze": triggerAnalyze(options); break;
+      case "design": triggerDesign(options); break;
+      case "compose": triggerCompose(options); break;
+      case "iterate": triggerIterate(options); break;
+      case "concept": triggerConcept(options); break;
+      case "system": triggerSystem(options); break;
+      case "execution": triggerExecution(options); break;
+      case "impact": triggerImpact(options); break;
     }
+  }
+
+  function isInteractionResolved(kind) {
+    return interactionState.synthesis[kind] ??
+      interactionState.realization[kind] ??
+      interactionState.cadence[kind] ?? false;
+  }
+
+  function interactionNode(kind) {
+    return element.querySelector(`[data-kinetic="${kind}"], [data-step="${kind}"]`);
+  }
+
+  function prepareInteractionReplay(kind) {
+    const node = interactionNode(kind);
+    node?.classList.remove("is-active", "is-resolved");
+    node?.getAnimations({ subtree: true }).forEach((animation) => animation.cancel());
+
+    switch (kind) {
+      case "analyze":
+        analyzeSlots.forEach((slot, index) => {
+          slot.classList.remove("is-resolved");
+          slot.textContent = initialAnalyzeBinary[index];
+        });
+        break;
+      case "design":
+        break;
+      case "compose":
+        composeLetters.forEach((letter) => {
+          letter.style.transform = "";
+          letter.style.opacity = "";
+        });
+        break;
+      case "concept":
+        conceptChars.forEach((char) => char.classList.remove("is-powered", "is-glowing"));
+        break;
+      case "system":
+        systemSlots.forEach((slot, index) => {
+          slot.classList.remove("is-resolved");
+          slot.textContent = initialSystemBinary[index];
+        });
+        break;
+      case "execution":
+        execSegments.forEach((segment) => segment.classList.remove("is-unmasked"));
+        execMarker?.classList.remove("is-confirmed");
+        if (execScanline) execScanline.style.transform = "translateX(-100%)";
+        break;
+      case "impact":
+        if (impactFlashLine) impactFlashLine.style.transform = "scaleX(0)";
+        break;
+      case "iterate":
+        if (iterateLoopPath) iterateLoopPath.style.strokeDashoffset = "64";
+        break;
+      default: {
+        const step = chainSteps.find((entry) => entry.dataset.step === kind);
+        step?.classList.remove("is-active");
+      }
+    }
+  }
+
+  function restoreUnresolvedInteraction(kind) {
+    if (isInteractionResolved(kind)) return;
+    interactionNode(kind)?.classList.remove("is-active", "is-resolved");
+    if (kind === "analyze") {
+      analyzeSlots.forEach((slot, index) => {
+        slot.classList.remove("is-resolved");
+        slot.textContent = initialAnalyzeBinary[index];
+      });
+    } else if (kind === "design") {
+      // The marker is a static element again after its replay animation ends.
+    } else if (kind === "compose") {
+      composeLetters.forEach((letter) => {
+        letter.style.transform = "";
+        letter.style.opacity = "";
+      });
+    }
+  }
+
+  function cancelSynthesisReplay() {
+    synthesisReplayVersion++;
+    synthesisReplayActive = false;
+    if (synthesisReplayTimer) {
+      clearTimeout(synthesisReplayTimer);
+      synthesisReplayTimer = null;
+    }
+  }
+
+  function replaySynthesisColumn() {
+    cancelSynthesisReplay();
+    synthesisReplayActive = true;
+    const version = synthesisReplayVersion;
+    const order = ["analyze", "design", "compose", "iterate"];
+    let index = 0;
+
+    const playNext = () => {
+      if (disposed || isGlobalResetting || version !== synthesisReplayVersion || index >= order.length) return;
+      const kind = order[index++];
+      prepareInteractionReplay(kind);
+      dispatchKinetic(kind, {
+        replay: true,
+        onFinished() {
+          if (disposed || isGlobalResetting || version !== synthesisReplayVersion) return;
+          restoreUnresolvedInteraction(kind);
+          if (index < order.length) {
+            synthesisReplayTimer = setTimeout(() => {
+              synthesisReplayTimer = null;
+              playNext();
+            }, 100);
+          } else synthesisReplayActive = false;
+        },
+      });
+    };
+
+    playNext();
+  }
+
+  function replayResolvedInteraction(kind) {
+    if (reducedMotion.matches || isGlobalResetting || disposed || synthesisReplayActive) return;
+    cancelSynthesisReplay();
+    if (kind === "iterate") {
+      replaySynthesisColumn();
+      return;
+    }
+
+    prepareInteractionReplay(kind);
+    dispatchKinetic(kind, {
+      replay: true,
+      onFinished: () => restoreUnresolvedInteraction(kind),
+    });
+  }
+
+  function activateOrReplay(kind) {
+    if (isGlobalResetting || disposed || synthesisReplayActive) return;
+    if (isInteractionResolved(kind)) replayResolvedInteraction(kind);
+    else dispatchKinetic(kind);
   }
 
   const nodes = element.querySelectorAll("[data-kinetic]");
   homeCapture?.bindSystems({
     trigger(name) {
       if (["analyze", "design", "compose", "iterate", "concept", "system", "execution", "impact"].includes(name)) {
-        dispatchKinetic(name);
+        activateOrReplay(name);
       } else if (["think", "ship", "build", "improve"].includes(name)) {
-        activateCadenceStep(name);
+        activateOrReplay(name);
       } else {
         throw new TypeError("Unknown Home capture interaction.");
       }
@@ -860,13 +998,19 @@ function createEnvironment() {
   nodes.forEach((node) => {
     const kind = node.dataset.kinetic;
     const onTrigger = (e) => {
-      if (e?.pointerType === "touch") return;
-      dispatchKinetic(kind);
+      if (e?.pointerType === "touch" || synthesisReplayActive) return;
+      if (!isInteractionResolved(kind) && !node.classList.contains("is-active")) dispatchKinetic(kind);
+    };
+
+    const onClick = () => {
+      if (synthesisReplayActive) return;
+      if (isInteractionResolved(kind)) replayResolvedInteraction(kind);
+      else if (!node.classList.contains("is-active")) dispatchKinetic(kind);
     };
 
     listen(node, "pointerenter", onTrigger, { passive: true });
     listen(node, "mouseenter", onTrigger, { passive: true });
-    listen(node, "click", onTrigger);
+    listen(node, "click", onClick);
     listen(node, "focus", onTrigger);
   });
 
@@ -874,13 +1018,19 @@ function createEnvironment() {
   chainSteps.forEach((step) => {
     const stepName = step.dataset.step;
     const onStepTrigger = (e) => {
-      if (e?.pointerType === "touch") return;
-      activateCadenceStep(stepName);
+      if (e?.pointerType === "touch" || synthesisReplayActive) return;
+      if (!isInteractionResolved(stepName) && !step.classList.contains("is-active")) activateCadenceStep(stepName);
+    };
+
+    const onStepClick = () => {
+      if (synthesisReplayActive) return;
+      if (isInteractionResolved(stepName)) replayResolvedInteraction(stepName);
+      else if (!step.classList.contains("is-active")) activateCadenceStep(stepName);
     };
 
     listen(step, "pointerenter", onStepTrigger, { passive: true });
     listen(step, "mouseenter", onStepTrigger, { passive: true });
-    listen(step, "click", onStepTrigger);
+    listen(step, "click", onStepClick);
     listen(step, "focus", onStepTrigger);
   });
 
@@ -915,11 +1065,13 @@ function createEnvironment() {
   });
 
   function settle() {
+    completionPresenter?.cancel?.();
     for (const anim of element.querySelector(".environment-labels").getAnimations({ subtree: true })) anim.cancel();
     pointer.x = pointer.y = target.x = target.y = 0;
     element.style.setProperty("--environment-x", "0px");
     element.style.setProperty("--environment-y", "0px");
     resetAllSystems();
+    isGlobalResetting = false;
   }
 
   listen(reducedMotion, "change", settle);
@@ -951,6 +1103,12 @@ function createEnvironment() {
       if (!value) settle();
     },
 
+    setCompletionPresenter(presenter) {
+      completionPresenter = presenter;
+    },
+
+    resetAfterCompletion,
+
     setAnchor(center, bounds) {
       if (!center || !bounds?.width) return;
       const heroBounds = mobile.matches ? bounds : hero.getBoundingClientRect();
@@ -980,6 +1138,9 @@ function createEnvironment() {
     dispose() {
       if (disposed) return;
       disposed = true;
+      cancelSynthesisReplay();
+      completionPresenter?.dispose?.();
+      completionPresenter = null;
       for (const remove of listeners.splice(0)) remove();
       for (const id of timers) cancelTimeout(id);
       timers.clear();
