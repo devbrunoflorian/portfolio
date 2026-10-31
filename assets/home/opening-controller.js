@@ -38,10 +38,11 @@ function getAssemblyRim(time) {
 export function createOpeningController({ frame, heroScreen, revealCopy, ctx }) {
   let disposed = false;
   let finalCaptureState = false;
-  const focusLayerCapture = ["target", "obsidian"].includes(ctx.homeCapture?.focusLayer)
+  const focusLayerCapture = ["target", "obsidian", "floor"].includes(ctx.homeCapture?.focusLayer)
     && !ctx.mobileViewport.matches;
   const targetFocusCapture = focusLayerCapture && ctx.homeCapture.focusLayer === "target";
   const obsidianFocusCapture = focusLayerCapture && ctx.homeCapture.focusLayer === "obsidian";
+  const floorFocusCapture = focusLayerCapture && ctx.homeCapture.focusLayer === "floor";
   const previousFocusLayer = document.documentElement.dataset.homeFocusLayer;
   if (focusLayerCapture) document.documentElement.dataset.homeFocusLayer = ctx.homeCapture.focusLayer;
 
@@ -90,7 +91,7 @@ export function createOpeningController({ frame, heroScreen, revealCopy, ctx }) 
     ctx.volumetricBaseMeshes?.forEach((mesh) => { mesh.visible = volumetricHandoff; });
     ctx.volumetricBaseLines?.forEach((line) => { line.visible = !volumetricHandoff; });
     if (ctx.whiteRevealLight) {
-      const whiteReveal = assemblyOnly || obsidianFocusCapture ? 0 : smoothstep(2.25, 2.75, time);
+      const whiteReveal = assemblyOnly || obsidianFocusCapture || floorFocusCapture ? 0 : smoothstep(2.25, 2.75, time);
       ctx.whiteRevealLight.intensity = ctx.whiteRevealIntensity * whiteReveal * smoothstep(0, 1, ctx.assemblyUniform.value);
     }
     if (normalExperience !== finalCaptureState && ctx.reflectiveFloor) {
@@ -121,6 +122,17 @@ export function createOpeningController({ frame, heroScreen, revealCopy, ctx }) 
       ctx.spatialEnvironment?.setFloorVisible(false);
       ctx.spatialEnvironment?.setObsidianTime(time);
       frame.dataset.worldVisible = "true";
+    }
+    if (floorFocusCapture) {
+      if (ctx.scene.background?.isColor) ctx.scene.background.set(0x000000);
+      ctx.modelPivot.visible = false;
+      if (ctx.volumetricMesh) ctx.volumetricMesh.visible = false;
+      if (ctx.reflectiveFloor) ctx.reflectiveFloor.visible = false;
+      ctx.spatialEnvironment?.setReflectionVisible(false);
+      ctx.spatialEnvironment?.setWorldVisible(false);
+      ctx.spatialEnvironment?.setFloorVisible(true);
+      ctx.spatialEnvironment?.setFloorTime(time);
+      frame.dataset.worldVisible = "false";
     }
   }
 

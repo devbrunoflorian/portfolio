@@ -105,53 +105,53 @@
 
 .hero-screen.scene-live #scene-canvas { opacity: 1; }
 
-html:is([data-home-focus-layer="target"], [data-home-focus-layer="obsidian"]) .hero-screen,
-html:is([data-home-focus-layer="target"], [data-home-focus-layer="obsidian"]) .hero-art {
+html:is([data-home-focus-layer="target"], [data-home-focus-layer="obsidian"], [data-home-focus-layer="floor"]) .hero-screen,
+html:is([data-home-focus-layer="target"], [data-home-focus-layer="obsidian"], [data-home-focus-layer="floor"]) .hero-art {
   background: #000;
 }
 
-html:is([data-home-focus-layer="target"], [data-home-focus-layer="obsidian"]) .hero-screen::before,
-html:is([data-home-focus-layer="target"], [data-home-focus-layer="obsidian"]) .hero-art::before {
+html:is([data-home-focus-layer="target"], [data-home-focus-layer="obsidian"], [data-home-focus-layer="floor"]) .hero-screen::before,
+html:is([data-home-focus-layer="target"], [data-home-focus-layer="obsidian"], [data-home-focus-layer="floor"]) .hero-art::before {
   display: none;
 }
 
-html:is([data-home-focus-layer="target"], [data-home-focus-layer="obsidian"]) body { background: #000; }
-html:is([data-home-focus-layer="target"], [data-home-focus-layer="obsidian"]) .site-header,
-html:is([data-home-focus-layer="target"], [data-home-focus-layer="obsidian"]) .site-footer,
-html:is([data-home-focus-layer="target"], [data-home-focus-layer="obsidian"]) .skip-link,
-html:is([data-home-focus-layer="target"], [data-home-focus-layer="obsidian"]) .hero-copy,
-html:is([data-home-focus-layer="target"], [data-home-focus-layer="obsidian"]) .hero-side-note,
-html:is([data-home-focus-layer="target"], [data-home-focus-layer="obsidian"]) .temporary-note,
-html:is([data-home-focus-layer="target"], [data-home-focus-layer="obsidian"]) .scroll-cue,
-html:is([data-home-focus-layer="target"], [data-home-focus-layer="obsidian"]) .scene-status,
-html:is([data-home-focus-layer="target"], [data-home-focus-layer="obsidian"]) .hero-poster,
-html:is([data-home-focus-layer="target"], [data-home-focus-layer="obsidian"]) .scene-fallback,
-html:is([data-home-focus-layer="target"], [data-home-focus-layer="obsidian"]) .scene-grid,
-html:is([data-home-focus-layer="target"], [data-home-focus-layer="obsidian"]) .scene-caption,
-html:is([data-home-focus-layer="target"], [data-home-focus-layer="obsidian"]) .environment-fallback,
-html:is([data-home-focus-layer="target"], [data-home-focus-layer="obsidian"]) .environment-horizon,
-html:is([data-home-focus-layer="target"], [data-home-focus-layer="obsidian"]) .environment-grain,
-html:is([data-home-focus-layer="target"], [data-home-focus-layer="obsidian"]) .environment-labels,
-html:is([data-home-focus-layer="target"], [data-home-focus-layer="obsidian"]) .mobile-technical-labels {
+html:is([data-home-focus-layer="target"], [data-home-focus-layer="obsidian"], [data-home-focus-layer="floor"]) body { background: #000; }
+html:is([data-home-focus-layer="target"], [data-home-focus-layer="obsidian"], [data-home-focus-layer="floor"]) .site-header,
+html:is([data-home-focus-layer="target"], [data-home-focus-layer="obsidian"], [data-home-focus-layer="floor"]) .site-footer,
+html:is([data-home-focus-layer="target"], [data-home-focus-layer="obsidian"], [data-home-focus-layer="floor"]) .skip-link,
+html:is([data-home-focus-layer="target"], [data-home-focus-layer="obsidian"], [data-home-focus-layer="floor"]) .hero-copy,
+html:is([data-home-focus-layer="target"], [data-home-focus-layer="obsidian"], [data-home-focus-layer="floor"]) .hero-side-note,
+html:is([data-home-focus-layer="target"], [data-home-focus-layer="obsidian"], [data-home-focus-layer="floor"]) .temporary-note,
+html:is([data-home-focus-layer="target"], [data-home-focus-layer="obsidian"], [data-home-focus-layer="floor"]) .scroll-cue,
+html:is([data-home-focus-layer="target"], [data-home-focus-layer="obsidian"], [data-home-focus-layer="floor"]) .scene-status,
+html:is([data-home-focus-layer="target"], [data-home-focus-layer="obsidian"], [data-home-focus-layer="floor"]) .hero-poster,
+html:is([data-home-focus-layer="target"], [data-home-focus-layer="obsidian"], [data-home-focus-layer="floor"]) .scene-fallback,
+html:is([data-home-focus-layer="target"], [data-home-focus-layer="obsidian"], [data-home-focus-layer="floor"]) .scene-grid,
+html:is([data-home-focus-layer="target"], [data-home-focus-layer="obsidian"], [data-home-focus-layer="floor"]) .scene-caption,
+html:is([data-home-focus-layer="target"], [data-home-focus-layer="obsidian"], [data-home-focus-layer="floor"]) .environment-fallback,
+html:is([data-home-focus-layer="target"], [data-home-focus-layer="obsidian"], [data-home-focus-layer="floor"]) .environment-horizon,
+html:is([data-home-focus-layer="target"], [data-home-focus-layer="obsidian"], [data-home-focus-layer="floor"]) .environment-grain,
+html:is([data-home-focus-layer="target"], [data-home-focus-layer="obsidian"], [data-home-focus-layer="floor"]) .environment-labels,
+html:is([data-home-focus-layer="target"], [data-home-focus-layer="obsidian"], [data-home-focus-layer="floor"]) .mobile-technical-labels {
   display: none !important;
 }
 
-html:is([data-home-focus-layer="target"], [data-home-focus-layer="obsidian"]) .hero-track {
+html:is([data-home-focus-layer="target"], [data-home-focus-layer="obsidian"], [data-home-focus-layer="floor"]) .hero-track {
   height: 100svh;
   min-height: 0;
 }
 
-html:is([data-home-focus-layer="target"], [data-home-focus-layer="obsidian"]) .hero-screen {
+html:is([data-home-focus-layer="target"], [data-home-focus-layer="obsidian"], [data-home-focus-layer="floor"]) .hero-screen {
   min-height: 0;
   background: #000;
 }
 
-html:is([data-home-focus-layer="target"], [data-home-focus-layer="obsidian"]) .hero-screen #scene-canvas {
+html:is([data-home-focus-layer="target"], [data-home-focus-layer="obsidian"], [data-home-focus-layer="floor"]) .hero-screen #scene-canvas {
   opacity: 1;
   transition: none;
 }
 
-html:is([data-home-focus-layer="target"], [data-home-focus-layer="obsidian"]) .construction-map {
+html:is([data-home-focus-layer="target"], [data-home-focus-layer="obsidian"], [data-home-focus-layer="floor"]) .construction-map {
   visibility: hidden !important;
 }
 

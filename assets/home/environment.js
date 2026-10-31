@@ -501,6 +501,8 @@ export function createSpatialEnvironment(scene, floorY, renderer, camera) {
     && window.matchMedia("(min-width: 701px)").matches;
   const obsidianCaptureMode = homeCapture?.focusLayer === "obsidian"
     && window.matchMedia("(min-width: 701px)").matches;
+  const floorCaptureMode = homeCapture?.focusLayer === "floor"
+    && window.matchMedia("(min-width: 701px)").matches;
   let targetAnimation = null;
   let targetAnimationPromise = null;
   let targetTime = 0;
@@ -508,6 +510,9 @@ export function createSpatialEnvironment(scene, floorY, renderer, camera) {
   let obsidianAnimation = null;
   let obsidianAnimationPromise = null;
   let obsidianTime = 0;
+  let floorAnimation = null;
+  let floorAnimationPromise = null;
+  let floorTime = 0;
   function ensureTargetAnimation() {
     if (!targetCaptureMode || disposed) return null;
     if (targetAnimation) return Promise.resolve(targetAnimation);
@@ -560,6 +565,28 @@ export function createSpatialEnvironment(scene, floorY, renderer, camera) {
     }
     return obsidianAnimationPromise;
   }
+  function ensureFloorAnimation() {
+    if (!floorCaptureMode || disposed) return null;
+    if (floorAnimation) return Promise.resolve(floorAnimation);
+    if (!floorAnimationPromise) {
+      floorAnimationPromise = import("./floor-animation.js").then(({ createFloorAnimation }) => {
+        if (disposed) return null;
+        floorAnimation = createFloorAnimation({ floorGrid, signals: signals.slice(-3) });
+        if (!floorAnimation) {
+          document.querySelector("#scene-frame").dataset.floorCaptureError = "Floor layer could not initialize.";
+          return null;
+        }
+        floorAnimation.setTime(floorTime);
+        document.querySelector("#scene-frame").dataset.floorCaptureReady = "true";
+        return floorAnimation;
+      }).catch((error) => {
+        document.querySelector("#scene-frame").dataset.floorCaptureError = error.message;
+        console.error("[Home Floor] initialization failed", error);
+        return null;
+      });
+    }
+    return floorAnimationPromise;
+  }
   let activeEffect = null;
   let lastEffectIndex = -1;
   let nextEffectAt = 0;
@@ -578,7 +605,9 @@ export function createSpatialEnvironment(scene, floorY, renderer, camera) {
     backdrop.visible = worldVisible && !showingReflection;
     reflectionGroup.visible = worldVisible && showingReflection;
     signalGroup.visible = worldVisible && !showingReflection;
-    floorGroup.visible = worldVisible && !showingReflection && floorVisible;
+    floorGroup.visible = floorCaptureMode
+      ? floorVisible
+      : worldVisible && !showingReflection && floorVisible;
   }
   const pulseDurations = [];
   const point = new THREE.Vector3();
@@ -641,6 +670,14 @@ export function createSpatialEnvironment(scene, floorY, renderer, camera) {
         group.position.z = limited ? 0 : environment.pointer.y * 0.025;
         signalGroup.position.copy(group.position);
         floorGroup.position.set(0, 0, 0);
+        return;
+      }
+      if (floorCaptureMode) {
+        floorAnimation?.setTime(floorTime);
+        group.position.set(0, 0, 0);
+        signalGroup.position.set(0, 0, 0);
+        floorGroup.position.set(0, 0, 0);
+        syncWorldVisibility();
         return;
       }
       const eligible = [];
@@ -727,7 +764,7 @@ export function createSpatialEnvironment(scene, floorY, renderer, camera) {
     },
     render(renderer, camera) {
       if (disposed) return;
-      if (targetCaptureMode) return;
+      if (targetCaptureMode || floorCaptureMode) return;
       renderer.getDrawingBufferSize(bufferSize);
       const scale = limited ? 0.45 : 0.65;
       const width = Math.max(1, Math.round(bufferSize.x * scale));
@@ -773,11 +810,17 @@ export function createSpatialEnvironment(scene, floorY, renderer, camera) {
       obsidianAnimation?.setTime(obsidianTime);
       ensureObsidianAnimation();
     },
+    setFloorTime(localSeconds) {
+      floorTime = localSeconds;
+      floorAnimation?.setTime(floorTime);
+      ensureFloorAnimation();
+    },
     dispose() {
       if (disposed) return;
       disposed = true;
       targetAnimation?.dispose();
       obsidianAnimation?.dispose();
+      floorAnimation?.dispose();
       const geometries = new Set();
       const materials = new Set();
       for (const root of [group, signalGroup, floorGroup, backdrop]) {
