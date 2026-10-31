@@ -119,6 +119,57 @@ export function createCompletionGlitch({ ctx, homeEnvironment }) {
     return slice;
   });
   ctx.frame.append(knightOverlay);
+  const knightEchoChannels = [
+    { color: "#ff1838", direction: -1, material: null, object: null },
+    { color: "#42ff62", direction: 0.35, material: null, object: null },
+    { color: "#246bff", direction: 1, material: null, object: null },
+  ];
+  knightEchoChannels.forEach((channel) => {
+    channel.material = new THREE.ShaderMaterial({
+      uniforms: {
+        uEchoColor: { value: new THREE.Color(channel.color) },
+        uEchoOpacity: { value: 0 },
+      },
+      vertexShader: `
+        varying vec3 vEchoViewNormal;
+        void main() {
+          vEchoViewNormal = normalize(normalMatrix * normal);
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: `
+        uniform vec3 uEchoColor;
+        uniform float uEchoOpacity;
+        varying vec3 vEchoViewNormal;
+        void main() {
+          float facing = abs(dot(normalize(vEchoViewNormal), vec3(0.0, 0.0, 1.0)));
+          float edgeSignal = 1.0 - smoothstep(0.04, 0.68, facing);
+          float alpha = uEchoOpacity * edgeSignal;
+          if (alpha < 0.008) discard;
+          gl_FragColor = vec4(uEchoColor, alpha);
+          #include <tonemapping_fragment>
+          #include <colorspace_fragment>
+        }
+      `,
+      transparent: true,
+      blending: THREE.AdditiveBlending,
+      depthTest: true,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+      toneMapped: false,
+    });
+  });
+  const cameraRight = new THREE.Vector3();
+  const cameraUp = new THREE.Vector3();
+  const knightWorldPosition = new THREE.Vector3();
+  const cameraWorldPosition = new THREE.Vector3();
+
+  function hideKnightEchoes() {
+    knightEchoChannels.forEach((channel) => {
+      if (channel.object) channel.object.visible = false;
+      channel.material.uniforms.uEchoOpacity.value = 0;
+    });
+  }
 
   const hash = (value) => {
     let result = Math.imul((value ^ runSeed) >>> 0, 0x45d9f3b);
@@ -345,9 +396,12 @@ export function createCompletionGlitch({ ctx, homeEnvironment }) {
   }
 
   function setKnightOverlay(state) {
-    const amount = state?.stage === "knight" || state?.stage === "terminal" ? state.amount : 0;
+    const amount = state?.stage === "knight"
+      ? state.amount
+      : state?.stage === "terminal" ? state.amount * (state.knightBurst ?? 0) : 0;
     if (!amount || !ctx.knight || !ctx.camera || !ctx.canvas) {
       knightOverlay.hidden = true;
+      hideKnightEchoes();
       if (knightBaseRotation && ctx.modelPivot) {
         ctx.modelPivot.rotation.copy(knightBaseRotation);
         knightBaseRotation = null;
@@ -374,9 +428,34 @@ export function createCompletionGlitch({ ctx, homeEnvironment }) {
     ctx.modelPivot.position.z = knightBasePositionXZ.z + (hash(tick * 139 + 47) - 0.5) * 0.03 * amount * burst;
 
     ctx.modelPivot.updateMatrixWorld(true);
+    ctx.camera.updateMatrixWorld(true);
+    if (!knightEchoChannels[0].object) {
+      knightEchoChannels.forEach((channel) => {
+        const echo = ctx.knight.clone(true);
+        echo.position.set(0, 0, 0);
+        echo.quaternion.identity();
+        echo.scale.set(1, 1, 1);
+        echo.matrix.identity();
+        echo.matrixAutoUpdate = false;
+        echo.visible = false;
+        echo.traverse((object) => {
+          if (!object.isMesh) return;
+          object.material = Array.isArray(object.material)
+            ? object.material.map(() => channel.material)
+            : channel.material;
+          object.castShadow = false;
+          object.receiveShadow = false;
+          object.renderOrder = 2;
+        });
+        ctx.scene.add(echo);
+        channel.object = echo;
+      });
+    }
+
     const bounds = new THREE.Box3().setFromObject(ctx.knight);
     if (bounds.isEmpty()) {
       knightOverlay.hidden = true;
+      hideKnightEchoes();
       return;
     }
     const projected = [];
@@ -397,8 +476,33 @@ export function createCompletionGlitch({ ctx, homeEnvironment }) {
     const bottom = Math.min(frameRect.height, Math.max(...ys));
     if (right <= left || bottom <= top) {
       knightOverlay.hidden = true;
+      hideKnightEchoes();
       return;
     }
+
+    ctx.knight.updateWorldMatrix(true, false);
+    ctx.knight.getWorldPosition(knightWorldPosition);
+    ctx.camera.getWorldPosition(cameraWorldPosition);
+    cameraRight.setFromMatrixColumn(ctx.camera.matrixWorld, 0).normalize();
+    cameraUp.setFromMatrixColumn(ctx.camera.matrixWorld, 1).normalize();
+    const viewDistance = knightWorldPosition.distanceTo(cameraWorldPosition);
+    const worldPerPixel = (2 * viewDistance * Math.tan(THREE.MathUtils.degToRad(ctx.camera.fov * 0.5)))
+      / Math.max(1, canvasRect.height);
+    const channelShift = (24 + hash(tick * 83 + 71) * 18) * amount * burst * worldPerPixel;
+    const verticalShift = (hash(tick * 97 + 89) - 0.5) * 2.4 * amount * burst * worldPerPixel;
+    knightEchoChannels.forEach((channel, index) => {
+      const echo = channel.object;
+      echo.matrix.copy(ctx.knight.matrixWorld);
+      const elements = echo.matrix.elements;
+      const horizontalOffset = channelShift * channel.direction;
+      const verticalOffset = verticalShift * (index - 1);
+      elements[12] += cameraRight.x * horizontalOffset + cameraUp.x * verticalOffset;
+      elements[13] += cameraRight.y * horizontalOffset + cameraUp.y * verticalOffset;
+      elements[14] += cameraRight.z * horizontalOffset + cameraUp.z * verticalOffset;
+      echo.matrixWorldNeedsUpdate = true;
+      echo.visible = true;
+      channel.material.uniforms.uEchoOpacity.value = (0.12 + amount * 0.22 * burst) * (index === 1 ? 0.68 : 1);
+    });
 
     knightOverlay.hidden = false;
     knightOverlay.style.left = `${left}px`;
@@ -470,7 +574,13 @@ export function createCompletionGlitch({ ctx, homeEnvironment }) {
       textFrame = textFrameNow;
     }
     codeFields.forEach((field, index) => { field.textContent = makeCode(index + 1, Math.floor(elapsed / 72)); });
-    const state = { stage: "terminal", elapsed: elapsed / 1000, totalElapsed: totalElapsed / 1000, amount };
+    const state = {
+      stage: "terminal",
+      elapsed: elapsed / 1000,
+      totalElapsed: totalElapsed / 1000,
+      amount,
+      knightBurst: loopBurst,
+    };
     setKnightOverlay(state);
     return state;
   }
@@ -568,6 +678,10 @@ export function createCompletionGlitch({ ctx, homeEnvironment }) {
     dialog.removeEventListener("cancel", onCancel);
     dialog.remove();
     knightOverlay.remove();
+    knightEchoChannels.forEach(({ object, material }) => {
+      if (object) ctx.scene.remove(object);
+      material.dispose();
+    });
   }
 
   return { start, update, cancel, dispose, get active() { return active; } };
