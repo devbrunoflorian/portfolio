@@ -407,11 +407,10 @@ html:is([data-home-focus-layer="target"], [data-home-focus-layer="obsidian"], [d
   z-index: 1;
   top: 50%;
   left: 18px;
-  transform: translate(var(--cta-rest-spread), -50%);
+  transform: translateY(-50%);
   white-space: nowrap;
   font-size: 15px;
   font-weight: 500;
-  transition: transform 500ms ease;
 }
 
 .hero-actions .button.primary .button-icon {
@@ -433,13 +432,12 @@ html:is([data-home-focus-layer="target"], [data-home-focus-layer="obsidian"], [d
   border-color: var(--cta-accent);
   background: #fff;
   color: #a51425;
-  box-shadow: 0 0 16px rgba(223, 38, 54, .34), 0 0 38px rgba(223, 38, 54, .14);
+  box-shadow: 0 0 8px rgba(223, 38, 54, .32), 0 0 18px rgba(223, 38, 54, .12);
 }
 
 .hero-actions .button.primary:is(:hover, :focus-visible, :active)::before,
 .hero-actions .button.primary:is(:hover, :focus-visible, :active)::after { opacity: 1; }
 
-.hero-actions .button.primary:is(:hover, :focus-visible, :active) .button-label,
 .hero-actions .button.primary:is(:hover, :focus-visible, :active) .button-icon { transform: translate(0, -50%); }
 
 .hero-actions .button.primary:focus-visible { outline: 2px solid #ff6874; outline-offset: 4px; }
@@ -729,7 +727,6 @@ body.home-page[data-home-opening-preparing="true"] .hero-poster {
   .menu-icon::before,
   .menu-icon::after,
   .hero-actions .button { transition: none; }
-  .hero-actions .button.primary .button-label,
   .hero-actions .button.primary .button-icon,
   .hero-actions .button.primary::before,
   .hero-actions .button.primary::after { transition: none; }
