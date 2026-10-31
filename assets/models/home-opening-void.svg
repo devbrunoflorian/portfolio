@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900">
+  <defs>
+    <radialGradient id="signal">
+      <stop offset="0" stop-color="#ff1736" stop-opacity=".9" />
+      <stop offset=".035" stop-color="#ff1736" stop-opacity=".35" />
+      <stop offset=".3" stop-color="#ff1736" stop-opacity=".08" />
+      <stop offset="1" stop-color="#ff1736" stop-opacity="0" />
+    </radialGradient>
+    <filter id="soft-glow" x="-500%" y="-500%" width="1100%" height="1100%">
+      <feGaussianBlur stdDeviation="18" />
+    </filter>
+  </defs>
+  <path fill="#000" d="M0 0h1600v900H0z" />
+  <circle cx="800" cy="450" r="96" fill="url(#signal)" filter="url(#soft-glow)" />
+  <circle cx="800" cy="450" r="2.5" fill="#ff1736" />
+</svg>

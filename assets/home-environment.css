@@ -68,6 +68,10 @@
   mask-image: linear-gradient(90deg, transparent, #000 16%, #000 94%, transparent);
 }
 
+.construction-map.is-target-depth-rendered {
+  visibility: hidden !important;
+}
+
 .construction-secondary {
   opacity: 0.09;
 }

@@ -87,7 +87,6 @@ export function createOpeningController({ frame, heroScreen, revealCopy, ctx }) 
   const previousFocusLayer = document.documentElement.dataset.homeFocusLayer;
   if (focusLayerCapture) document.documentElement.dataset.homeFocusLayer = ctx.homeCapture.focusLayer;
   ctx.openingMode = sequenceMode === "capture" || sequenceMode === "forced" || sequenceMode === "first-visit";
-
   const interactiveRegions = [
     document.querySelector(".skip-link"),
     document.querySelector(".site-header"),
@@ -140,6 +139,8 @@ export function createOpeningController({ frame, heroScreen, revealCopy, ctx }) 
 
   function releasePage({ complete = false, focus = false } = {}) {
     document.body.removeAttribute("data-home-opening-active");
+    document.body.removeAttribute("data-home-opening-preparing");
+    document.body.removeAttribute("data-home-opening-playing");
     if (complete) document.body.dataset.homeOpeningComplete = "true";
     setInert(false);
     removeSkipButton();
@@ -185,10 +186,10 @@ export function createOpeningController({ frame, heroScreen, revealCopy, ctx }) 
     if (waitVisibleMs >= 12000) disableSequence("essential-timeout");
   }
 
-  function addEntryAnimation(element, start, duration = 360) {
+  function addEntryAnimation(element, start, duration = 360, keyframes = [{ opacity: 0 }, { opacity: 1 }]) {
     if (!element) return;
     const animation = element.animate(
-      [{ opacity: 0 }, { opacity: 1 }],
+      keyframes,
       { duration, easing: "cubic-bezier(.4, 0, .6, 1)", fill: "both" },
     );
     animation.pause();
@@ -198,6 +199,7 @@ export function createOpeningController({ frame, heroScreen, revealCopy, ctx }) 
 
   function createEntryAnimations() {
     entryAnimations = [];
+    addEntryAnimation(document.querySelector(".home-opening-void"), 0, 360, [{ opacity: 1 }, { opacity: 0 }]);
     addEntryAnimation(document.querySelector(".site-header"), 4.05, 500);
     addEntryAnimation(document.querySelector(".hero-copy .eyebrow"), 4.7, 400);
     addEntryAnimation(document.querySelector("#hero-title"), 4.7, 520);
@@ -222,6 +224,8 @@ export function createOpeningController({ frame, heroScreen, revealCopy, ctx }) 
     waitTimer && clearInterval(waitTimer);
     waitTimer = 0;
     markSessionConsumed();
+    document.body.removeAttribute("data-home-opening-preparing");
+    document.body.dataset.homeOpeningPlaying = "true";
     document.body.dataset.homeOpeningActive = "true";
     setInert(true);
     createEntryAnimations();
@@ -401,6 +405,7 @@ export function createOpeningController({ frame, heroScreen, revealCopy, ctx }) 
 
   if (["first-visit", "forced"].includes(sequenceMode)) {
     document.body.dataset.homeOpeningActive = "true";
+    document.body.dataset.homeOpeningPreparing = "true";
     setInert(true);
   }
   if (sequenceMode !== "none" && sequenceMode !== "capture" && sequenceMode !== "microintro") {
@@ -513,6 +518,7 @@ export function createOpeningController({ frame, heroScreen, revealCopy, ctx }) 
     presentFirstInteractiveFrame(timestamp = performance.now()) {
       if (disposed || frame.dataset.sceneState !== "loading") return;
       if (!ctx.homeCapture && sequenceMode !== "none" && document.visibilityState !== "visible") return;
+      document.body.dataset.homeSceneReady = "true";
       frame.dataset.sceneState = "live";
       heroScreen.classList.add("scene-live");
       if (sequenceMode === "microintro") {
@@ -540,6 +546,8 @@ export function createOpeningController({ frame, heroScreen, revealCopy, ctx }) 
       if (sequenceStarted && !sequenceFinished) releasePage();
       else {
         document.body.removeAttribute("data-home-opening-active");
+        document.body.removeAttribute("data-home-opening-preparing");
+        document.body.removeAttribute("data-home-opening-playing");
         setInert(false);
       }
       document.removeEventListener("visibilitychange", onVisibilityChange);

@@ -58,7 +58,7 @@ export function createTargetAnimation(svg, renderer, camera, scene, { includeSta
   const canvasRect = renderer.domElement.getBoundingClientRect();
   if (!canvasRect.width || !canvasRect.height) return null;
 
-  const planeDepth = -0.19;
+  const planeDepth = -1.15;
   const traceNormal = camera.getWorldDirection(new THREE.Vector3()).normalize();
   const tracePoint = new THREE.Vector3(0, 0, planeDepth);
   const tracePlane = new THREE.Plane().setFromNormalAndCoplanarPoint(traceNormal, tracePoint);
@@ -137,6 +137,7 @@ export function createTargetAnimation(svg, renderer, camera, scene, { includeSta
 
   if (includeStaticConstruction) {
     const staticPaths = [
+      ...Array.from(svg.querySelectorAll(".construction-secondary > path"), (element) => ({ element, opacity: SECONDARY_STATIC_OPACITY })),
       ...Array.from(svg.querySelectorAll(".construction-primary > path"), (element) => ({ element, opacity: 0.19 })),
       ...Array.from(svg.querySelectorAll(".construction-ticks > path"), (element) => ({ element, opacity: 0.045 })),
     ];
@@ -145,6 +146,7 @@ export function createTargetAnimation(svg, renderer, camera, scene, { includeSta
       const matrix = element.getScreenCTM();
       if (!source || !matrix) continue;
       for (const data of getSvgSubpaths(source)) {
+        if (isTargetSubpath(element, data)) continue;
         const points = sampleSvgPath(element, data, matrix);
         for (let index = 1; index < points.length; index++) {
           addSegment(points[index - 1], points[index], 0, 1, 1.05, 0.4, opacity, 3);
@@ -152,6 +154,20 @@ export function createTargetAnimation(svg, renderer, camera, scene, { includeSta
       }
     }
   }
+
+  // Keep the existing idle signals on the same depth-tested construction plane.
+  const svgSignals = includeStaticConstruction
+    ? Array.from(svg.querySelectorAll(".construction-neon .neon-rail")) : [];
+  svgSignals.forEach((element, signalIndex) => {
+    const matrix = element.getScreenCTM();
+    if (!matrix) return;
+    const points = sampleSvgPath(element, element.getAttribute("d"), matrix);
+    for (let index = 1; index < points.length; index++) {
+      addSegment(points[index - 1], points[index],
+        (index - 1) / (points.length - 1), index / (points.length - 1),
+        0, 1, 0.85, 4 + signalIndex);
+    }
+  });
 
   const rings = [];
   const circleElements = Array.from(svg.querySelectorAll(
@@ -234,7 +250,10 @@ export function createTargetAnimation(svg, renderer, camera, scene, { includeSta
   geometry.setAttribute("aMode", new THREE.Float32BufferAttribute(modes, 1));
 
   const lineMaterial = new THREE.ShaderMaterial({
-    uniforms: { uTime: { value: 0 } },
+    uniforms: {
+      uTime: { value: 0 },
+      uSvgSignals: { value: new THREE.Vector3(-1, -1, -1) },
+    },
     vertexShader: `
       attribute float aAlong;
       attribute float aStart;
@@ -257,6 +276,7 @@ export function createTargetAnimation(svg, renderer, camera, scene, { includeSta
     `,
     fragmentShader: `
       uniform float uTime;
+      uniform vec3 uSvgSignals;
       varying float vAlong;
       varying float vStart;
       varying float vDuration;
@@ -267,6 +287,13 @@ export function createTargetAnimation(svg, renderer, camera, scene, { includeSta
         vec3 crimson = vec3(1.0, 0.006, 0.024);
         if (vMode < 0.5) {
           gl_FragColor = vec4(graphite, vOpacity);
+        } else if (vMode > 3.5) {
+          float progress = vMode < 4.5 ? uSvgSignals.x : (vMode < 5.5 ? uSvgSignals.y : uSvgSignals.z);
+          float tail = progress - vAlong;
+          if (progress < 0.0 || tail < 0.0 || tail > 0.15) discard;
+          float fade = smoothstep(0.0, 0.05, progress) * (1.0 - smoothstep(0.94, 1.0, progress));
+          float strength = 1.0 - smoothstep(0.0, 0.15, tail);
+          gl_FragColor = vec4(crimson, fade * strength * vOpacity);
         } else if (vMode > 2.5) {
           float reveal = smoothstep(vStart, vStart + max(vDuration, 0.001), uTime);
           gl_FragColor = vec4(graphite, vOpacity * reveal);
@@ -465,10 +492,16 @@ export function createTargetAnimation(svg, renderer, camera, scene, { includeSta
     if (!disposed) group.visible = Boolean(visible);
   }
 
+  function setNeonSignal(index, progress) {
+    if (!disposed && index >= 0 && index < 3) {
+      lineMaterial.uniforms.uSvgSignals.value.setComponent(index, progress);
+    }
+  }
+
   setTime(0);
   setPointerOffset();
   setVisible(false);
-  return { object: group, setTime, updatePointer: setPointerOffset, setVisible, dispose, diagnostics };
+  return { object: group, setTime, updatePointer: setPointerOffset, setVisible, setNeonSignal, dispose, diagnostics };
 }
 
 function samplePathPoint(points, progress, target) {

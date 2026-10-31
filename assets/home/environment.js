@@ -202,7 +202,10 @@ function createFloorStreak(position) {
   return streak;
 }
 
-export function createSpatialEnvironment(scene, floorY, renderer, camera, { openingMode = false } = {}) {
+export function createSpatialEnvironment(scene, floorY, renderer, camera, {
+  openingMode = false,
+  settledTargetMode = false,
+} = {}) {
   const backgroundScene = new THREE.Scene();
   backgroundScene.background = new THREE.Color(0x070809);
   backgroundScene.fog = new THREE.Fog(0x070809, 7, 15);
@@ -504,10 +507,13 @@ export function createSpatialEnvironment(scene, floorY, renderer, camera, { open
   const floorCaptureMode = homeCapture?.focusLayer === "floor"
     && window.matchMedia("(min-width: 701px)").matches;
   let openingModeActive = openingMode;
+  const settledTargetModeActive = settledTargetMode;
+  const constructionMap = document.querySelector(".construction-map");
   let targetAnimation = null;
   let targetAnimationPromise = null;
   let targetTime = 0;
   let targetVisible = false;
+  const settledTargetTime = 3.2;
   let obsidianAnimation = null;
   let obsidianAnimationPromise = null;
   let obsidianTime = 0;
@@ -515,14 +521,14 @@ export function createSpatialEnvironment(scene, floorY, renderer, camera, { open
   let floorAnimationPromise = null;
   let floorTime = 0;
   function ensureTargetAnimation() {
-    if ((!targetCaptureMode && !openingModeActive) || disposed) return null;
+    if ((!targetCaptureMode && !openingModeActive && !settledTargetModeActive) || disposed) return null;
     if (targetAnimation) return Promise.resolve(targetAnimation);
     if (!targetAnimationPromise) {
       targetAnimationPromise = import("./target-animation.js").then(({ createTargetAnimation }) => {
-        if (disposed || (!targetCaptureMode && !openingModeActive)) return null;
+        if (disposed || (!targetCaptureMode && !openingModeActive && !settledTargetModeActive)) return null;
         targetAnimation = createTargetAnimation(
           document.querySelector(".construction-map"), renderer, camera, scene,
-          { includeStaticConstruction: openingModeActive },
+          { includeStaticConstruction: openingModeActive || settledTargetModeActive },
         );
         if (!targetAnimation) {
           document.querySelector("#scene-frame").dataset.targetCaptureError = "Target layer could not initialize.";
@@ -611,6 +617,23 @@ export function createSpatialEnvironment(scene, floorY, renderer, camera, { open
       ? floorVisible
       : worldVisible && !showingReflection && floorVisible;
   }
+
+  function showSettledTargetLayer(visible) {
+    if (!settledTargetModeActive || disposed) return;
+    const shouldShow = Boolean(visible) && !mobileMode;
+    targetVisible = shouldShow;
+    targetAnimation?.setVisible(shouldShow);
+    constructionMap?.classList.toggle("is-target-depth-rendered", shouldShow && Boolean(targetAnimation));
+    if (shouldShow && !targetAnimation) {
+      targetTime = settledTargetTime;
+      ensureTargetAnimation()?.then((animation) => {
+        if (disposed || !animation || !settledTargetModeActive || mobileMode) return;
+        animation.setTime(settledTargetTime);
+        animation.setVisible(true);
+        constructionMap?.classList.add("is-target-depth-rendered");
+      });
+    }
+  }
   const pulseDurations = [];
   const point = new THREE.Vector3();
 
@@ -618,9 +641,13 @@ export function createSpatialEnvironment(scene, floorY, renderer, camera, { open
     group,
     setLimited(value, mobile = false) {
       if (layoutInitialized && limited === value && mobileMode === mobile) return;
+      const wasMobile = mobileMode;
       limited = value;
       mobileMode = mobile;
       layoutInitialized = true;
+      if (settledTargetModeActive && wasMobile !== mobileMode) {
+        showSettledTargetLayer(!mobileMode);
+      }
       material.envMapIntensity = mobile ? 0.4 : 1.05;
       material.roughness = mobile ? 0.28 : 0.20;
       material.clearcoat = mobile ? 0.55 : 0.75;
@@ -717,6 +744,11 @@ export function createSpatialEnvironment(scene, floorY, renderer, camera, { open
         nextEffectAt = timestamp + duration + quietGap;
       }
       const effectIndex = activeEffect?.index ?? -1;
+      svgSignals.forEach((element, index) => {
+        const progress = effectIndex === svgOffset + index
+          ? Math.min(1, (timestamp - activeEffect.startedAt) / activeEffect.duration) : -1;
+        targetAnimation?.setNeonSignal(index, progress);
+      });
       if (effectIndex !== shownEffectIndex) {
         svgSignals.forEach((element, index) => element.classList.toggle("is-signal-active", effectIndex === svgOffset + index));
         environment.element.dataset.activeSignal = String(effectIndex);
@@ -820,10 +852,25 @@ export function createSpatialEnvironment(scene, floorY, renderer, camera, { open
       ]);
       return !disposed && results.every(Boolean);
     },
+    async prepareSettledTargetLayer() {
+      if (!settledTargetModeActive || disposed) return false;
+      targetTime = settledTargetTime;
+      targetVisible = true;
+      const animation = await ensureTargetAnimation();
+      if (disposed || !animation || mobileMode) return false;
+      animation.setTime(settledTargetTime);
+      animation.setVisible(true);
+      constructionMap?.classList.add("is-target-depth-rendered");
+      return true;
+    },
+    setSettledTargetLayerEnabled(visible) {
+      showSettledTargetLayer(visible);
+    },
     disableOpeningLayers() {
       if (!openingModeActive || disposed) return;
       openingModeActive = false;
       targetAnimation?.dispose();
+      constructionMap?.classList.remove("is-target-depth-rendered");
       obsidianAnimation?.dispose();
       floorAnimation?.dispose();
       targetAnimation = null;
@@ -858,6 +905,7 @@ export function createSpatialEnvironment(scene, floorY, renderer, camera, { open
       if (disposed) return;
       disposed = true;
       targetAnimation?.dispose();
+      constructionMap?.classList.remove("is-target-depth-rendered");
       obsidianAnimation?.dispose();
       floorAnimation?.dispose();
       const geometries = new Set();

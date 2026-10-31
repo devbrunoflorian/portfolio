@@ -117,6 +117,7 @@ function mountHomeScene() {
 
   function setStaticFallback(message) {
     ctx.openingController.disableSequence("scene-fallback");
+    document.body.removeAttribute("data-home-scene-ready");
     ctx.homeCapture?.fallback();
     revealMobileCopy();
     homeEnvironment?.setActive(false);
@@ -172,6 +173,7 @@ function mountHomeScene() {
     if (!ctx.debugMode) {
       pointerScroll.pointerLeave();
       resizeScene(ctx);
+      ctx.spatialEnvironment?.setSettledTargetLayerEnabled(!mobileViewport.matches);
     }
   }
 
@@ -197,9 +199,13 @@ function mountHomeScene() {
   }
 
   const onPosterError = () => {
-    ctx.poster.hidden = true;
-    ctx.fallback.src = "/assets/models/chess-knight-006-preview.png";
-    ctx.fallback.hidden = false;
+    if (mobileViewport.matches) {
+      ctx.poster.hidden = true;
+      ctx.fallback.src = "/assets/models/chess-knight-006-preview.png";
+      ctx.fallback.hidden = false;
+      return;
+    }
+    ctx.posterImage.hidden = true;
   };
   listen(ctx.posterImage, "error", onPosterError);
   listen(ctx.heroScreen, "pointermove", pointerScroll.pointerMove);
@@ -267,13 +273,20 @@ function mountHomeScene() {
 
       if (!ctx.debugMode) {
         const openingMode = ctx.openingController.usesVolumetricAssembly;
-        if (openingMode) {
+        const settledTargetMode = !openingMode
+          && !ctx.mobileViewport.matches
+          && !ctx.reducedMotion.matches
+          && !ctx.homeCapture?.focusLayer;
+        if (openingMode || settledTargetMode) {
           ctx.canvas.hidden = false;
           // Target samples the existing SVG through the camera, so establish the
-          // final viewport pose before its geometry is generated.
+          // visible canvas and final viewport pose before generating its geometry.
           resizeScene(ctx);
         }
-        ctx.spatialEnvironment = createSpatialEnvironment(ctx.scene, FLOOR_Y, ctx.renderer, ctx.camera, { openingMode });
+        ctx.spatialEnvironment = createSpatialEnvironment(ctx.scene, FLOOR_Y, ctx.renderer, ctx.camera, {
+          openingMode,
+          settledTargetMode,
+        });
         if (openingMode) {
           const openingLayersReady = await ctx.spatialEnvironment.prepareOpeningLayers();
           if (!openingLayersReady) {
@@ -286,6 +299,8 @@ function mountHomeScene() {
             if (ctx.whiteRevealLight) ctx.whiteRevealLight.intensity = 0;
             ctx.assemblyLights.forEach(({ light }) => { light.intensity = 0; });
           }
+        } else if (settledTargetMode) {
+          await ctx.spatialEnvironment.prepareSettledTargetLayer();
         }
         homeEnvironment?.setActive(!ctx.openingController.usesVolumetricAssembly);
       }

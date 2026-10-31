@@ -18,6 +18,9 @@
     <script type="module" src="/assets/home-hero.js?v=pbr-tight-1"></script>
   </head>
   <body class="home-page">
+    <div class="home-opening-void" aria-hidden="true">
+      <span class="home-opening-void__signal"></span>
+    </div>
     <a class="skip-link" href="#main-content">Skip to content</a>
     <header class="site-header home-header">
       <a class="brand" href="/en/" aria-label="Bruno Florian, home">Bruno Florian<span aria-hidden="true">.</span></a>
@@ -53,8 +56,7 @@
             <picture class="hero-poster" id="hero-poster" aria-hidden="true">
               <source type="image/webp" media="(max-width: 900px) and (orientation: landscape) and (max-height: 520px)" srcset="/assets/models/chess-knight-006-poster-mobile-landscape.webp?v=mobile-compose-1" />
               <source type="image/webp" media="(max-width: 640px)" srcset="/assets/models/chess-knight-006-poster-mobile.webp?v=mobile-compose-1" />
-              <source type="image/webp" srcset="/assets/models/chess-knight-006-poster-desktop.webp" />
-              <img id="hero-poster-image" src="/assets/models/chess-knight-006-preview.png" alt="" fetchpriority="high" decoding="async" width="1094" height="900" />
+              <img id="hero-poster-image" src="/assets/models/home-opening-void.svg" alt="" fetchpriority="high" decoding="async" width="1094" height="900" />
             </picture>
             <img class="scene-fallback" id="scene-fallback" alt="" hidden />
             <canvas id="scene-canvas" hidden aria-hidden="true"></canvas>
