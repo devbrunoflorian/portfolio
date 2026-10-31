@@ -8,7 +8,7 @@ const chunkCount = enabled && [24, 32, 40].includes(requestedChunks) ? requested
 const requestedAssemblyMode = enabled ? captureParameters.get("assembly") : null;
 const assemblyMode = ["surface", "volume"].includes(requestedAssemblyMode) ? requestedAssemblyMode : null;
 const requestedFocusLayer = enabled ? captureParameters.get("layer") : null;
-const focusLayer = requestedFocusLayer === "target" ? requestedFocusLayer : null;
+const focusLayer = ["target", "obsidian"].includes(requestedFocusLayer) ? requestedFocusLayer : null;
 
 function createCapture() {
   const seed = 0x484f4d45;

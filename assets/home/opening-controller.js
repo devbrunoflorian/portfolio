@@ -38,20 +38,22 @@ function getAssemblyRim(time) {
 export function createOpeningController({ frame, heroScreen, revealCopy, ctx }) {
   let disposed = false;
   let finalCaptureState = false;
-  const targetFocusCapture = ctx.homeCapture?.focusLayer === "target" && !ctx.mobileViewport.matches;
+  const focusLayerCapture = ["target", "obsidian"].includes(ctx.homeCapture?.focusLayer)
+    && !ctx.mobileViewport.matches;
+  const targetFocusCapture = focusLayerCapture && ctx.homeCapture.focusLayer === "target";
+  const obsidianFocusCapture = focusLayerCapture && ctx.homeCapture.focusLayer === "obsidian";
   const previousFocusLayer = document.documentElement.dataset.homeFocusLayer;
-  if (targetFocusCapture) document.documentElement.dataset.homeFocusLayer = "target";
+  if (focusLayerCapture) document.documentElement.dataset.homeFocusLayer = ctx.homeCapture.focusLayer;
 
-  function restoreTargetFocusCapture() {
-    if (!targetFocusCapture) return;
+  function restoreFocusLayerCapture() {
+    if (!focusLayerCapture) return;
     if (previousFocusLayer === undefined) delete document.documentElement.dataset.homeFocusLayer;
     else document.documentElement.dataset.homeFocusLayer = previousFocusLayer;
   }
 
   function update(timeMilliseconds) {
     if (disposed || !ctx.homeCapture) return;
-    const captureTime = Math.max(0, timeMilliseconds / 1000);
-    const time = captureTime;
+    const time = Math.max(0, timeMilliseconds / 1000);
     const assemblyOnly = ctx.homeCapture.assemblyMode === "volume";
     const timelineTime = assemblyOnly ? Math.min(2.35, time) : time;
 
@@ -59,7 +61,7 @@ export function createOpeningController({ frame, heroScreen, revealCopy, ctx }) 
     ctx.assemblyUniform.value = getAssemblyProgress(timelineTime);
     ctx.rimAssemblyUniform.value = getAssemblyRim(timelineTime);
     const facetReveal = assemblyOnly ? 0 : smoothstep(2.0, 2.25, time);
-    const assemblyLighting = smoothstep(0, 1, ctx.assemblyUniform.value);
+    const assemblyLighting = obsidianFocusCapture ? 1 : smoothstep(0, 1, ctx.assemblyUniform.value);
     ctx.facetRevealUniform.value = facetReveal;
     ctx.assemblyLights.forEach(({ light, intensity }) => {
       const volumeGain = assemblyOnly
@@ -88,7 +90,7 @@ export function createOpeningController({ frame, heroScreen, revealCopy, ctx }) 
     ctx.volumetricBaseMeshes?.forEach((mesh) => { mesh.visible = volumetricHandoff; });
     ctx.volumetricBaseLines?.forEach((line) => { line.visible = !volumetricHandoff; });
     if (ctx.whiteRevealLight) {
-      const whiteReveal = assemblyOnly ? 0 : smoothstep(2.25, 2.75, time);
+      const whiteReveal = assemblyOnly || obsidianFocusCapture ? 0 : smoothstep(2.25, 2.75, time);
       ctx.whiteRevealLight.intensity = ctx.whiteRevealIntensity * whiteReveal * smoothstep(0, 1, ctx.assemblyUniform.value);
     }
     if (normalExperience !== finalCaptureState && ctx.reflectiveFloor) {
@@ -106,8 +108,19 @@ export function createOpeningController({ frame, heroScreen, revealCopy, ctx }) 
       if (ctx.reflectiveFloor) ctx.reflectiveFloor.visible = false;
       ctx.spatialEnvironment?.setWorldVisible(false);
       ctx.spatialEnvironment?.setTargetVisible(true);
-      ctx.spatialEnvironment?.setTargetTime(captureTime);
+      ctx.spatialEnvironment?.setTargetTime(time);
       frame.dataset.worldVisible = "false";
+    }
+    if (obsidianFocusCapture) {
+      if (ctx.scene.background?.isColor) ctx.scene.background.set(0x000000);
+      ctx.modelPivot.visible = false;
+      if (ctx.volumetricMesh) ctx.volumetricMesh.visible = false;
+      if (ctx.reflectiveFloor) ctx.reflectiveFloor.visible = false;
+      ctx.spatialEnvironment?.setReflectionVisible(false);
+      ctx.spatialEnvironment?.setWorldVisible(true);
+      ctx.spatialEnvironment?.setFloorVisible(false);
+      ctx.spatialEnvironment?.setObsidianTime(time);
+      frame.dataset.worldVisible = "true";
     }
   }
 
@@ -122,7 +135,7 @@ export function createOpeningController({ frame, heroScreen, revealCopy, ctx }) 
     dispose() {
       if (disposed) return;
       disposed = true;
-      restoreTargetFocusCapture();
+      restoreFocusLayerCapture();
     },
   };
 }

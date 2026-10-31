@@ -133,7 +133,7 @@ function createEdgeSignal(points) {
   const geometry = new THREE.BufferGeometry().setFromPoints(points);
   geometry.setAttribute("aAlong", new THREE.Float32BufferAttribute(distances.map((distance) => distance / path.getLength()), 1));
   const line = new THREE.Line(geometry, new THREE.ShaderMaterial({
-    uniforms: { uHead: { value: 0 }, uOpacity: { value: 0 } },
+    uniforms: { uHead: { value: 0 }, uOpacity: { value: 0 }, uPersist: { value: 0 } },
     vertexShader: `
       attribute float aAlong;
       varying float vAlong;
@@ -145,10 +145,13 @@ function createEdgeSignal(points) {
     fragmentShader: `
       uniform float uHead;
       uniform float uOpacity;
+      uniform float uPersist;
       varying float vAlong;
       void main() {
         float tail = uHead - vAlong;
-        float alpha = smoothstep(-0.004, 0.008, tail) * (1.0 - smoothstep(0.02, 0.13, tail));
+        float movingFront = smoothstep(-0.004, 0.008, tail) * (1.0 - smoothstep(0.02, 0.13, tail));
+        float tracedPath = step(vAlong, uHead);
+        float alpha = mix(movingFront, tracedPath, uPersist);
         gl_FragColor = vec4(1.35, 0.012, 0.035, alpha * uOpacity);
         #include <tonemapping_fragment>
         #include <colorspace_fragment>
@@ -238,6 +241,7 @@ export function createSpatialEnvironment(scene, floorY, renderer, camera) {
   ];
   const monoliths = [];
   const columnDetails = [];
+  const monolithOutlines = [];
   const edgeMaterial = new THREE.LineBasicMaterial({
     color: 0x9ca0a8, transparent: true, opacity: 0.05, depthWrite: false,
   });
@@ -277,6 +281,7 @@ export function createSpatialEnvironment(scene, floorY, renderer, camera) {
         opacity: 0.06 + 0.1 * Math.max(0, 1 + column.position[1] / 5), depthWrite: false,
       }),
     );
+    monolithOutlines.push(outline);
     const detail = new THREE.Group();
     detail.add(signal.line, signal.trail, outline);
     columnDetails.push(detail);
@@ -287,7 +292,8 @@ export function createSpatialEnvironment(scene, floorY, renderer, camera) {
     new THREE.LineBasicMaterial({ color: 0x8a8b90, transparent: true, opacity: 0.07, depthWrite: false }),
   );
   group.add(guides);
-  signalGroup.add(createSignalPoints(whiteAnchors, 0xbec2c9, 0.3));
+  const monolithAnchorPoints = createSignalPoints(whiteAnchors, 0xbec2c9, 0.3);
+  signalGroup.add(monolithAnchorPoints);
 
   // Only distant architecture enters this depth-of-field pass.
   const target = new THREE.WebGLRenderTarget(1, 1, {
@@ -493,10 +499,15 @@ export function createSpatialEnvironment(scene, floorY, renderer, camera) {
   const effectCount = svgOffset + svgSignals.length;
   const targetCaptureMode = homeCapture?.focusLayer === "target"
     && window.matchMedia("(min-width: 701px)").matches;
+  const obsidianCaptureMode = homeCapture?.focusLayer === "obsidian"
+    && window.matchMedia("(min-width: 701px)").matches;
   let targetAnimation = null;
   let targetAnimationPromise = null;
   let targetTime = 0;
   let targetVisible = false;
+  let obsidianAnimation = null;
+  let obsidianAnimationPromise = null;
+  let obsidianTime = 0;
   function ensureTargetAnimation() {
     if (!targetCaptureMode || disposed) return null;
     if (targetAnimation) return Promise.resolve(targetAnimation);
@@ -522,6 +533,33 @@ export function createSpatialEnvironment(scene, floorY, renderer, camera) {
     }
     return targetAnimationPromise;
   }
+  function ensureObsidianAnimation() {
+    if (!obsidianCaptureMode || disposed) return null;
+    if (obsidianAnimation) return Promise.resolve(obsidianAnimation);
+    if (!obsidianAnimationPromise) {
+      obsidianAnimationPromise = import("./obsidian-background-animation.js").then(({ createObsidianBackgroundAnimation }) => {
+        if (disposed) return null;
+        obsidianAnimation = createObsidianBackgroundAnimation({
+          monoliths,
+          signals,
+          outlines: monolithOutlines,
+          anchorPoints: monolithAnchorPoints,
+        });
+        if (!obsidianAnimation) {
+          document.querySelector("#scene-frame").dataset.obsidianCaptureError = "Obsidian layer could not initialize.";
+          return null;
+        }
+        obsidianAnimation.setTime(obsidianTime);
+        document.querySelector("#scene-frame").dataset.obsidianCaptureReady = "true";
+        return obsidianAnimation;
+      }).catch((error) => {
+        document.querySelector("#scene-frame").dataset.obsidianCaptureError = error.message;
+        console.error("[Home Obsidian] initialization failed", error);
+        return null;
+      });
+    }
+    return obsidianAnimationPromise;
+  }
   let activeEffect = null;
   let lastEffectIndex = -1;
   let nextEffectAt = 0;
@@ -534,12 +572,13 @@ export function createSpatialEnvironment(scene, floorY, renderer, camera) {
   let disposed = false;
   let worldVisible = true;
   let showingReflection = false;
+  let floorVisible = true;
 
   function syncWorldVisibility() {
     backdrop.visible = worldVisible && !showingReflection;
     reflectionGroup.visible = worldVisible && showingReflection;
     signalGroup.visible = worldVisible && !showingReflection;
-    floorGroup.visible = worldVisible && !showingReflection;
+    floorGroup.visible = worldVisible && !showingReflection && floorVisible;
   }
   const pulseDurations = [];
   const point = new THREE.Vector3();
@@ -596,6 +635,14 @@ export function createSpatialEnvironment(scene, floorY, renderer, camera) {
         calibratedHeight = height;
         calibratedMobile = mobileMode;
       }
+      if (obsidianCaptureMode) {
+        obsidianAnimation?.setTime(obsidianTime);
+        group.position.x = limited ? 0 : environment.pointer.x * 0.035;
+        group.position.z = limited ? 0 : environment.pointer.y * 0.025;
+        signalGroup.position.copy(group.position);
+        floorGroup.position.set(0, 0, 0);
+        return;
+      }
       const eligible = [];
       for (let index = 0; index < effectCount; index++) {
         if ((index < monoliths.length && !monoliths[index].visible)
@@ -639,6 +686,7 @@ export function createSpatialEnvironment(scene, floorY, renderer, camera) {
           * (1 - THREE.MathUtils.smoothstep(head, 0.94, 1));
         signal.line.material.uniforms.uHead.value = head;
         signal.line.material.uniforms.uOpacity.value = fade * 0.9;
+        signal.line.material.uniforms.uPersist.value = 0;
         signal.trail.material.uniforms.uOpacity.value = fade;
         const positions = signal.trail.geometry.attributes.position;
         const strengths = signal.trail.geometry.attributes.aStrength;
@@ -706,6 +754,10 @@ export function createSpatialEnvironment(scene, floorY, renderer, camera) {
       worldVisible = visible;
       syncWorldVisibility();
     },
+    setFloorVisible(visible) {
+      floorVisible = Boolean(visible);
+      syncWorldVisibility();
+    },
     setTargetTime(localSeconds) {
       targetTime = localSeconds;
       targetAnimation?.setTime(targetTime);
@@ -716,10 +768,16 @@ export function createSpatialEnvironment(scene, floorY, renderer, camera) {
       targetAnimation?.setVisible(targetVisible);
       ensureTargetAnimation();
     },
+    setObsidianTime(localSeconds) {
+      obsidianTime = localSeconds;
+      obsidianAnimation?.setTime(obsidianTime);
+      ensureObsidianAnimation();
+    },
     dispose() {
       if (disposed) return;
       disposed = true;
       targetAnimation?.dispose();
+      obsidianAnimation?.dispose();
       const geometries = new Set();
       const materials = new Set();
       for (const root of [group, signalGroup, floorGroup, backdrop]) {
