@@ -206,7 +206,7 @@ export async function prepareKnight(ctx, root, chunkCount = 32) {
     const sources = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
     const materials = sources.map(() => {
       const material = new THREE.MeshStandardMaterial({
-        color: "#121418",
+        color: "#0f1114",
         metalness: 0.32,
         roughness: 0.36,
         flatShading: true,

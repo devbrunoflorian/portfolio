@@ -69,7 +69,7 @@ function attachFragmentAttributes(geometry, chunk, motion, isCut) {
 
 function createObsidianMaterial(ctx, bounds) {
   const material = new THREE.MeshStandardMaterial({
-    color: "#121418",
+    color: "#0f1114",
     metalness: 0.32,
     roughness: 0.36,
     flatShading: true,
