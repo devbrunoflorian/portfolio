@@ -1,12 +1,19 @@
+<div align="right"><sub><a href="#english">ENGLISH</a> · <a href="#portugues">PORTUGUÊS</a></sub></div>
+
+<p align="center">
+  <img src="assets/portfolio-home-preview.webp" alt="Home do portfólio em português: headline Da ideia à forma, cena Three.js com o Knight 006, alvo técnico e monólitos escuros." width="100%" />
+</p>
+
+<p align="center"><sub>HOME / THREE.JS SCENE / PT-BR</sub></p>
+
 <div align="center">
 
 # Bruno Florian
 
-**Software engineering, from thought to form.**
+**Software engineering, from thought to form.**<br />
+**Engenharia de software, da ideia à forma.**
 
-An evolving bilingual portfolio for engineering work, experiments, and ideas.
-
-<a href="https://brunoflorian.pages.dev/"><strong>Open the live portfolio →</strong></a>
+<a href="https://brunoflorian.pages.dev/"><strong>OPEN THE LIVE PORTFOLIO ↗</strong></a>
 &nbsp; · &nbsp;
 <a href="https://brunoflorian.pages.dev/en/">English</a>
 &nbsp; · &nbsp;
@@ -14,62 +21,67 @@ An evolving bilingual portfolio for engineering work, experiments, and ideas.
 
 </div>
 
-<p align="center">
-  <img src="assets/models/chess-knight-006-preview.png" alt="Dark sculptural chess knight used as the current portfolio hero model" width="720" />
-</p>
+---
 
-<p align="center"><sub>Current temporary hero model — artistic direction and site are still evolving.</sub></p>
+## English
 
-## Find your way
+A bilingual portfolio for software engineering work, experiments, and ideas. Its Home brings a chess-inspired 3D scene together with the portfolio's projects and engineering labs.
 
-| Section | Português | English |
-|---|---|---|
-| Home | [Abrir](https://brunoflorian.pages.dev/pt-br/) | [Open](https://brunoflorian.pages.dev/en/) |
-| Labs | [Laboratórios](https://brunoflorian.pages.dev/pt-br/laboratorios/) | [Labs](https://brunoflorian.pages.dev/en/labs/) |
-| Projects | [Projetos](https://brunoflorian.pages.dev/pt-br/projetos/) | [Projects](https://brunoflorian.pages.dev/en/projects/) |
-| About | [Sobre](https://brunoflorian.pages.dev/pt-br/sobre/) | [About](https://brunoflorian.pages.dev/en/about/) |
-| Contact | [Contato](https://brunoflorian.pages.dev/pt-br/contato/) | [Contact](https://brunoflorian.pages.dev/en/contact/) |
+The site uses static HTML, CSS, and JavaScript modules, with Three.js for the Home scene. It supports pointer and scroll interaction, keyboard navigation, reduced motion, and a static fallback when WebGL is unavailable.
 
-## What you'll find
+### Technologies
 
-- A cinematic Home built around a 3D chess knight, with pointer and scroll interaction.
-- Direct navigation to engineering labs, projects, background, and contact.
-- Portuguese (Brazil) and English versions.
-- Keyboard navigation, reduced-motion behavior, and a readable fallback when WebGL is unavailable.
+`HTML` · `CSS` · `JavaScript ES modules` · `Three.js`<br />
+`Node.js` runs the local preview server; the site has no package-install or build step.
 
-The portfolio is being built incrementally. Some sections are still in progress, and public project descriptions are kept to verifiable facts.
+## Português
 
-## Run it locally
+Um portfólio bilíngue de engenharia de software, experimentos e ideias. A Home combina uma cena 3D inspirada no xadrez com projetos e laboratórios de engenharia.
 
-The site is static and has no package-install or build step. You only need Node.js; the current preview workflow was verified with Node 24.
+O site usa HTML, CSS e módulos JavaScript estáticos, com Three.js na cena da Home. Há interação por ponteiro e rolagem, navegação por teclado, suporte à preferência por movimento reduzido e apresentação estática alternativa quando o WebGL não está disponível.
 
-From PowerShell:
+### Tecnologias
+
+`HTML` · `CSS` · `JavaScript ES modules` · `Three.js`<br />
+`Node.js` executa o preview local; o site não exige instalação de pacotes nem etapa de build.
+
+## Navigate / Navegue
+
+|  | Home | Labs | Projects / Projetos | About / Sobre | Contact / Contato |
+|---|---|---|---|---|---|
+| **English** | [Open](https://brunoflorian.pages.dev/en/) | [Open](https://brunoflorian.pages.dev/en/labs/) | [Open](https://brunoflorian.pages.dev/en/projects/) | [Open](https://brunoflorian.pages.dev/en/about/) | [Open](https://brunoflorian.pages.dev/en/contact/) |
+| **Português** | [Abrir](https://brunoflorian.pages.dev/pt-br/) | [Abrir](https://brunoflorian.pages.dev/pt-br/laboratorios/) | [Abrir](https://brunoflorian.pages.dev/pt-br/projetos/) | [Abrir](https://brunoflorian.pages.dev/pt-br/sobre/) | [Abrir](https://brunoflorian.pages.dev/pt-br/contato/) |
+
+## Run locally / Executar localmente
 
 ```powershell
-cd "C:\Users\bruno\CV Manager\engineering-labs\portfolio"
-node .\tools\serve-local.mjs
+git clone https://github.com/devbrunoflorian/portfolio.git
+cd portfolio
+node tools/serve-local.mjs
 ```
 
-Then open one of these URLs:
+Open one of these pages:
 
-- Portuguese: <http://127.0.0.1:4173/pt-br/>
 - English: <http://127.0.0.1:4173/en/>
+- Português: <http://127.0.0.1:4173/pt-br/>
 
-The server prints the preview URL in the terminal. Press `Ctrl+C` there when you're done.
+Press `Ctrl+C` in the terminal to stop the preview server.
 
-## Project map
+## Project structure
 
 ```text
 portfolio/
-├── assets/          Shared styles, scripts, model, and local vendor files
-├── pt-br/           Brazilian Portuguese pages
-├── en/              English pages
-└── tools/           Local static preview server
+├── assets/   Shared styles, scripts, Three.js modules, and model assets
+├── en/       English pages
+├── pt-br/    Brazilian Portuguese pages
+└── tools/    Local preview server
 ```
 
-## Current hero model
+## Model attribution / Atribuição do modelo
 
-“Chess Knight 006” by [Vijay Saini](https://skfb.ly/pEJVJ), licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). The portfolio uses an optimized and recolored derivative as a temporary hero model. See [`assets/models/README.md`](assets/models/README.md) for attribution and modification details.
+The Home uses an optimized and recolored derivative of “Chess Knight 006” by [Vijay Saini](https://skfb.ly/pEJVJ), licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). See [`assets/models/README.md`](assets/models/README.md) for details.
+
+A Home usa uma versão otimizada e recolorida do modelo “Chess Knight 006”, de [Vijay Saini](https://skfb.ly/pEJVJ), licenciada sob [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Consulte [`assets/models/README.md`](assets/models/README.md) para detalhes.
 
 ---
 
