@@ -132,7 +132,6 @@
   .home-page:not(.knight-debug) .hero-copy .intro { font-size: 12px; line-height: 1.5; max-width: 40ch; }
   .home-page:not(.knight-debug) .hero-actions { grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 16px; }
   .home-page:not(.knight-debug) .hero-actions .button { height: 46px; min-height: 46px; padding-inline: 10px; font-size: 11px; gap: 7px; }
-  .home-page:not(.knight-debug) .hero-actions .button.primary { --cta-rest-spread: 6px; }
   .home-page:not(.knight-debug) .hero-actions .button.secondary svg { width: 13px; height: 13px; }
   .home-page:not(.knight-debug) .temporary-note { grid-column: 1; grid-row: 2; margin: 4px 8px 4px var(--mobile-gutter); font-size: 7px; }
   .home-page:not(.knight-debug) .scroll-cue { grid-column: 1; grid-row: 3; margin: 0 8px 0 var(--mobile-gutter); min-height: 32px; font-size: 9px; }
