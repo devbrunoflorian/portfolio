@@ -2,7 +2,6 @@ import { homeCapture } from "../home-capture.js";
 
 const hero = document.querySelector(".hero-screen");
 const frame = document.querySelector("#scene-frame");
-const heroTitle = document.querySelector("#hero-title");
 const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
 export const mobileViewport = matchMedia("(max-width: 640px), (max-width: 900px) and (orientation: landscape) and (max-height: 520px)");
 const mobile = mobileViewport;
@@ -345,6 +344,8 @@ function createEnvironment() {
   };
 
   let isGlobalResetting = false;
+  let completionTimer = null;
+  let completionPresenter = null;
   let analyzeCycleTimer = null;
   let analyzeResolveTimer = null;
   let systemCycleTimer = null;
@@ -383,10 +384,14 @@ function createEnvironment() {
   }
 
   function onInteractionComplete() {
-    if (isGlobalResetting) return;
-    if (checkAllFamiliesCompleted()) {
-      setTimeout(triggerGlobalCompletionSequence, 320);
-    }
+    if (isGlobalResetting || !checkAllFamiliesCompleted()) return;
+    isGlobalResetting = true;
+    completionTimer = setTimeout(() => {
+      completionTimer = null;
+      if (disposed) return;
+      if (completionPresenter) completionPresenter.start();
+      else resetAfterCompletion();
+    }, 320);
   }
 
   /* -------------------------------------------------------------
@@ -708,48 +713,11 @@ function createEnvironment() {
     onInteractionComplete();
   }
 
-  /* -------------------------------------------------------------
-     GLOBAL COMPLETION SEQUENCE & COUCH HACK RESET (Rules 9, 10, 11)
-  ------------------------------------------------------------- */
-  function triggerGlobalCompletionSequence() {
-    if (isGlobalResetting) return;
-    isGlobalResetting = true;
-
-    // 1. Restrained H1 glyph specular sweep (~650ms, strictly inside typography)
-    if (heroTitle) {
-      heroTitle.classList.remove("h1-specular-sweep");
-      void heroTitle.offsetWidth; // force reflow
-      heroTitle.classList.add("h1-specular-sweep");
-      setTimeout(() => heroTitle.classList.remove("h1-specular-sweep"), 650);
-    }
-
-    // 2. Coordinated hack glitch across technical systems (~350ms)
-    setTimeout(() => {
-      element.classList.add("is-glitching-reconstruction");
-
-      const glitchChars = ["0", "1", "/", "_", "%", "□", "X", "7", "!"];
-      const slots = element.querySelectorAll(".slot, .circuit-char, .sys-slot, .chain-word");
-      slots.forEach((s, i) => {
-        s.textContent = glitchChars[i % glitchChars.length];
-      });
-
-      // Quick secondary corruption wave
-      setTimeout(() => {
-        slots.forEach((s, i) => {
-          s.textContent = glitchChars[(i + 3) % glitchChars.length];
-        });
-      }, 120);
-
-      // 3. Complete programmatic reset: return all systems to fresh dormant states
-      setTimeout(() => {
-        element.classList.remove("is-glitching-reconstruction");
-        resetAllSystems();
-        isGlobalResetting = false;
-      }, 350);
-    }, 450);
-  }
-
   function resetAllSystems() {
+    if (completionTimer) {
+      clearTimeout(completionTimer);
+      completionTimer = null;
+    }
     // 1. Clear all active timers
     if (analyzeCycleTimer) { clearInterval(analyzeCycleTimer); analyzeCycleTimer = null; }
     if (analyzeResolveTimer) { clearInterval(analyzeResolveTimer); analyzeResolveTimer = null; }
@@ -826,6 +794,11 @@ function createEnvironment() {
       const wordEl = s.querySelector(".chain-word");
       if (wordEl) wordEl.textContent = chainWords[idx];
     });
+  }
+
+  function resetAfterCompletion() {
+    resetAllSystems();
+    isGlobalResetting = false;
   }
 
   /* -------------------------------------------------------------
@@ -915,11 +888,13 @@ function createEnvironment() {
   });
 
   function settle() {
+    completionPresenter?.cancel?.();
     for (const anim of element.querySelector(".environment-labels").getAnimations({ subtree: true })) anim.cancel();
     pointer.x = pointer.y = target.x = target.y = 0;
     element.style.setProperty("--environment-x", "0px");
     element.style.setProperty("--environment-y", "0px");
     resetAllSystems();
+    isGlobalResetting = false;
   }
 
   listen(reducedMotion, "change", settle);
@@ -951,6 +926,12 @@ function createEnvironment() {
       if (!value) settle();
     },
 
+    setCompletionPresenter(presenter) {
+      completionPresenter = presenter;
+    },
+
+    resetAfterCompletion,
+
     setAnchor(center, bounds) {
       if (!center || !bounds?.width) return;
       const heroBounds = mobile.matches ? bounds : hero.getBoundingClientRect();
@@ -980,6 +961,8 @@ function createEnvironment() {
     dispose() {
       if (disposed) return;
       disposed = true;
+      completionPresenter?.dispose?.();
+      completionPresenter = null;
       for (const remove of listeners.splice(0)) remove();
       for (const id of timers) cancelTimeout(id);
       timers.clear();

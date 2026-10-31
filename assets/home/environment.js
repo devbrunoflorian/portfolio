@@ -618,6 +618,58 @@ export function createSpatialEnvironment(scene, floorY, renderer, camera, {
       : worldVisible && !showingReflection && floorVisible;
   }
 
+  let completionGlitchState = null;
+  let neonRunnersPaused = false;
+  let neonPausedAt = null;
+
+  function updateMonolithLayout(progression, shear, glitch) {
+    const time = glitch?.totalElapsed ?? 0;
+    const amount = glitch?.stage === "obsidian" ? glitch.amount
+      : glitch?.stage === "terminal" ? glitch.amount : 0;
+    for (const [index, mesh] of monoliths.entries()) {
+      const mobileOffsetX = mobileMode ? (1 - progression) * (index % 2 ? 0.012 : -0.012) + (index === 5 ? shear : 0) : 0;
+      const mobileOffsetY = mobileMode ? (progression - 0.5) * (index < 6 ? 0.018 : 0.034) : 0;
+      const tick = Math.floor(time * 12);
+      const stagger = 0.28 + 0.72 * Math.abs(Math.sin(tick * 0.67 + index * 1.81));
+      const active = amount && (glitch?.stage === "terminal"
+        ? Math.sin(time * 37 + index * 2.27) > -0.2
+        : Math.sin(time * 37 + index * 2.27) > -0.28);
+      const strength = active ? amount * stagger : 0;
+      const offsetX = Math.sin(tick * 1.7 + index * 2.3) * 0.014 * strength;
+      const offsetY = Math.cos(tick * 1.43 + index * 1.47) * 0.009 * strength;
+      const offsetZ = Math.sin(tick * 1.97 + index * 2.91) * 0.012 * strength;
+      mesh.position.set(
+        columns[index].position[0] + mobileOffsetX + offsetX,
+        floorY + mobileOffsetY + offsetY,
+        columns[index].position[1] + offsetZ,
+      );
+      columnDetails[index].position.set(mobileOffsetX + offsetX, mobileOffsetY + offsetY, offsetZ);
+      const reflectedMesh = reflectionGroup.children[index];
+      reflectedMesh.position.copy(mesh.position);
+      reflectedMesh.rotation.copy(mesh.rotation);
+      reflectedMesh.scale.copy(mesh.scale);
+      reflectionSignals.children[index].position.copy(columnDetails[index].position);
+    }
+  }
+
+  function applyCompletionGlitch(timestamp) {
+    const state = completionGlitchState;
+    const elapsed = state?.totalElapsed ?? 0;
+    const targetAmount = state?.stage === "target" ? state.amount : state?.stage === "terminal" ? state.amount : 0;
+    const floorAmount = state?.stage === "floor" ? state.amount : state?.stage === "terminal" ? state.amount : 0;
+    targetAnimation?.setGlitch(targetAmount, elapsed);
+    floorGroup.rotation.set(
+      Math.sin(elapsed * 18) * 0.0035 * floorAmount,
+      0,
+      Math.cos(elapsed * 15) * 0.0028 * floorAmount,
+    );
+    floorGroup.position.set(
+      Math.sin(elapsed * 14) * 0.012 * floorAmount,
+      0,
+      Math.cos(elapsed * 12) * 0.009 * floorAmount,
+    );
+  }
+
   function showSettledTargetLayer(visible) {
     if (!settledTargetModeActive || disposed) return;
     const shouldShow = Boolean(visible) && !mobileMode;
@@ -699,6 +751,8 @@ export function createSpatialEnvironment(scene, floorY, renderer, camera, {
         group.position.z = limited ? 0 : environment.pointer.y * 0.025;
         signalGroup.position.copy(group.position);
         floorGroup.position.set(0, 0, 0);
+        updateMonolithLayout(environment.progress ?? 0, 0, completionGlitchState);
+        applyCompletionGlitch(timestamp);
         return;
       }
       if (floorCaptureMode) {
@@ -706,6 +760,8 @@ export function createSpatialEnvironment(scene, floorY, renderer, camera, {
         group.position.set(0, 0, 0);
         signalGroup.position.set(0, 0, 0);
         floorGroup.position.set(0, 0, 0);
+        updateMonolithLayout(environment.progress ?? 0, 0, completionGlitchState);
+        applyCompletionGlitch(timestamp);
         syncWorldVisibility();
         return;
       }
@@ -716,71 +772,75 @@ export function createSpatialEnvironment(scene, floorY, renderer, camera, {
         signalGroup.position.copy(group.position);
         reflectionGroup.position.copy(group.position);
         floorGroup.position.set(0, 0, 0);
+        updateMonolithLayout(environment.progress ?? 0, 0, completionGlitchState);
+        applyCompletionGlitch(timestamp);
         syncWorldVisibility();
         return;
       }
-      const eligible = [];
-      for (let index = 0; index < effectCount; index++) {
-        if ((index < monoliths.length && !monoliths[index].visible)
-          || (limited && ((index >= pulseOffset && index < svgOffset && index !== pulseOffset + 1 && !(mobileMode && index === pulseOffset + 2))
-          || index >= svgOffset))) continue;
-        eligible.push(index);
-      }
-      if (!environment.animating || (activeEffect && (
-        timestamp >= activeEffect.startedAt + activeEffect.duration
-        || !eligible.includes(activeEffect.index)
-      ))) {
-        activeEffect = null;
-      }
-      if (environment.animating && !activeEffect && timestamp >= nextEffectAt) {
-        const choices = eligible.filter((index) => index !== lastEffectIndex);
-        const index = choices[Math.floor((homeCapture?.random ?? Math.random)() * choices.length)];
-        const duration = index < pulseOffset ? signals[index].duration * 1000
-          : index < svgOffset ? pulseDurations[index - pulseOffset] * 1000
-            : parseFloat(svgSignals[index - svgOffset].style.getPropertyValue("--signal-duration")) * 1000;
-        activeEffect = { index, startedAt: timestamp, duration, rate: 3000 / duration };
-        lastEffectIndex = index;
-        const quietGap = (700 + (homeCapture?.random ?? Math.random)() * 1600) * (mobileMode ? 1 + environment.phase.coherence * 0.7 : 1);
-        nextEffectAt = timestamp + duration + quietGap;
-      }
-      const effectIndex = activeEffect?.index ?? -1;
-      svgSignals.forEach((element, index) => {
-        const progress = effectIndex === svgOffset + index
-          ? Math.min(1, (timestamp - activeEffect.startedAt) / activeEffect.duration) : -1;
-        targetAnimation?.setNeonSignal(index, progress);
-      });
-      if (effectIndex !== shownEffectIndex) {
-        svgSignals.forEach((element, index) => element.classList.toggle("is-signal-active", effectIndex === svgOffset + index));
-        environment.element.dataset.activeSignal = String(effectIndex);
-        shownEffectIndex = effectIndex;
-      }
-      for (const [index, pulse] of pulseMaterials.entries()) {
-        const age = effectIndex === pulseOffset + index
-          ? (timestamp - activeEffect.startedAt) / 1000 * activeEffect.rate : 4;
-        // Inactive pulses stay beyond the original shader's three-second visible window.
-        pulse.uniforms.uTime.value = age - pulse.uniforms.uOffset.value;
-      }
-      for (const [index, signal] of signals.entries()) {
-        const head = effectIndex === index
-          ? Math.min(1, (timestamp - activeEffect.startedAt) / activeEffect.duration) : 1;
-        const fade = THREE.MathUtils.smoothstep(head, 0, 0.05)
-          * (1 - THREE.MathUtils.smoothstep(head, 0.94, 1));
-        signal.line.material.uniforms.uHead.value = head;
-        signal.line.material.uniforms.uOpacity.value = fade * 0.9;
-        signal.line.material.uniforms.uPersist.value = 0;
-        signal.trail.material.uniforms.uOpacity.value = fade;
-        const positions = signal.trail.geometry.attributes.position;
-        const strengths = signal.trail.geometry.attributes.aStrength;
-        for (let i = 0; i < 12; i++) {
-          const along = head - i * 0.009;
-          signal.path.getPoint(Math.max(0, along), point);
-          positions.setXYZ(i, point.x, point.y, point.z);
-          strengths.setX(i, along < 0 ? 0 : (1 - i / 12) ** 2);
+      if (!neonRunnersPaused) {
+        const eligible = [];
+        for (let index = 0; index < effectCount; index++) {
+          if ((index < monoliths.length && !monoliths[index].visible)
+            || (limited && ((index >= pulseOffset && index < svgOffset && index !== pulseOffset + 1 && !(mobileMode && index === pulseOffset + 2))
+            || index >= svgOffset))) continue;
+          eligible.push(index);
         }
-        positions.needsUpdate = true;
-        strengths.needsUpdate = true;
-        if (signal.streak) {
-          signal.streak.material.uniforms.uOpacity.value = fade * (0.15 + 0.65 * Math.cos(head * Math.PI) ** 8);
+        if (!environment.animating || (activeEffect && (
+          timestamp >= activeEffect.startedAt + activeEffect.duration
+          || !eligible.includes(activeEffect.index)
+        ))) {
+          activeEffect = null;
+        }
+        if (environment.animating && !activeEffect && timestamp >= nextEffectAt) {
+          const choices = eligible.filter((index) => index !== lastEffectIndex);
+          const index = choices[Math.floor((homeCapture?.random ?? Math.random)() * choices.length)];
+          const duration = index < pulseOffset ? signals[index].duration * 1000
+            : index < svgOffset ? pulseDurations[index - pulseOffset] * 1000
+              : parseFloat(svgSignals[index - svgOffset].style.getPropertyValue("--signal-duration")) * 1000;
+          activeEffect = { index, startedAt: timestamp, duration, rate: 3000 / duration };
+          lastEffectIndex = index;
+          const quietGap = (700 + (homeCapture?.random ?? Math.random)() * 1600) * (mobileMode ? 1 + environment.phase.coherence * 0.7 : 1);
+          nextEffectAt = timestamp + duration + quietGap;
+        }
+        const effectIndex = activeEffect?.index ?? -1;
+        svgSignals.forEach((element, index) => {
+          const progress = effectIndex === svgOffset + index
+            ? Math.min(1, (timestamp - activeEffect.startedAt) / activeEffect.duration) : -1;
+          targetAnimation?.setNeonSignal(index, progress);
+        });
+        if (effectIndex !== shownEffectIndex) {
+          svgSignals.forEach((element, index) => element.classList.toggle("is-signal-active", effectIndex === svgOffset + index));
+          environment.element.dataset.activeSignal = String(effectIndex);
+          shownEffectIndex = effectIndex;
+        }
+        for (const [index, pulse] of pulseMaterials.entries()) {
+          const age = effectIndex === pulseOffset + index
+            ? (timestamp - activeEffect.startedAt) / 1000 * activeEffect.rate : 4;
+          // Inactive pulses stay beyond the original shader's three-second visible window.
+          pulse.uniforms.uTime.value = age - pulse.uniforms.uOffset.value;
+        }
+        for (const [index, signal] of signals.entries()) {
+          const head = effectIndex === index
+            ? Math.min(1, (timestamp - activeEffect.startedAt) / activeEffect.duration) : 1;
+          const fade = THREE.MathUtils.smoothstep(head, 0, 0.05)
+            * (1 - THREE.MathUtils.smoothstep(head, 0.94, 1));
+          signal.line.material.uniforms.uHead.value = head;
+          signal.line.material.uniforms.uOpacity.value = fade * 0.9;
+          signal.line.material.uniforms.uPersist.value = 0;
+          signal.trail.material.uniforms.uOpacity.value = fade;
+          const positions = signal.trail.geometry.attributes.position;
+          const strengths = signal.trail.geometry.attributes.aStrength;
+          for (let i = 0; i < 12; i++) {
+            const along = head - i * 0.009;
+            signal.path.getPoint(Math.max(0, along), point);
+            positions.setXYZ(i, point.x, point.y, point.z);
+            strengths.setX(i, along < 0 ? 0 : (1 - i / 12) ** 2);
+          }
+          positions.needsUpdate = true;
+          strengths.needsUpdate = true;
+          if (signal.streak) {
+            signal.streak.material.uniforms.uOpacity.value = fade * (0.15 + 0.65 * Math.cos(head * Math.PI) ** 8);
+          }
         }
       }
       const progression = environment.progress ?? 0;
@@ -791,20 +851,14 @@ export function createSpatialEnvironment(scene, floorY, renderer, camera, {
       }
       const age = timestamp - reconstructionStartedAt;
       const shear = mobileMode && environment.animating && age < 260 ? Math.sin(age / 260 * Math.PI) * 0.022 : 0;
-      for (const [index, mesh] of monoliths.entries()) {
-        const offsetX = mobileMode ? (1 - progression) * (index % 2 ? 0.012 : -0.012) + (index === 5 ? shear : 0) : 0;
-        const offsetY = mobileMode ? (progression - 0.5) * (index < 6 ? 0.018 : 0.034) : 0;
-        mesh.position.set(columns[index].position[0] + offsetX, floorY + offsetY, columns[index].position[1]);
-        columnDetails[index].position.set(offsetX, offsetY, 0);
-        reflectionGroup.children[index].position.copy(mesh.position);
-        reflectionSignals.children[index].position.copy(columnDetails[index].position);
-      }
+      updateMonolithLayout(progression, shear, completionGlitchState);
       group.position.x = mobileMode ? environment.pointer.x * 0.16 : limited ? 0 : environment.pointer.x * 0.035;
       group.position.y = mobileMode ? (progression - 0.5) * 0.055 : 0;
       group.position.z = mobileMode ? environment.pointer.y * 0.12 : limited ? 0 : environment.pointer.y * 0.025;
       signalGroup.position.copy(group.position);
       reflectionGroup.position.copy(group.position);
       floorGroup.position.set(mobileMode ? group.position.x * 0.2 : 0, 0, mobileMode ? group.position.z * 0.2 : 0);
+      applyCompletionGlitch(timestamp);
     },
     render(renderer, camera) {
       if (disposed) return;
@@ -852,6 +906,11 @@ export function createSpatialEnvironment(scene, floorY, renderer, camera, {
       ]);
       return !disposed && results.every(Boolean);
     },
+    async prepareReplayLayers() {
+      if (disposed || mobileMode) return false;
+      openingModeActive = true;
+      return this.prepareOpeningLayers();
+    },
     async prepareSettledTargetLayer() {
       if (!settledTargetModeActive || disposed) return false;
       targetTime = settledTargetTime;
@@ -874,9 +933,30 @@ export function createSpatialEnvironment(scene, floorY, renderer, camera, {
       obsidianAnimation?.dispose();
       floorAnimation?.dispose();
       targetAnimation = null;
+      targetAnimationPromise = null;
       obsidianAnimation = null;
+      obsidianAnimationPromise = null;
       floorAnimation = null;
+      floorAnimationPromise = null;
       targetVisible = false;
+      this.setWorldVisible(true);
+      this.setFloorVisible(true);
+      this.setReflectionVisible(false);
+    },
+    cancelReplayLayers() {
+      if (disposed) return;
+      openingModeActive = false;
+      obsidianAnimation?.dispose();
+      floorAnimation?.dispose();
+      obsidianAnimation = null;
+      obsidianAnimationPromise = null;
+      floorAnimation = null;
+      floorAnimationPromise = null;
+      targetTime = settledTargetTime;
+      targetVisible = true;
+      targetAnimation?.setTime(settledTargetTime);
+      targetAnimation?.setVisible(true);
+      if (settledTargetModeActive) showSettledTargetLayer(true);
       this.setWorldVisible(true);
       this.setFloorVisible(true);
       this.setReflectionVisible(false);
@@ -900,6 +980,22 @@ export function createSpatialEnvironment(scene, floorY, renderer, camera, {
       floorTime = localSeconds;
       floorAnimation?.setTime(floorTime);
       ensureFloorAnimation();
+    },
+    setCompletionGlitch(state) {
+      completionGlitchState = state;
+    },
+    setNeonRunnersPaused(paused, timestamp = performance.now()) {
+      const next = Boolean(paused);
+      if (next === neonRunnersPaused) return;
+      neonRunnersPaused = next;
+      if (next) {
+        neonPausedAt = timestamp;
+        return;
+      }
+      const elapsed = Math.max(0, timestamp - (neonPausedAt ?? timestamp));
+      if (activeEffect) activeEffect.startedAt += elapsed;
+      if (nextEffectAt > 0) nextEffectAt += elapsed;
+      neonPausedAt = null;
     },
     dispose() {
       if (disposed) return;
