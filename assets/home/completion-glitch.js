@@ -30,6 +30,13 @@ export function createCompletionGlitch({ ctx, homeEnvironment }) {
   dialog.tabIndex = -1;
   dialog.setAttribute("aria-labelledby", "home-glitch-title");
   dialog.innerHTML = `
+    <div class="home-glitch-background" aria-hidden="true">
+      <span class="home-glitch-burst" data-burst="0" data-echo="ERROR // 404">ERROR // 404</span>
+      <span class="home-glitch-burst" data-burst="1" data-echo="FILE NOT FOUND">FILE NOT FOUND</span>
+      <span class="home-glitch-burst" data-burst="2" data-echo="SYNC // LOST">SYNC // LOST</span>
+      <span class="home-glitch-burst" data-burst="3" data-echo="ERR 0xA91F">ERR 0xA91F</span>
+      <span class="home-glitch-burst" data-burst="4" data-echo="SIGNAL: NULL">SIGNAL: NULL</span>
+    </div>
     <div class="home-glitch-terminal" hidden>
       <p class="home-glitch-kicker">${isPortuguese ? "HOME // RECUPERAÇÃO" : "HOME // RECOVERY"}<span data-glitch-code="0"></span></p>
       <h2 id="home-glitch-title" class="home-glitch-copy">${isPortuguese ? "RECUPERAR SINAL" : "RESTORE SIGNAL"}</h2>
@@ -54,6 +61,7 @@ export function createCompletionGlitch({ ctx, homeEnvironment }) {
   const input = dialog.querySelector("#home-glitch-password");
   const submit = dialog.querySelector(".home-glitch-submit");
   const status = dialog.querySelector(".home-glitch-status");
+  const backgroundBursts = Array.from(dialog.querySelectorAll("[data-burst]"));
   const codeFields = Array.from(dialog.querySelectorAll("[data-glitch-code]"));
   const textTargets = Array.from(document.querySelectorAll([
     ".site-header .brand",
@@ -121,6 +129,35 @@ export function createCompletionGlitch({ ctx, homeEnvironment }) {
   function makeCode(salt, frame = 0) {
     const value = Math.floor(hash(salt * 4099 + frame) * 0x1000000);
     return value.toString(16).padStart(6, "0").toUpperCase();
+  }
+
+  function updateBackgroundBursts(elapsed, stage) {
+    const intensity = stage === "terminal" ? 1 : stage === "knight" || stage === "text" ? 0.74 : 0.52;
+    const tick = Math.floor(elapsed / 34);
+
+    backgroundBursts.forEach((burst, index) => {
+      const period = 760 + hash(index * 181 + runSeed) * 530;
+      const offset = hash(index * 197 + 53 + runSeed) * period;
+      const phase = ((elapsed + offset) % period) / period;
+      const pop = Math.max(
+        pulseWindow(phase, 0.015, 0.045, 0.105),
+        pulseWindow(phase, 0.43, 0.46, 0.515),
+      );
+      const sample = (salt) => hash(tick * 281 + index * 887 + salt);
+      const amplitude = pop * intensity;
+
+      burst.style.setProperty("--pop-opacity", (amplitude * (0.58 + sample(11) * 0.28)).toFixed(3));
+      burst.style.setProperty("--pop-x", `${((sample(19) - 0.5) * 34 * amplitude).toFixed(1)}px`);
+      burst.style.setProperty("--pop-y", `${((sample(23) - 0.5) * 12 * amplitude).toFixed(1)}px`);
+      burst.style.setProperty("--pop-scale-x", (1 + amplitude * (0.5 + sample(29) * 0.8)).toFixed(3));
+      burst.style.setProperty("--pop-scale-y", (1 + amplitude * (0.12 + sample(31) * 0.32)).toFixed(3));
+      burst.style.setProperty("--pop-skew", `${((sample(37) - 0.5) * 12 * amplitude).toFixed(2)}deg`);
+      burst.style.setProperty("--pop-echo-opacity", (amplitude * 0.8).toFixed(3));
+      burst.style.setProperty("--pop-red-x", `${((sample(41) - 0.5) * 12 * amplitude).toFixed(1)}px`);
+      burst.style.setProperty("--pop-white-x", `${((sample(43) - 0.5) * 9 * amplitude).toFixed(1)}px`);
+      burst.style.setProperty("--pop-cut-top", `${(sample(47) * 24 * amplitude).toFixed(2)}%`);
+      burst.style.setProperty("--pop-cut-bottom", `${(sample(53) * 24 * amplitude).toFixed(2)}%`);
+    });
   }
 
   function prepareCorruptText(frame, elapsed) {
@@ -394,6 +431,7 @@ export function createCompletionGlitch({ ctx, homeEnvironment }) {
     const phase = CASCADE.find(({ start, end }) => elapsed >= start && elapsed < end);
     if (phase) {
       setStage(phase.stage);
+      updateBackgroundBursts(elapsed, phase.stage);
       updateStructureGlitch(elapsed);
       const progress = (elapsed - phase.start) / (phase.end - phase.start);
       const amount = 0.18 + Math.sin(Math.PI * progress) * 0.72;
@@ -416,6 +454,7 @@ export function createCompletionGlitch({ ctx, homeEnvironment }) {
     }
 
     setStage("terminal");
+    updateBackgroundBursts(elapsed, "terminal");
     updateStructureGlitch(elapsed);
     if (terminal.hidden) revealTerminal();
     const loopPhase = (totalElapsed / 1120) % 1;
