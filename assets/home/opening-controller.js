@@ -38,10 +38,20 @@ function getAssemblyRim(time) {
 export function createOpeningController({ frame, heroScreen, revealCopy, ctx }) {
   let disposed = false;
   let finalCaptureState = false;
+  const targetFocusCapture = ctx.homeCapture?.focusLayer === "target" && !ctx.mobileViewport.matches;
+  const previousFocusLayer = document.documentElement.dataset.homeFocusLayer;
+  if (targetFocusCapture) document.documentElement.dataset.homeFocusLayer = "target";
+
+  function restoreTargetFocusCapture() {
+    if (!targetFocusCapture) return;
+    if (previousFocusLayer === undefined) delete document.documentElement.dataset.homeFocusLayer;
+    else document.documentElement.dataset.homeFocusLayer = previousFocusLayer;
+  }
 
   function update(timeMilliseconds) {
     if (disposed || !ctx.homeCapture) return;
-    const time = Math.max(0, timeMilliseconds / 1000);
+    const captureTime = Math.max(0, timeMilliseconds / 1000);
+    const time = captureTime;
     const assemblyOnly = ctx.homeCapture.assemblyMode === "volume";
     const timelineTime = assemblyOnly ? Math.min(2.35, time) : time;
 
@@ -88,6 +98,17 @@ export function createOpeningController({ frame, heroScreen, revealCopy, ctx }) 
     }
     ctx.spatialEnvironment?.setWorldVisible(!assemblyOnly && time >= 2.0);
     if (assemblyOnly) ctx.spatialEnvironment?.setReflectionVisible(false);
+
+    if (targetFocusCapture) {
+      if (ctx.scene.background?.isColor) ctx.scene.background.set(0x000000);
+      ctx.modelPivot.visible = false;
+      if (ctx.volumetricMesh) ctx.volumetricMesh.visible = false;
+      if (ctx.reflectiveFloor) ctx.reflectiveFloor.visible = false;
+      ctx.spatialEnvironment?.setWorldVisible(false);
+      ctx.spatialEnvironment?.setTargetVisible(true);
+      ctx.spatialEnvironment?.setTargetTime(captureTime);
+      frame.dataset.worldVisible = "false";
+    }
   }
 
   return {
@@ -101,6 +122,7 @@ export function createOpeningController({ frame, heroScreen, revealCopy, ctx }) 
     dispose() {
       if (disposed) return;
       disposed = true;
+      restoreTargetFocusCapture();
     },
   };
 }

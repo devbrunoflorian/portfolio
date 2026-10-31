@@ -491,6 +491,37 @@ export function createSpatialEnvironment(scene, floorY, renderer, camera) {
   const pulseOffset = signals.length;
   const svgOffset = pulseOffset + pulses.length;
   const effectCount = svgOffset + svgSignals.length;
+  const targetCaptureMode = homeCapture?.focusLayer === "target"
+    && window.matchMedia("(min-width: 701px)").matches;
+  let targetAnimation = null;
+  let targetAnimationPromise = null;
+  let targetTime = 0;
+  let targetVisible = false;
+  function ensureTargetAnimation() {
+    if (!targetCaptureMode || disposed) return null;
+    if (targetAnimation) return Promise.resolve(targetAnimation);
+    if (!targetAnimationPromise) {
+      targetAnimationPromise = import("./target-animation.js").then(({ createTargetAnimation }) => {
+        if (disposed) return null;
+        targetAnimation = createTargetAnimation(
+          document.querySelector(".construction-map"), renderer, camera, scene,
+        );
+        if (!targetAnimation) {
+          document.querySelector("#scene-frame").dataset.targetCaptureError = "Target layer could not initialize.";
+          return null;
+        }
+        targetAnimation.setTime(targetTime);
+        targetAnimation.setVisible(targetVisible);
+        document.querySelector("#scene-frame").dataset.targetCaptureReady = "true";
+        return targetAnimation;
+      }).catch((error) => {
+        document.querySelector("#scene-frame").dataset.targetCaptureError = error.message;
+        console.error("[Home Target] initialization failed", error);
+        return null;
+      });
+    }
+    return targetAnimationPromise;
+  }
   let activeEffect = null;
   let lastEffectIndex = -1;
   let nextEffectAt = 0;
@@ -537,6 +568,7 @@ export function createSpatialEnvironment(scene, floorY, renderer, camera) {
     },
     update(timestamp, environment) {
       if (disposed || !environment) return;
+      targetAnimation?.updatePointer();
       this.setLimited(environment.limited, Boolean(environment.mobile));
       const scaleX = mobileMode ? 0.72 : 1;
       group.scale.x = signalGroup.scale.x = reflectionGroup.scale.x = floorGroup.scale.x = scaleX;
@@ -647,6 +679,7 @@ export function createSpatialEnvironment(scene, floorY, renderer, camera) {
     },
     render(renderer, camera) {
       if (disposed) return;
+      if (targetCaptureMode) return;
       renderer.getDrawingBufferSize(bufferSize);
       const scale = limited ? 0.45 : 0.65;
       const width = Math.max(1, Math.round(bufferSize.x * scale));
@@ -673,9 +706,20 @@ export function createSpatialEnvironment(scene, floorY, renderer, camera) {
       worldVisible = visible;
       syncWorldVisibility();
     },
+    setTargetTime(localSeconds) {
+      targetTime = localSeconds;
+      targetAnimation?.setTime(targetTime);
+      ensureTargetAnimation();
+    },
+    setTargetVisible(visible) {
+      targetVisible = Boolean(visible);
+      targetAnimation?.setVisible(targetVisible);
+      ensureTargetAnimation();
+    },
     dispose() {
       if (disposed) return;
       disposed = true;
+      targetAnimation?.dispose();
       const geometries = new Set();
       const materials = new Set();
       for (const root of [group, signalGroup, floorGroup, backdrop]) {

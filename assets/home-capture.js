@@ -7,6 +7,8 @@ const requestedChunks = Number(captureParameters.get("chunks"));
 const chunkCount = enabled && [24, 32, 40].includes(requestedChunks) ? requestedChunks : 32;
 const requestedAssemblyMode = enabled ? captureParameters.get("assembly") : null;
 const assemblyMode = ["surface", "volume"].includes(requestedAssemblyMode) ? requestedAssemblyMode : null;
+const requestedFocusLayer = enabled ? captureParameters.get("layer") : null;
+const focusLayer = requestedFocusLayer === "target" ? requestedFocusLayer : null;
 
 function createCapture() {
   const seed = 0x484f4d45;
@@ -143,6 +145,7 @@ function createCapture() {
   return {
     chunkCount,
     assemblyMode,
+    focusLayer,
     random,
     get delta() { return delta; },
     setTimeout: (callback, delay) => schedule(callback, delay),
