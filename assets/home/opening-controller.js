@@ -4,7 +4,7 @@ const KNIGHT_START = 1.35;
 const OBSIDIAN_START = 1.0;
 const FLOOR_START = 2.1;
 const KNIGHT_HANDOFF = 1.85;
-const FINAL_TIME = 4.95;
+const FINAL_TIME = 6.75;
 const SESSION_KEY = "home-entrance-00-played";
 
 function easeInOutQuad(value) {
@@ -189,7 +189,7 @@ export function createOpeningController({ frame, heroScreen, revealCopy, ctx }) 
     if (!element) return;
     const animation = element.animate(
       [{ opacity: 0 }, { opacity: 1 }],
-      { duration, easing: "cubic-bezier(.2, .7, .2, 1)", fill: "both" },
+      { duration, easing: "cubic-bezier(.4, 0, .6, 1)", fill: "both" },
     );
     animation.pause();
     ctx.homeCapture?.registerAnimation(animation, start * 1000);
@@ -198,16 +198,15 @@ export function createOpeningController({ frame, heroScreen, revealCopy, ctx }) 
 
   function createEntryAnimations() {
     entryAnimations = [];
-    addEntryAnimation(document.querySelector(".site-header"), 3.98, 360);
-    addEntryAnimation(document.querySelector(".hero-copy .eyebrow"), 4.02, 260);
-    Array.from(document.querySelectorAll("#hero-title .hero-word"))
-      .forEach((element, index) => addEntryAnimation(element, 4.04 + index * 0.085, 360));
-    addEntryAnimation(document.querySelector(".hero-copy .intro"), 4.42, 320);
-    addEntryAnimation(document.querySelector(".hero-actions"), 4.58, 320);
-    addEntryAnimation(document.querySelector(".hero-side-note"), 4.2, 320);
-    addEntryAnimation(document.querySelector(".temporary-note"), 4.28, 280);
-    addEntryAnimation(document.querySelector(".scroll-cue"), 4.32, 300);
-    addEntryAnimation(document.querySelector(".environment-labels"), 4.12, 420);
+    addEntryAnimation(document.querySelector(".site-header"), 4.05, 500);
+    addEntryAnimation(document.querySelector(".hero-copy .eyebrow"), 4.7, 400);
+    addEntryAnimation(document.querySelector("#hero-title"), 4.7, 520);
+    addEntryAnimation(document.querySelector(".hero-copy .intro"), 5.4, 420);
+    addEntryAnimation(document.querySelector(".hero-actions"), 5.98, 420);
+    addEntryAnimation(document.querySelector(".hero-side-note"), 6.22, 400);
+    addEntryAnimation(document.querySelector(".environment-labels"), 6.22, 420);
+    addEntryAnimation(document.querySelector(".temporary-note"), 6.35, 320);
+    addEntryAnimation(document.querySelector(".scroll-cue"), 6.35, 360);
   }
 
   function setEntryAnimations(time) {
