@@ -9,6 +9,7 @@ const requestedAssemblyMode = enabled ? captureParameters.get("assembly") : null
 const assemblyMode = ["surface", "volume"].includes(requestedAssemblyMode) ? requestedAssemblyMode : null;
 const requestedFocusLayer = enabled ? captureParameters.get("layer") : null;
 const focusLayer = ["target", "obsidian", "floor"].includes(requestedFocusLayer) ? requestedFocusLayer : null;
+const openingSequence = enabled && captureParameters.get("sequence") === "1";
 
 function createCapture() {
   const seed = 0x484f4d45;
@@ -41,6 +42,13 @@ function createCapture() {
         animation.finish();
       }
     }
+  }
+
+  function registerAnimation(animation, offsetMilliseconds = 0) {
+    if (disposed || !(animation instanceof Animation) || !Number.isFinite(offsetMilliseconds)) return;
+    animations.set(animation, offsetMilliseconds);
+    animation.pause();
+    animation.currentTime = clock.t * 1000 - offsetMilliseconds;
   }
 
   function schedule(callback, delay = 0, repeat = false) {
@@ -104,6 +112,7 @@ function createCapture() {
 
   const api = {
     ready,
+    registerAnimation,
     setTime,
     setPointer(x, y) {
       if (x == null && y == null) {
@@ -146,6 +155,8 @@ function createCapture() {
     chunkCount,
     assemblyMode,
     focusLayer,
+    openingSequence,
+    registerAnimation,
     random,
     get delta() { return delta; },
     setTimeout: (callback, delay) => schedule(callback, delay),

@@ -202,7 +202,7 @@ function createFloorStreak(position) {
   return streak;
 }
 
-export function createSpatialEnvironment(scene, floorY, renderer, camera) {
+export function createSpatialEnvironment(scene, floorY, renderer, camera, { openingMode = false } = {}) {
   const backgroundScene = new THREE.Scene();
   backgroundScene.background = new THREE.Color(0x070809);
   backgroundScene.fog = new THREE.Fog(0x070809, 7, 15);
@@ -503,6 +503,7 @@ export function createSpatialEnvironment(scene, floorY, renderer, camera) {
     && window.matchMedia("(min-width: 701px)").matches;
   const floorCaptureMode = homeCapture?.focusLayer === "floor"
     && window.matchMedia("(min-width: 701px)").matches;
+  let openingModeActive = openingMode;
   let targetAnimation = null;
   let targetAnimationPromise = null;
   let targetTime = 0;
@@ -514,13 +515,14 @@ export function createSpatialEnvironment(scene, floorY, renderer, camera) {
   let floorAnimationPromise = null;
   let floorTime = 0;
   function ensureTargetAnimation() {
-    if (!targetCaptureMode || disposed) return null;
+    if ((!targetCaptureMode && !openingModeActive) || disposed) return null;
     if (targetAnimation) return Promise.resolve(targetAnimation);
     if (!targetAnimationPromise) {
       targetAnimationPromise = import("./target-animation.js").then(({ createTargetAnimation }) => {
-        if (disposed) return null;
+        if (disposed || (!targetCaptureMode && !openingModeActive)) return null;
         targetAnimation = createTargetAnimation(
           document.querySelector(".construction-map"), renderer, camera, scene,
+          { includeStaticConstruction: openingModeActive },
         );
         if (!targetAnimation) {
           document.querySelector("#scene-frame").dataset.targetCaptureError = "Target layer could not initialize.";
@@ -539,11 +541,11 @@ export function createSpatialEnvironment(scene, floorY, renderer, camera) {
     return targetAnimationPromise;
   }
   function ensureObsidianAnimation() {
-    if (!obsidianCaptureMode || disposed) return null;
+    if ((!obsidianCaptureMode && !openingModeActive) || disposed) return null;
     if (obsidianAnimation) return Promise.resolve(obsidianAnimation);
     if (!obsidianAnimationPromise) {
       obsidianAnimationPromise = import("./obsidian-background-animation.js").then(({ createObsidianBackgroundAnimation }) => {
-        if (disposed) return null;
+        if (disposed || (!obsidianCaptureMode && !openingModeActive)) return null;
         obsidianAnimation = createObsidianBackgroundAnimation({
           monoliths,
           signals,
@@ -566,11 +568,11 @@ export function createSpatialEnvironment(scene, floorY, renderer, camera) {
     return obsidianAnimationPromise;
   }
   function ensureFloorAnimation() {
-    if (!floorCaptureMode || disposed) return null;
+    if ((!floorCaptureMode && !openingModeActive) || disposed) return null;
     if (floorAnimation) return Promise.resolve(floorAnimation);
     if (!floorAnimationPromise) {
       floorAnimationPromise = import("./floor-animation.js").then(({ createFloorAnimation }) => {
-        if (disposed) return null;
+        if (disposed || (!floorCaptureMode && !openingModeActive)) return null;
         floorAnimation = createFloorAnimation({ floorGrid, signals: signals.slice(-3) });
         if (!floorAnimation) {
           document.querySelector("#scene-frame").dataset.floorCaptureError = "Floor layer could not initialize.";
@@ -676,6 +678,16 @@ export function createSpatialEnvironment(scene, floorY, renderer, camera) {
         floorAnimation?.setTime(floorTime);
         group.position.set(0, 0, 0);
         signalGroup.position.set(0, 0, 0);
+        floorGroup.position.set(0, 0, 0);
+        syncWorldVisibility();
+        return;
+      }
+      if (openingModeActive) {
+        targetAnimation?.updatePointer();
+        group.position.x = limited ? 0 : environment.pointer.x * 0.035;
+        group.position.z = limited ? 0 : environment.pointer.y * 0.025;
+        signalGroup.position.copy(group.position);
+        reflectionGroup.position.copy(group.position);
         floorGroup.position.set(0, 0, 0);
         syncWorldVisibility();
         return;
@@ -794,6 +806,33 @@ export function createSpatialEnvironment(scene, floorY, renderer, camera) {
     setFloorVisible(visible) {
       floorVisible = Boolean(visible);
       syncWorldVisibility();
+    },
+    async prepareOpeningLayers() {
+      if (!openingModeActive) return false;
+      this.setWorldVisible(false);
+      this.setFloorVisible(false);
+      this.setReflectionVisible(false);
+      this.setTargetVisible(true);
+      const results = await Promise.all([
+        ensureTargetAnimation(),
+        ensureObsidianAnimation(),
+        ensureFloorAnimation(),
+      ]);
+      return !disposed && results.every(Boolean);
+    },
+    disableOpeningLayers() {
+      if (!openingModeActive || disposed) return;
+      openingModeActive = false;
+      targetAnimation?.dispose();
+      obsidianAnimation?.dispose();
+      floorAnimation?.dispose();
+      targetAnimation = null;
+      obsidianAnimation = null;
+      floorAnimation = null;
+      targetVisible = false;
+      this.setWorldVisible(true);
+      this.setFloorVisible(true);
+      this.setReflectionVisible(false);
     },
     setTargetTime(localSeconds) {
       targetTime = localSeconds;

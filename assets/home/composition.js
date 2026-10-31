@@ -62,7 +62,7 @@ function mountHomeScene() {
 
   function renderFrame(timestamp) {
     ctx.frameRequest = 0;
-    if (!ctx.renderer || !ctx.knight || !ctx.sceneVisible) return;
+    if (!ctx.renderer || !ctx.knight || (!ctx.sceneVisible && !ctx.homeCapture)) return;
     if (ctx.mobileViewport.matches && !ctx.debugMode) {
       const copyBounds = ctx.heroCopy.getBoundingClientRect();
       const sceneBounds = ctx.frame.getBoundingClientRect();
@@ -71,6 +71,7 @@ function mountHomeScene() {
         return;
       }
     }
+    ctx.openingController.presentFirstInteractiveFrame(timestamp);
     const elapsed = ctx.homeCapture ? ctx.homeCapture.delta : ctx.lastFrameAt ? Math.min(80, timestamp - ctx.lastFrameAt) : 16;
     ctx.lastFrameAt = timestamp;
     const smoothing = 1 - Math.exp(-elapsed / 105);
@@ -102,7 +103,6 @@ function mountHomeScene() {
     }
     ctx.spatialEnvironment?.render(ctx.renderer, ctx.camera);
     ctx.renderer.render(ctx.scene, ctx.camera);
-    ctx.openingController.presentFirstInteractiveFrame();
     ctx.frame.dataset.modelYaw = ctx.yaw.toFixed(4);
     ctx.frame.dataset.modelPitch = ctx.pitch.toFixed(4);
     ctx.frame.dataset.pointerReveal = ctx.revealAmount.toFixed(3);
@@ -116,6 +116,7 @@ function mountHomeScene() {
   }
 
   function setStaticFallback(message) {
+    ctx.openingController.disableSequence("scene-fallback");
     ctx.homeCapture?.fallback();
     revealMobileCopy();
     homeEnvironment?.setActive(false);
@@ -132,6 +133,7 @@ function mountHomeScene() {
 
   function onReducedMotionChange() {
     if (ctx.reducedMotion.matches) {
+      ctx.openingController.disableSequence("reduced-motion");
       pointerScroll.pointerLeave();
       const restingYaw = mobileViewport.matches && !ctx.debugMode ? MOBILE_RESTING_YAW : RESTING_LEFT_YAW;
       ctx.yaw = restingYaw;
@@ -219,6 +221,7 @@ function mountHomeScene() {
   async function startScene() {
     try {
       if (ctx.disposed) return;
+      ctx.frame.dataset.openingBootstrapStarted = "true";
       if (ctx.reducedMotion.matches && !ctx.debugMode) {
         ctx.frame.dataset.sceneState = "poster";
         ctx.frame.dataset.modelReady = "false";
@@ -263,8 +266,28 @@ function mountHomeScene() {
       createReflectiveFloor(ctx);
 
       if (!ctx.debugMode) {
-        ctx.spatialEnvironment = createSpatialEnvironment(ctx.scene, FLOOR_Y, ctx.renderer, ctx.camera);
-        homeEnvironment?.setActive(true);
+        const openingMode = ctx.openingController.usesVolumetricAssembly;
+        if (openingMode) {
+          ctx.canvas.hidden = false;
+          // Target samples the existing SVG through the camera, so establish the
+          // final viewport pose before its geometry is generated.
+          resizeScene(ctx);
+        }
+        ctx.spatialEnvironment = createSpatialEnvironment(ctx.scene, FLOOR_Y, ctx.renderer, ctx.camera, { openingMode });
+        if (openingMode) {
+          const openingLayersReady = await ctx.spatialEnvironment.prepareOpeningLayers();
+          if (!openingLayersReady) {
+            ctx.openingController.disableSequence("opening-layer-error");
+          } else {
+            if (ctx.volumetricMesh) ctx.volumetricMesh.visible = false;
+            ctx.volumetricBaseMeshes?.forEach((mesh) => { mesh.visible = false; });
+            ctx.volumetricBaseLines?.forEach((line) => { line.visible = false; });
+            if (ctx.reflectiveFloor) ctx.reflectiveFloor.visible = false;
+            if (ctx.whiteRevealLight) ctx.whiteRevealLight.intensity = 0;
+            ctx.assemblyLights.forEach(({ light }) => { light.intensity = 0; });
+          }
+        }
+        homeEnvironment?.setActive(!ctx.openingController.usesVolumetricAssembly);
       }
 
       ctx.poster.hidden = ctx.debugMode;

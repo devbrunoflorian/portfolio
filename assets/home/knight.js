@@ -149,9 +149,11 @@ export function createSilhouetteMaterial(ctx) {
 }
 
 export async function prepareKnight(ctx, root, chunkCount = 32) {
-  const volumetricMode = ctx.homeCapture?.assemblyMode === "volume";
+  let volumetricMode = ctx.homeCapture?.assemblyMode === "volume"
+    || Boolean(ctx.openingController?.usesVolumetricAssembly);
   if (volumetricMode && ctx.mobileViewport.matches) {
     ctx.homeCapture.assemblyMode = null;
+    volumetricMode = false;
     ctx.frame.dataset.volumetricAssembly = "suppressed-mobile";
   }
 
@@ -313,8 +315,15 @@ export async function prepareKnight(ctx, root, chunkCount = 32) {
     .join(",");
 
   if (volumetricMode && !ctx.mobileViewport.matches) {
-    await prepareVolumetricKnight(ctx, root);
-    ctx.frame.dataset.volumetricAssembly = "ready";
+    try {
+      await prepareVolumetricKnight(ctx, root);
+      ctx.frame.dataset.volumetricAssembly = "ready";
+    } catch (error) {
+      if (ctx.homeCapture?.assemblyMode === "volume") throw error;
+      ctx.openingController?.disableSequence("volumetric-asset-error");
+      ctx.frame.dataset.openingError = "volumetric-asset-error";
+      console.warn("[Home Opening] volumetric assembly unavailable; keeping the intact Knight.", error);
+    }
   }
 }
 

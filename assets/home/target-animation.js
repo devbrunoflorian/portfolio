@@ -52,7 +52,7 @@ function getLineSchedule(data) {
   };
 }
 
-export function createTargetAnimation(svg, renderer, camera, scene) {
+export function createTargetAnimation(svg, renderer, camera, scene, { includeStaticConstruction = false } = {}) {
   if (!svg) return null;
   camera.updateMatrixWorld(true);
   const canvasRect = renderer.domElement.getBoundingClientRect();
@@ -132,6 +132,24 @@ export function createTargetAnimation(svg, renderer, camera, scene) {
       if (schedule.reverse) points.reverse();
       addStaticAndAnimatedPath(points, schedule, SECONDARY_STATIC_OPACITY);
       retainedPaths.push(normalizePath(data));
+    }
+  }
+
+  if (includeStaticConstruction) {
+    const staticPaths = [
+      ...Array.from(svg.querySelectorAll(".construction-primary > path"), (element) => ({ element, opacity: 0.19 })),
+      ...Array.from(svg.querySelectorAll(".construction-ticks > path"), (element) => ({ element, opacity: 0.045 })),
+    ];
+    for (const { element, opacity } of staticPaths) {
+      const source = element.getAttribute("d") ?? "";
+      const matrix = element.getScreenCTM();
+      if (!source || !matrix) continue;
+      for (const data of getSvgSubpaths(source)) {
+        const points = sampleSvgPath(element, data, matrix);
+        for (let index = 1; index < points.length; index++) {
+          addSegment(points[index - 1], points[index], 0, 1, 1.05, 0.4, opacity, 3);
+        }
+      }
     }
   }
 
@@ -249,6 +267,9 @@ export function createTargetAnimation(svg, renderer, camera, scene) {
         vec3 crimson = vec3(1.0, 0.006, 0.024);
         if (vMode < 0.5) {
           gl_FragColor = vec4(graphite, vOpacity);
+        } else if (vMode > 2.5) {
+          float reveal = smoothstep(vStart, vStart + max(vDuration, 0.001), uTime);
+          gl_FragColor = vec4(graphite, vOpacity * reveal);
         } else {
           float settle = smoothstep(2.20, 3.00, uTime);
           if (vMode < 1.5) {
