@@ -109,6 +109,7 @@ function mountHomeScene() {
     }
     if (ctx.sceneVisible || ctx.homeCapture) {
       ctx.spatialEnvironment?.render(ctx.renderer, ctx.camera);
+      // Keep chromatic echoes in the main scene so the floor Reflector captures them.
       ctx.renderer.render(ctx.scene, ctx.camera);
     }
     ctx.frame.dataset.modelYaw = ctx.yaw.toFixed(4);
