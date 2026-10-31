@@ -3,6 +3,8 @@ import { SimplifyModifier } from "three/addons/modifiers/SimplifyModifier.js";
 import { FLOOR_Y, smoothstep } from "./context.js";
 import { createSeededRandom } from "../shared/random.js";
 import { ASSEMBLY_DURATION, annotateFragmentEdges, createFragmentedGeometry } from "./fragment-geometry.js";
+import { prepareVolumetricKnight } from "./volumetric-assembly.js";
+import { prepareFracturePulse } from "./fracture-pulse.js";
 
 const LOW_POLY_FACET_VERTEX_BUDGET = 1100;
 const EDGE_THRESHOLD_ANGLE_DEG = 24;
@@ -32,7 +34,10 @@ const FRAGMENT_VERTEX_GLSL = `
     vec3 radial = aFragCenter - uFragmentOrigin;
     if (dot(radial, radial) < 0.0001) radial = axis;
     radial = normalize(radial);
-    return aFragCenter + rotated + radial * uFragmentSpread * amount;
+    vec3 escapeDirection = normalize(radial * 0.25 + axis * 0.75);
+    float spin = clamp((abs(aFragAxisAngle.w) - 1.5707963) / 1.5707963, 0.0, 1.0);
+    float radius = uFragmentSpread * mix(1.0, 1.05, spin);
+    return aFragCenter + rotated + escapeDirection * radius * amount;
   }
   vec3 deformFragmentNormal(vec3 sourceNormal) {
     if (uAssembly >= 1.0) return sourceNormal;
@@ -53,14 +58,19 @@ export function createRevealMaterial(ctx) {
       uAssembly: ctx.assemblyUniform,
       uFragmentSpread: ctx.fragmentSpreadUniform,
       uFragmentOrigin: ctx.fragmentOriginUniform,
+      uFacetReveal: ctx.facetRevealUniform,
+      uRimAssembly: ctx.rimAssemblyUniform,
     },
     vertexShader: `
       ${FRAGMENT_VERTEX_GLSL}
+      attribute float aAssemblyEdge;
       varying vec3 vWorldPosition;
+      varying float vAssemblyEdge;
       void main() {
         vec3 localPosition = deformFragmentPosition(position);
         vec4 worldPosition = modelMatrix * vec4(localPosition, 1.0);
         vWorldPosition = worldPosition.xyz;
+        vAssemblyEdge = aAssemblyEdge;
         vec4 viewPosition = viewMatrix * worldPosition;
         viewPosition.xyz += normalize(-viewPosition.xyz) * 0.0012;
         gl_Position = projectionMatrix * viewPosition;
@@ -73,14 +83,20 @@ export function createRevealMaterial(ctx) {
       uniform vec3 uRestingColor;
       uniform vec3 uRevealColor;
       uniform vec3 uAccentColor;
+      uniform float uFacetReveal;
+      uniform float uRimAssembly;
       varying vec3 vWorldPosition;
+      varying float vAssemblyEdge;
       void main() {
         float distanceToPointer = distance(vWorldPosition, uPointer);
         float falloff = 1.0 - smoothstep(0.04, 0.32, distanceToPointer);
         float localizedReveal = falloff * uReveal;
-        float alpha = uBaseOpacity + localizedReveal * (0.50 - uBaseOpacity);
+        float baseAlpha = uBaseOpacity + localizedReveal * (0.50 - uBaseOpacity);
+        float assemblyLine = (1.0 - uFacetReveal) * uRimAssembly * vAssemblyEdge;
+        float alpha = baseAlpha * uFacetReveal + assemblyLine * 0.72;
         if (alpha < 0.015) discard;
-        vec3 color = mix(uRestingColor, mix(uRevealColor, uAccentColor, 0.40), localizedReveal);
+        vec3 baseColor = mix(uRestingColor, mix(uRevealColor, uAccentColor, 0.40), localizedReveal);
+        vec3 color = mix(baseColor, uAccentColor, assemblyLine);
         gl_FragColor = vec4(color, alpha);
         #include <tonemapping_fragment>
         #include <colorspace_fragment>
@@ -100,6 +116,7 @@ export function createSilhouetteMaterial(ctx) {
       uAssembly: ctx.assemblyUniform,
       uFragmentSpread: ctx.fragmentSpreadUniform,
       uFragmentOrigin: ctx.fragmentOriginUniform,
+      uFacetReveal: ctx.facetRevealUniform,
     },
     vertexShader: `
       ${FRAGMENT_VERTEX_GLSL}
@@ -117,10 +134,11 @@ export function createSilhouetteMaterial(ctx) {
     fragmentShader: `
       uniform vec3 uWhite;
       uniform vec3 uRed;
+      uniform float uFacetReveal;
       varying float vWorldSide;
       void main() {
-        vec3 color = uWhite * smoothstep(0.05, 0.45, -vWorldSide)
-          + uRed * smoothstep(0.05, 0.45, vWorldSide);
+        vec3 color = (uWhite * smoothstep(0.05, 0.45, -vWorldSide)
+          + uRed * smoothstep(0.05, 0.45, vWorldSide)) * uFacetReveal;
         gl_FragColor = vec4(color, 1.0);
         #include <tonemapping_fragment>
         #include <colorspace_fragment>
@@ -132,10 +150,17 @@ export function createSilhouetteMaterial(ctx) {
 }
 
 export async function prepareKnight(ctx, root, chunkCount = 32) {
+  const volumetricMode = ctx.homeCapture?.assemblyMode === "volume";
+  if (volumetricMode && ctx.mobileViewport.matches) {
+    ctx.homeCapture.assemblyMode = null;
+    ctx.frame.dataset.volumetricAssembly = "suppressed-mobile";
+  }
+
   const meshes = [];
   root.traverse((object) => { if (object.isMesh) meshes.push(object); });
   const simplifier = new SimplifyModifier();
   const chunkPlans = [];
+  let modelHeight = 0;
 
   for (const mesh of meshes) {
     const wireSource = mesh.geometry.clone();
@@ -157,6 +182,11 @@ export async function prepareKnight(ctx, root, chunkCount = 32) {
       minY: lowPolyGeometry.boundingBox.min.y,
       maxY: lowPolyGeometry.boundingBox.max.y,
     };
+    modelHeight = Math.max(modelHeight, bounds.maxY - bounds.minY);
+    ctx.fragmentSpreadUniform.value = Math.max(
+      ctx.fragmentSpreadUniform.value,
+      modelHeight * 1.05,
+    );
     ctx.fragmentOriginUniform.value.copy(origin);
     const fragmentPlan = createFragmentedGeometry(lowPolyGeometry, {
       chunkCount,
@@ -182,10 +212,12 @@ export async function prepareKnight(ctx, root, chunkCount = 32) {
       });
       const rimStrength = { value: 0 };
       material.onBeforeCompile = (shader) => {
+        shader.uniforms.uVolumetricLockPreview = { value: volumetricMode ? 1 : 0 };
         shader.uniforms.uAssembly = ctx.assemblyUniform;
         shader.uniforms.uFragmentSpread = ctx.fragmentSpreadUniform;
         shader.uniforms.uFragmentOrigin = ctx.fragmentOriginUniform;
         shader.uniforms.uRimAssembly = ctx.rimAssemblyUniform;
+        shader.uniforms.uFacetReveal = ctx.facetRevealUniform;
         shader.uniforms.uRedRimColor = { value: new THREE.Color("#ff1230") };
         shader.uniforms.uWhiteRimColor = { value: new THREE.Color("#e6e9ef") };
         shader.uniforms.uRimStrength = rimStrength;
@@ -195,7 +227,10 @@ export async function prepareKnight(ctx, root, chunkCount = 32) {
           uniform vec3 uRedRimColor;
           uniform vec3 uWhiteRimColor;
           uniform float uRimStrength;
-          uniform float uRimAssembly;`,
+          uniform float uRimAssembly;
+          uniform float uFacetReveal;
+          uniform float uVolumetricLockPreview;
+          uniform float uAssembly;`,
         );
         shader.vertexShader = shader.vertexShader.replace(
           "#include <common>",
@@ -217,15 +252,20 @@ export async function prepareKnight(ctx, root, chunkCount = 32) {
           float worldSide = dot(normalize(normal), worldRightInView);
           float redSideMask = smoothstep(0.05, 0.45, worldSide);
           float whiteSideMask = smoothstep(0.05, 0.45, -worldSide);
-          // Preserve 70-80% dark mass while allowing frontal fill light to reveal facet planes
-          outgoingLight = outgoingLight * mix(0.85, 1.0, rim);
-          outgoingLight += rim * (uRedRimColor * redSideMask * uRimStrength
-            + uWhiteRimColor * whiteSideMask * 0.85);
-          outgoingLight += rim * uRedRimColor * (0.25 + 0.75 * redSideMask) * uRimAssembly;
+          float faceLight = max(0.0, dot(normalize(normal), vec3(0.0, 0.0, 1.0)));
+          vec3 standardPreRevealFill = vec3(0.018, 0.020, 0.024) + vec3(0.045, 0.050, 0.060) * faceLight;
+          vec3 volumetricPreRevealFill = vec3(0.003, 0.0035, 0.004)
+            + vec3(0.012, 0.013, 0.015) * faceLight * smoothstep(0.0, 1.0, uAssembly);
+          vec3 preRevealFill = mix(standardPreRevealFill, volumetricPreRevealFill, uVolumetricLockPreview);
+          outgoingLight = outgoingLight * mix(0.85, 1.0, rim) * uFacetReveal
+            + preRevealFill * (1.0 - uFacetReveal);
+          float rimReveal = mix(uFacetReveal, 1.0, uVolumetricLockPreview);
+          outgoingLight += rim * uRedRimColor * redSideMask * uRimStrength * rimReveal;
+          outgoingLight += rim * uWhiteRimColor * whiteSideMask * 0.85 * uFacetReveal;
           #include <opaque_fragment>`,
         );
       };
-      material.customProgramCacheKey = () => "knight-fragmented-silhouette-rim-v5";
+      material.customProgramCacheKey = () => "knight-fragmented-silhouette-rim-v6";
       ctx.rimStrengthUniforms.push(rimStrength);
       return material;
     });
@@ -268,6 +308,16 @@ export async function prepareKnight(ctx, root, chunkCount = 32) {
   ctx.frame.dataset.fragmentFaceCounts = ctx.fragmentStats.faceCounts.join(",");
   ctx.frame.dataset.fragmentRegionCounts = JSON.stringify(ctx.fragmentStats.regionCounts);
   ctx.frame.dataset.fragmentBoundaryVertices = String(chunkPlans.reduce((sum, plan) => sum + plan.boundaryVertexCount, 0));
+  ctx.frame.dataset.fragmentSpreadHeightRatio = (ctx.fragmentSpreadUniform.value / modelHeight).toFixed(3);
+  ctx.frame.dataset.fragmentRotationDegrees = allChunks
+    .map((chunk) => (Math.abs(chunk.axisAngle[3]) * 180 / Math.PI).toFixed(2))
+    .join(",");
+
+  if (volumetricMode && !ctx.mobileViewport.matches) {
+    await prepareVolumetricKnight(ctx, root);
+    await prepareFracturePulse(ctx, root);
+    ctx.frame.dataset.volumetricAssembly = "ready";
+  }
 }
 
 export function disposeKnightResources(root) {
@@ -287,6 +337,7 @@ export function disposeKnightResources(root) {
 
 export function disposeKnight(ctx) {
   if (!ctx.knight) return;
+  ctx.fracturePulse?.dispose();
   disposeKnightResources(ctx.knight);
   ctx.modelPivot.remove(ctx.knight);
   ctx.knight = null;

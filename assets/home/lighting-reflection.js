@@ -26,12 +26,14 @@ export function createStudioLighting(ctx) {
   redLight.name = "fixed-red-right-light";
   redLight.position.set(4, 1.5, 4);
   addStudioLight(ctx, redLight);
+  ctx.assemblyLights.push({ light: redLight, intensity: redLight.intensity });
   // Neutral frontal fill light: broad, soft, positioned front-left-above (-1.0, 2.4, 4.6)
   // Recovers cheek, muzzle, neck, chest, and pedestal facets while keeping deep black shadows
   const fillLight = new THREE.DirectionalLight(0xdbe2ec, 0.85);
   fillLight.name = "fixed-neutral-fill-light";
   fillLight.position.set(-1.0, 2.4, 4.6);
   addStudioLight(ctx, fillLight);
+  ctx.assemblyLights.push({ light: fillLight, intensity: fillLight.intensity });
   ctx.frame.dataset.studioLightCount = String(ctx.studioLights.length);
   ctx.scene.add(ctx.modelPivot);
   ctx.modelPivot.position.y = FLOOR_Y;
@@ -49,11 +51,19 @@ export function createReflectiveFloor(ctx) {
   reflectiveFloor.rotation.x = -Math.PI / 2;
   reflectiveFloor.position.y = FLOOR_Y;
   if (ctx.homeCapture) {
-    ctx.reflectorOpacityUniform.value = 0;
-    reflectiveFloor.material.uniforms.uAssemblyFloorOpacity = ctx.reflectorOpacityUniform;
+    ctx.reflectorReflectionUniform.value = 0;
+    ctx.reflectorFloorUniform.value = 0;
+    reflectiveFloor.material.uniforms.uAssemblyReflectionOpacity = ctx.reflectorReflectionUniform;
+    reflectiveFloor.material.uniforms.uAssemblyFloorOpacity = ctx.reflectorFloorUniform;
     reflectiveFloor.material.fragmentShader = reflectiveFloor.material.fragmentShader
-      .replace("uniform vec3 color;", "uniform vec3 color;\nuniform float uAssemblyFloorOpacity;")
-      .replace("gl_FragColor = vec4( blendOverlay( base.rgb, color ), 1.0 );", "gl_FragColor = vec4( blendOverlay( base.rgb, color ), uAssemblyFloorOpacity );");
+      .replace("uniform vec3 color;", "uniform vec3 color;\nuniform float uAssemblyReflectionOpacity;\nuniform float uAssemblyFloorOpacity;")
+      .replace(
+        "gl_FragColor = vec4( blendOverlay( base.rgb, color ), 1.0 );",
+        `vec3 reflectionColor = blendOverlay(base.rgb, color);
+        float reflectionBrightness = max(max(base.r, base.g), base.b);
+        float reflectionMask = smoothstep(0.001, 0.024, reflectionBrightness) * uAssemblyReflectionOpacity;
+        gl_FragColor = vec4(reflectionColor, max(reflectionMask, uAssemblyFloorOpacity));`,
+      );
     reflectiveFloor.material.transparent = true;
     reflectiveFloor.material.depthWrite = false;
   }

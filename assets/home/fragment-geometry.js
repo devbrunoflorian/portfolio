@@ -1,13 +1,13 @@
 import { BufferAttribute } from "three";
 
 export const ASSEMBLY_DELAY_WINDOWS = Object.freeze({
-  base: Object.freeze({ min: 0.00, max: 0.04 }),
-  chest: Object.freeze({ min: 0.02, max: 0.06 }),
-  neck: Object.freeze({ min: 0.04, max: 0.08 }),
-  head: Object.freeze({ min: 0.06, max: 0.10 }),
+  base: Object.freeze({ min: 0.00, max: 0.18 }),
+  chest: Object.freeze({ min: 0.12, max: 0.30 }),
+  neck: Object.freeze({ min: 0.24, max: 0.42 }),
+  head: Object.freeze({ min: 0.36, max: 0.54 }),
 });
 
-export const ASSEMBLY_DURATION = 0.40;
+export const ASSEMBLY_DURATION = 0.46;
 
 const REGION_ORDER = Object.keys(ASSEMBLY_DELAY_WINDOWS);
 
@@ -252,8 +252,9 @@ function createChunkMetadata(faces, faceIndices, chunkId, random, bounds) {
   }
   const region = selectRegion((modelCenter[1] - bounds.minY) / Math.max(0.001, bounds.maxY - bounds.minY));
   const window = ASSEMBLY_DELAY_WINDOWS[region];
-  const angle = (random() - 0.5) * (region === "head" ? 0.62 : 0.78);
-  const axis = normalize([random() * 2 - 1, 0.25 + random() * 0.75, random() * 2 - 1]);
+  const direction = random() < 0.5 ? -1 : 1;
+  const angle = direction * (Math.PI / 2 + random() * Math.PI / 2);
+  const axis = normalize([random() * 2 - 1, random() * 2 - 1, random() * 2 - 1]);
   return {
     id: chunkId,
     center,
@@ -442,8 +443,9 @@ export function createFragmentedGeometry(geometry, { chunkCount, random, toModel
     ...expanded,
     chunks,
     edgeChunkOwners,
-    faceCount: faces.length,
+    edgeOwners,
     faceChunkIds,
+    faceCount: faces.length,
     faceCounts: chunks.map((chunk) => chunk.faceCount),
     regionCounts: regions,
   };
@@ -455,12 +457,17 @@ export function annotateFragmentEdges(edgeGeometry, fragmentPlan, idOffset = 0) 
   const centers = [];
   const axes = [];
   const delays = [];
+  const assemblyEdges = [];
   for (let offset = 0; offset < position.count; offset += 2) {
     const first = readPoint(position, offset);
     const second = readPoint(position, offset + 1);
     const firstKey = positionKey(first);
     const secondKey = positionKey(second);
-    let localChunkId = fragmentPlan.edgeChunkOwners.get(edgeKey(firstKey, secondKey));
+    const key = edgeKey(firstKey, secondKey);
+    const adjacentFaces = fragmentPlan.edgeOwners.get(key) ?? [];
+    const chunkOwners = new Set(adjacentFaces.map((faceIndex) => fragmentPlan.faceChunkIds[faceIndex]));
+    const assemblyEdge = adjacentFaces.length === 1 || chunkOwners.size > 1 ? 1 : 0;
+    let localChunkId = fragmentPlan.edgeChunkOwners.get(key);
     if (localChunkId === undefined) {
       let nearest = Infinity;
       localChunkId = 0;
@@ -479,10 +486,12 @@ export function annotateFragmentEdges(edgeGeometry, fragmentPlan, idOffset = 0) 
       centers.push(...chunk.center);
       axes.push(...chunk.axisAngle);
       delays.push(chunk.delay);
+      assemblyEdges.push(assemblyEdge);
     }
   }
   edgeGeometry.setAttribute("aFragmentId", new BufferAttribute(new Float32Array(endpointChunks), 1));
   edgeGeometry.setAttribute("aFragCenter", new BufferAttribute(new Float32Array(centers), 3));
   edgeGeometry.setAttribute("aFragAxisAngle", new BufferAttribute(new Float32Array(axes), 4));
   edgeGeometry.setAttribute("aFragDelay", new BufferAttribute(new Float32Array(delays), 1));
+  edgeGeometry.setAttribute("aAssemblyEdge", new BufferAttribute(new Float32Array(assemblyEdges), 1));
 }

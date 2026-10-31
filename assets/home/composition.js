@@ -285,6 +285,23 @@ function mountHomeScene() {
           : "3D scene active. Pointer movement is optional; projects and navigation remain available.";
       resizeScene(ctx);
       ctx.updateSceneProgress();
+      if (ctx.homeCapture && ctx.spatialEnvironment) {
+        ctx.spatialEnvironment.setWorldVisible(true);
+        ctx.spatialEnvironment.setReflectionVisible(true);
+        const warmTarget = new THREE.WebGLRenderTarget(1, 1);
+        const previousTarget = ctx.renderer.getRenderTarget();
+        try {
+          ctx.renderer.compile(ctx.scene, ctx.camera);
+          ctx.renderer.setRenderTarget(warmTarget);
+          ctx.spatialEnvironment.render(ctx.renderer, ctx.camera);
+          ctx.renderer.render(ctx.scene, ctx.camera);
+        } finally {
+          ctx.renderer.setRenderTarget(previousTarget);
+          warmTarget.dispose();
+          ctx.spatialEnvironment.setReflectionVisible(false);
+          ctx.spatialEnvironment.setWorldVisible(false);
+        }
+      }
       ctx.homeCapture?.bindScene({
         render: renderFrame,
         updateProgress: ctx.updateSceneProgress,
