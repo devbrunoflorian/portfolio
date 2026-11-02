@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="512" height="512" viewBox="0 0 64 64" role="img" aria-label="LinkedIn">
+<defs><linearGradient id="cyan" x1="0" y1="0" x2="0.2" y2="1"><stop offset="0" stop-color="#56D3EA"/><stop offset="1" stop-color="#087AB8"/></linearGradient></defs>
+<circle cx="13" cy="13" r="5.35" fill="url(#cyan)"/>
+<path fill="url(#cyan)" d="M8.0 24.0H18.0V56.0H8.0Z M25.0 24.0H34.6V28.5C37.0 25.3 40.7 23.3 45.0 23.3C54.2 23.3 58.0 29.0 58.0 39.0V56H47.8V40.6C47.8 34.9 46.5 32.4 42.5 32.4C38.0 32.4 35.3 35.6 35.3 40.8V56H25.0Z"/>
+</svg>

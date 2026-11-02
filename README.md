@@ -29,6 +29,8 @@ A bilingual portfolio for software engineering work, experiments, and ideas. Its
 
 The site uses static HTML, CSS, and JavaScript modules, with Three.js for the Home scene. It supports pointer and scroll interaction, keyboard navigation, reduced motion, and a static fallback when WebGL is unavailable.
 
+Contact Beta 1 uses five photographic atmospheres with optional, pausable transitions and a static fallback. Scene controls let visitors select an atmosphere; continuous rain, moving commuters, and audio are not implemented.
+
 ### Technologies
 
 `HTML` · `CSS` · `JavaScript ES modules` · `Three.js`<br />
@@ -39,6 +41,8 @@ The site uses static HTML, CSS, and JavaScript modules, with Three.js for the Ho
 Um portfólio bilíngue de engenharia de software, experimentos e ideias. A Home combina uma cena 3D inspirada no xadrez com projetos e laboratórios de engenharia.
 
 O site usa HTML, CSS e módulos JavaScript estáticos, com Three.js na cena da Home. Há interação por ponteiro e rolagem, navegação por teclado, suporte à preferência por movimento reduzido e apresentação estática alternativa quando o WebGL não está disponível.
+
+A Contact Beta 1 usa cinco atmosferas fotográficas, transições opcionais com pausa e fallback estático. Os controles da cena permitem escolher uma atmosfera; chuva contínua, passageiros em movimento e áudio ainda não estão implementados.
 
 ### Tecnologias
 

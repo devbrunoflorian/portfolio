@@ -1,0 +1,69 @@
+{
+  "version": 1,
+  "initial": "rainy",
+  "ambient": [
+    "rainy"
+  ],
+  "stills": {
+    "rainy": {
+      "label": {
+        "en": "Rainy · blue and emerald",
+        "pt": "Chuva · azul e esmeralda"
+      },
+      "desktop": "/assets/contact/stillflow/rainy.webp",
+      "mobile": "/assets/contact/stillflow/rainy-mobile.webp",
+      "width": 1672,
+      "height": 941,
+      "mobileWidth": 960,
+      "mobileHeight": 540
+    },
+    "overcast": {
+      "label": {
+        "en": "Overcast · after rain",
+        "pt": "Nublado · depois da chuva"
+      },
+      "desktop": "/assets/contact/stillflow/overcast.webp",
+      "mobile": "/assets/contact/stillflow/overcast-mobile.webp",
+      "width": 1672,
+      "height": 941,
+      "mobileWidth": 960,
+      "mobileHeight": 540
+    },
+    "sunny": {
+      "label": {
+        "en": "Sunny day",
+        "pt": "Dia ensolarado"
+      },
+      "desktop": "/assets/contact/stillflow/sunny.webp",
+      "mobile": "/assets/contact/stillflow/sunny-mobile.webp",
+      "width": 1672,
+      "height": 941,
+      "mobileWidth": 960,
+      "mobileHeight": 540
+    },
+    "golden": {
+      "label": {
+        "en": "Golden hour",
+        "pt": "Hora dourada"
+      },
+      "desktop": "/assets/contact/stillflow/golden.webp",
+      "mobile": "/assets/contact/stillflow/golden-mobile.webp",
+      "width": 1672,
+      "height": 941,
+      "mobileWidth": 960,
+      "mobileHeight": 540
+    },
+    "night": {
+      "label": {
+        "en": "Night",
+        "pt": "Noite"
+      },
+      "desktop": "/assets/contact/stillflow/night.webp",
+      "mobile": "/assets/contact/stillflow/night-mobile.webp",
+      "width": 1672,
+      "height": 941,
+      "mobileWidth": 960,
+      "mobileHeight": 540
+    }
+  }
+}

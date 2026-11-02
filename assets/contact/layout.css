@@ -1,0 +1,113 @@
+.contact-page {
+  --contact-cyan: #39c4eb;
+  --contact-emerald: #09d596;
+  --home-red: var(--contact-emerald);
+  --contact-gutter: max(5vw, calc((100vw - 1500px) / 2));
+}
+
+.contact-page :is(a, summary):focus-visible { outline-color: var(--contact-emerald); }
+
+/* The viewport defines the stage. The reference plane only locates geometry. */
+.contact-layout { position: relative; min-height: 720px; height: 100svh; height: 100dvh; isolation: isolate; }
+.contact-stage {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  overflow: hidden;
+  background: linear-gradient(90deg, #0b1720 0 50%, #0d1c18 50% 100%);
+}
+.contact-stage::before {
+  position: absolute;
+  inset: 0;
+  content: "";
+  background-image: linear-gradient(#ffffff05 1px, transparent 1px), linear-gradient(90deg, #ffffff05 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+.contact-reference-plane { position: absolute; top: 50%; left: 0; width: 100%; aspect-ratio: 1672 / 941; transform: translateY(-50%); outline: 1px dashed #bdcbd23b; }
+.contact-reference-plane svg { display: block; width: 100%; height: 100%; }
+.contact-guide { fill: #a8d9e605; stroke: #8fa9b065; stroke-width: 1; }
+.contact-guide--window { fill: #20a7d405; stroke: #39c4eb65; }
+.contact-guide--table { fill: #bfa27608; stroke: #bfa27666; }
+.contact-guide--object { fill: #9bb6bd09; stroke-dasharray: 5 5; }
+.contact-guide--headphones { stroke: #39c4eba6; }
+.contact-guide--right { stroke: #09d59680; }
+.contact-guide--chair { fill: #bba38509; stroke: #bba38566; }
+.contact-guide-label { fill: #b6c8ce; font: 12px ui-sans-serif, system-ui, sans-serif; letter-spacing: 1px; }
+.contact-guide-label--muted { fill: #94a8b0; }
+.contact-mobile-guide { display: none; }
+
+.contact-intro { position: absolute; top: clamp(140px, 17dvh, 200px); left: var(--contact-gutter); width: min(37vw, 600px); }
+.contact-kicker { display: flex; align-items: center; gap: 20px; margin: 0 0 26px; font-size: 12px; font-weight: 600; line-height: 1.4; letter-spacing: .18em; text-transform: uppercase; }
+.contact-kicker::after { width: 42px; height: 2px; background: var(--contact-emerald); content: ""; }
+.contact-title { max-width: none; margin: 0; color: #f5f5f6; font-size: clamp(3.25rem, 1rem + 3.3vw, 5rem); font-weight: 400; line-height: .98; letter-spacing: -.055em; text-transform: uppercase; }
+.contact-title span { display: block; color: inherit; }
+.contact-title strong { display: block; color: var(--contact-emerald); font-weight: inherit; }
+.contact-title--pt .contact-title-finish { white-space: nowrap; }
+.contact-title--pt strong { display: inline; }
+
+.contact-dock { position: absolute; left: 50%; right: auto; bottom: 6.5%; width: 50%; transform: translateX(-50%); }
+.contact-channel-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 0; padding: 0; list-style: none; }
+.contact-channel { --channel-light: 57 196 235; position: relative; color: #f1f1f2; font-size: 18px; font-weight: 500; }
+.contact-channel--email { --channel-light: 246 223 176; }
+.contact-channel--whatsapp { --channel-light: 9 213 150; }
+.contact-channel + .contact-channel::before { position: absolute; top: 12%; bottom: 12%; left: 0; width: 1px; content: ""; background: var(--contact-cyan); }
+.contact-channel + .contact-channel--whatsapp::before { background: var(--contact-emerald); }
+.contact-channel-link { position: relative; isolation: isolate; display: grid; justify-items: center; align-content: center; gap: 10px; min-height: 110px; color: inherit; text-decoration: none; }
+.contact-channel-link::before, .contact-channel-link::after { position: absolute; pointer-events: none; content: ""; }
+.contact-channel-link::before { z-index: -1; inset: -8px 6%; background: radial-gradient(ellipse at 50% 44%, rgb(var(--channel-light) / .14), transparent 65%); opacity: 0; }
+.contact-channel-link::after {
+  bottom: -6px;
+  left: 50%;
+  width: min(64%, 140px);
+  height: 12px;
+  transform: translateX(-50%);
+  background-image: radial-gradient(circle, #f5ffff 0 1.5px, rgb(var(--channel-light) / .95) 2.5px, transparent 4px), linear-gradient(90deg, transparent, rgb(var(--channel-light) / .9), transparent);
+  background-size: 12px 12px, 100% 1px;
+  background-position: center;
+  background-repeat: no-repeat;
+  filter: drop-shadow(0 0 4px rgb(var(--channel-light) / .65));
+  opacity: .65;
+}
+.contact-page .contact-channel-link:focus-visible { outline: 2px solid rgb(var(--channel-light)); outline-offset: 6px; }
+.contact-channel-link:is(:focus-visible, :active)::before, .contact-channel-link:is(:focus-visible, :active)::after { opacity: 1; }
+.contact-channel img { display: block; width: 58px; height: 58px; object-fit: contain; }
+
+@media (hover: hover) and (pointer: fine) {
+  .contact-channel-link:hover::before, .contact-channel-link:hover::after { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: no-preference) and (hover: hover) and (pointer: fine) {
+  .contact-channel-link:hover img { transform: translateY(-2px); }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .contact-channel-link::before, .contact-channel-link::after { transition: opacity 180ms ease-out; }
+  .contact-channel img { transition: transform 180ms ease-out; }
+  .contact-channel-link:focus-visible img { transform: translateY(-2px); }
+  .contact-channel-link:active img { transform: scale(.96); }
+}
+
+.contact-layout-notes { position: absolute; top: 100px; right: var(--contact-gutter); max-width: 490px; color: #bdccd1; text-align: right; font-size: 11px; line-height: 1.65; }
+.contact-layout-notes p { margin: 0; }
+.contact-layout-notes strong { color: #ecf4f5; font-weight: 600; }
+.contact-layout-notes output { display: block; font-variant-numeric: tabular-nums; }
+.contact-layout-notes .contact-layout-disclaimer { margin-top: 7px; color: #9fb2ba; }
+
+@media (max-width: 840px) {
+  .contact-layout { display: grid; grid-template-areas: "intro" "scene" "dock"; grid-template-rows: auto auto auto; height: auto; min-height: 0; padding-top: 96px; }
+  .contact-intro { position: static; grid-area: intro; width: auto; margin: 0 20px 28px; text-align: center; }
+  .contact-kicker { justify-content: center; gap: 12px; margin-bottom: 18px; font-size: 10px; }
+  .contact-kicker::after { width: 26px; }
+  .contact-title { font-size: clamp(1.5rem, .4rem + 6vw, 3rem); line-height: 1.06; letter-spacing: -.05em; }
+  .contact-title-finish { white-space: nowrap; }
+  .contact-title-finish span, .contact-title-finish strong { display: inline; }
+  .contact-stage { position: relative; z-index: auto; grid-area: scene; height: clamp(330px, 44svh, 420px); }
+  .contact-reference-plane { display: none; }
+  .contact-mobile-guide { position: absolute; inset: 12% 8%; display: grid; place-content: center; gap: 10px; border: 1px dashed #8fa9b065; color: #b6c8ce; text-align: center; font-size: 11px; letter-spacing: .08em; line-height: 1.5; }
+  .contact-mobile-guide span { color: #94a8b0; font-size: 10px; }
+  .contact-dock { position: static; left: auto; right: auto; grid-area: dock; width: auto; margin: 20px 16px 28px; transform: none; }
+  .contact-channel { font-size: 13px; }
+  .contact-channel-link { min-height: 88px; gap: 9px; }
+  .contact-channel img { width: 36px; height: 36px; }
+  .contact-layout-notes { display: none; }
+}
