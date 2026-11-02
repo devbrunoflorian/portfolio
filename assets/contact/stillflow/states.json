@@ -15,7 +15,11 @@
       "width": 1672,
       "height": 941,
       "mobileWidth": 960,
-      "mobileHeight": 540
+      "mobileHeight": 540,
+      "clear": {
+        "desktop": "/assets/contact/stillflow/clear/rainy.webp",
+        "mobile": "/assets/contact/stillflow/clear/rainy-mobile.webp"
+      }
     },
     "overcast": {
       "label": {
@@ -27,7 +31,11 @@
       "width": 1672,
       "height": 941,
       "mobileWidth": 960,
-      "mobileHeight": 540
+      "mobileHeight": 540,
+      "clear": {
+        "desktop": "/assets/contact/stillflow/clear/overcast.webp",
+        "mobile": "/assets/contact/stillflow/clear/overcast-mobile.webp"
+      }
     },
     "sunny": {
       "label": {
@@ -39,7 +47,11 @@
       "width": 1672,
       "height": 941,
       "mobileWidth": 960,
-      "mobileHeight": 540
+      "mobileHeight": 540,
+      "clear": {
+        "desktop": "/assets/contact/stillflow/clear/sunny.webp",
+        "mobile": "/assets/contact/stillflow/clear/sunny-mobile.webp"
+      }
     },
     "golden": {
       "label": {
@@ -51,7 +63,11 @@
       "width": 1672,
       "height": 941,
       "mobileWidth": 960,
-      "mobileHeight": 540
+      "mobileHeight": 540,
+      "clear": {
+        "desktop": "/assets/contact/stillflow/clear/golden.webp",
+        "mobile": "/assets/contact/stillflow/clear/golden-mobile.webp"
+      }
     },
     "night": {
       "label": {
@@ -63,7 +79,11 @@
       "width": 1672,
       "height": 941,
       "mobileWidth": 960,
-      "mobileHeight": 540
+      "mobileHeight": 540,
+      "clear": {
+        "desktop": "/assets/contact/stillflow/clear/night.webp",
+        "mobile": "/assets/contact/stillflow/clear/night-mobile.webp"
+      }
     }
   }
 }

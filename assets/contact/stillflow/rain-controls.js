@@ -23,6 +23,11 @@ export async function mountRainControls({ stage, player, panel, parameters, vali
     <div class="sf-control-actions"><button type="button" data-rain-dry>Rain → post-rain</button><button type="button" data-rain-inspect>Inspect droplets</button></div>
     <output data-rain-stats></output>`;
   panel.querySelector('.sf-control-panel').append(field);
+  if(stage.dataset.sfGlass==='clear') {
+    field.querySelector('p').textContent=pt
+      ? 'Vidro limpo em revisão. Gotas e rastros são independentes; o efeito usa transparência, sem refração real.'
+      : 'Clean glass under review. Droplets and trails are independent; the effect uses transparency, not real refraction.';
+  }
   const enabled=field.querySelector('[data-rain-enabled]');
   const mask=field.querySelector('[data-rain-mask]');
   enabled.checked=rain.enabled;

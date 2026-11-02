@@ -23,6 +23,13 @@ if (parameters.get('clean') === '1') document.body.classList.add('sf-clean');
 const manifestPromise = fetch('/assets/contact/stillflow/states.json').then(response => {
   if (!response.ok) throw new Error('Manifest unavailable');
   return response.json();
+}).then(manifest => {
+  if (reviewing) {
+    for (const still of Object.values(manifest.stills)) {
+      if (still.clear) Object.assign(still, still.clear);
+    }
+  }
+  return manifest;
 });
 let scene;
 let controls;
