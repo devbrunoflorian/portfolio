@@ -23,12 +23,12 @@ export class RainModel {
       const x = this.random() * 1340;
       const y = this.random() * 670;
       if (!this.contains(x, y)) continue;
-      const r = 1 + this.random() * 1.65;
+      const r = 1.8 + this.random() * 3.2;
       this.drops.push({
         x, y, r, age: 0, life: 12 + this.random() * 20,
-        wait: this.random() < .26 ? 1.5 + this.random() * 9 : Infinity,
-        speed: 10 + this.random() * 32, phase: this.random() * Math.PI * 2,
-        path: 0, opacity: .38 + this.random() * .5,
+        wait: this.random() < .32 ? .8 + this.random() * 5.5 : Infinity,
+        speed: 6 + this.random() * 18, phase: this.random() * Math.PI * 2,
+        path: 0, trailX: x, trailY: y, opacity: .58 + this.random() * .36,
       });
       this.births++;
       return;
@@ -52,13 +52,14 @@ export class RainModel {
       d.age += dt;
       if (target === 0) d.life = Math.min(d.life, d.age + 5.5);
       if (d.age > d.wait) {
-        const previous = { x: d.x, y: d.y };
         const speed = d.speed * (.7 + .3 * Math.sin(d.age * .8 + d.phase)) * Math.min(1, (d.age - d.wait) / 2);
         d.x += Math.sin(d.age * 1.1 + d.phase) * dt * 2;
         d.y += speed * dt;
         d.path += speed * dt;
-        if (d.path > 6) {
-          this.trails.push({ x: previous.x, y: previous.y - Math.min(d.path, 6), x2:d.x, y2:d.y, age:0, life:2.2 + this.random() * 2, width:d.r * .42 });
+        if (d.path > 10) {
+          this.trails.push({ x:d.trailX, y:d.trailY, x2:d.x, y2:d.y, age:0, life:2.2 + this.random() * 2, width:d.r * .28 });
+          d.trailX = d.x;
+          d.trailY = d.y;
           d.path = 0;
         }
       }

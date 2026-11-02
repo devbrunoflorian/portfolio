@@ -55,12 +55,12 @@ export class WindowRain {
   makeDrop() {
     const sprite = document.createElement('canvas'); sprite.width=32; sprite.height=42;
     const c = sprite.getContext('2d');
-    c.beginPath(); c.moveTo(16,4); c.bezierCurveTo(26,10,29,30,18,37); c.bezierCurveTo(5,39,5,19,16,4);
+    c.beginPath(); c.moveTo(16,3); c.bezierCurveTo(27,11,30,31,18,39); c.bezierCurveTo(4,40,4,18,16,3);
     const gradient = c.createLinearGradient(7,8,26,35);
-    gradient.addColorStop(0,'rgba(179,220,237,.42)'); gradient.addColorStop(.28,'rgba(16,47,64,.12)'); gradient.addColorStop(.72,'rgba(7,17,25,.28)'); gradient.addColorStop(1,'rgba(174,211,226,.26)');
+    gradient.addColorStop(0,'rgba(214,241,250,.7)'); gradient.addColorStop(.28,'rgba(29,64,81,.22)'); gradient.addColorStop(.72,'rgba(7,17,25,.32)'); gradient.addColorStop(1,'rgba(190,226,240,.5)');
     c.fillStyle=gradient; c.fill();
-    c.strokeStyle='rgba(7,23,32,.3)'; c.lineWidth=1.3; c.stroke();
-    c.beginPath(); c.moveTo(14,10); c.quadraticCurveTo(9,17,10,23); c.strokeStyle='rgba(218,240,248,.55)'; c.lineWidth=1.5; c.stroke();
+    c.strokeStyle='rgba(7,23,32,.5)'; c.lineWidth=1.6; c.stroke();
+    c.beginPath(); c.moveTo(14,9); c.quadraticCurveTo(8,17,10,25); c.strokeStyle='rgba(232,248,255,.82)'; c.lineWidth=1.8; c.stroke();
     return sprite;
   }
 
@@ -153,13 +153,13 @@ export class WindowRain {
     c.setTransform(scale,0,0,scale,this.offsetX*this.pixelRatio,0);
     for(const trail of this.model.trails) {
       c.beginPath();c.moveTo(trail.x,trail.y);c.lineTo(trail.x2,trail.y2);
-      c.strokeStyle=`rgba(119,170,193,${.065*(1-trail.age/trail.life)**2})`;c.lineWidth=trail.width;c.lineCap='round';c.stroke();
+      c.strokeStyle=`rgba(154,204,224,${.11*(1-trail.age/trail.life)**2})`;c.lineWidth=trail.width;c.lineCap='round';c.stroke();
     }
     const light=this.player.stateId==='sunny' || this.player.stateId==='golden' ? .65 : 1;
     for(const d of this.model.drops) {
-      c.globalAlpha=Math.min(1,d.age/.7,Math.max(0,(d.life-d.age)/2))*d.opacity*light;
+      c.globalAlpha=Math.min(1,d.age/.55,Math.max(0,(d.life-d.age)/2))*d.opacity*light;
       const sliding=d.age>d.wait?1.25:1;
-      c.drawImage(this.sprite,d.x-d.r,d.y-d.r*sliding,d.r*2,d.r*2.6*sliding);
+      c.drawImage(this.sprite,d.x-d.r*1.35,d.y-d.r*1.8*sliding,d.r*2.7,d.r*3.6*sliding);
     }
     c.globalAlpha=1;c.setTransform(1,0,0,1,0,0);
     c.globalCompositeOperation='destination-in';c.drawImage(this.mask,0,0);c.globalCompositeOperation='source-over';

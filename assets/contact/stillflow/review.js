@@ -24,7 +24,7 @@ const manifestPromise = fetch('/assets/contact/stillflow/states.json').then(resp
   if (!response.ok) throw new Error('Manifest unavailable');
   return response.json();
 }).then(manifest => {
-  if (reviewing) {
+  if (reviewing || document.body.classList.contains('sf-public')) {
     for (const still of Object.values(manifest.stills)) {
       if (still.clear) Object.assign(still, still.clear);
     }
@@ -140,6 +140,21 @@ async function mount() {
         window.contactStillflow.rain = rainControls.rain;
       } catch {
         // An optional rain proof failure must not disable photographic controls or links.
+        panel.dataset.rainUnavailable = 'true';
+      }
+    } else if (document.body.classList.contains('sf-public')) {
+      try {
+        const { WindowRain } = await import('./window-rain.js');
+        if (version !== epoch) return;
+        const rain = await WindowRain.create({
+          stage,
+          player: scene,
+          seed: Number(parameters.get('rainSeed') || 42),
+          enabled: true,
+        });
+        if (version !== epoch) { rain.dispose(); return; }
+        rainControls = { rain, dispose: () => rain.dispose() };
+      } catch {
         panel.dataset.rainUnavailable = 'true';
       }
     }
