@@ -3,45 +3,6 @@
 
 @media (max-width: 640px), (max-width: 900px) and (orientation: landscape) and (max-height: 520px) {
   .home-page:not(.knight-debug) { --mobile-gutter: clamp(20px, 6vw, 28px); --mobile-header-height: 64px; }
-  .home-page:not(.knight-debug) .home-header {
-    grid-template-columns: minmax(0, 1fr) auto auto;
-    gap: 8px;
-    width: calc(100% - var(--mobile-gutter) * 2);
-    min-height: var(--mobile-header-height);
-    background: linear-gradient(180deg, #070809 70%, rgba(7, 8, 9, .94));
-  }
-  .home-page:not(.knight-debug) .home-header .brand { min-height: 44px; font-size: clamp(17px, 4.8vw, 20px); white-space: nowrap; }
-  .home-page:not(.knight-debug) .home-header .brand span { margin-left: 5px; }
-  .home-page:not(.knight-debug) .home-header .desktop-nav { display: none; }
-  .home-page:not(.knight-debug) .home-header .locale-nav { display: flex; gap: 0; padding: 0; border: 0; }
-  .home-page:not(.knight-debug) .home-header .locale-nav a { justify-content: center; min-width: 44px; min-height: 44px; font-size: 11px; }
-  .home-page:not(.knight-debug) .home-header .mobile-menu { display: block; position: static; }
-  .home-page:not(.knight-debug) .menu-toggle { position: relative; display: inline-flex; align-items: center; justify-content: center; min-width: 44px; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 0; color: #f4f4f5; list-style: none; cursor: pointer; }
-  .home-page:not(.knight-debug) .menu-toggle::-webkit-details-marker { display: none; }
-  .home-page:not(.knight-debug) .menu-toggle:focus-visible { outline: 2px solid #ff6874; outline-offset: 3px; }
-  .home-page:not(.knight-debug) .menu-toggle > span:last-child { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-  .home-page:not(.knight-debug) .menu-icon,
-  .home-page:not(.knight-debug) .menu-icon::before,
-  .home-page:not(.knight-debug) .menu-icon::after { display: block; width: 23px; height: 1px; background: currentColor; }
-  .home-page:not(.knight-debug) .menu-icon { position: relative; }
-  .home-page:not(.knight-debug) .menu-icon::before,
-  .home-page:not(.knight-debug) .menu-icon::after { position: absolute; left: 0; content: ""; }
-  .home-page:not(.knight-debug) .menu-icon::before { top: -7px; }
-  .home-page:not(.knight-debug) .menu-icon::after { top: 7px; }
-  .home-page:not(.knight-debug) .mobile-menu[open] .menu-icon { background: transparent; }
-  .home-page:not(.knight-debug) .mobile-menu[open] .menu-icon::before { top: 0; transform: rotate(45deg); }
-  .home-page:not(.knight-debug) .mobile-menu[open] .menu-icon::after { top: 0; transform: rotate(-45deg); }
-  .home-page:not(.knight-debug) .mobile-menu-panel {
-    position: absolute;
-    top: 100%; right: calc(var(--mobile-gutter) * -1); left: calc(var(--mobile-gutter) * -1);
-    width: auto; max-height: calc(100svh - var(--mobile-header-height)); overflow-y: auto;
-    padding: 16px var(--mobile-gutter) 22px;
-    border: 0; border-bottom: 1px solid rgba(255, 255, 255, .12); border-radius: 0;
-    background: #090a0c; box-shadow: 0 20px 40px rgba(0, 0, 0, .4);
-  }
-  .home-page:not(.knight-debug) .mobile-nav { display: grid; }
-  .home-page:not(.knight-debug) .mobile-nav a,
-  .home-page:not(.knight-debug) .mobile-github { display: flex; align-items: center; min-height: 48px; padding: 0; text-decoration: none; color: #d5d5d9; }
   .home-page:not(.knight-debug) .hero-track { height: auto; min-height: 0; }
   .home-page:not(.knight-debug) .hero-screen {
     position: relative; height: auto; min-height: 0; overflow: visible;

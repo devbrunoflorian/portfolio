@@ -9,29 +9,9 @@
 }
 .projects-body [hidden] { display: none !important; }
 .projects-body .skip-link { z-index: 60; }
-.projects-header {
-  position: fixed;
-  z-index: 50;
-  inset: 0 0 auto;
-  width: 100%;
-  min-height: 64px;
-  padding: 8px clamp(20px, 3.2vw, 52px);
-  border-bottom: 1px solid rgba(154, 213, 223, .1);
-  background: linear-gradient(180deg, rgba(3, 6, 9, .92), rgba(3, 6, 9, .18));
-  -webkit-backdrop-filter: blur(13px);
-  backdrop-filter: blur(13px);
-}
-.projects-header .brand { color: #f4f7fc; font-size: 14px; font-weight: 550; }
-.projects-header .brand span { color: #f05b65; }
-.projects-header .primary-nav { gap: clamp(12px, 2.3vw, 34px); }
-.projects-header .primary-nav a, .projects-header .locale-nav a { min-height: 44px; color: rgba(229, 237, 249, .73); font-size: 12px; letter-spacing: .025em; }
-.projects-header .locale-nav { gap: 8px; padding-left: 14px; border-color: rgba(190, 214, 248, .17); }
-.projects-header .locale-nav a[aria-current="page"] { color: #fff; text-decoration-color: var(--project-cyan); }
-.projects-header .mobile-menu { display: none; }
 .project-intro::before { position: absolute; z-index: -1; inset: -25px -50px -22px -22px; content: ""; background: linear-gradient(90deg, rgba(3, 6, 9, .93), rgba(3, 6, 9, .76) 66%, transparent); pointer-events: none; }
 .project-intro h1 { max-width: 340px; margin: 0; color: #f4f7fc; font-size: clamp(42px, 4.35vw, 64px); font-weight: 450; letter-spacing: -.075em; line-height: .99; }
 .project-intro h1 strong { color: var(--project-cyan); font-weight: 450; }
-.projects-header .primary-nav a[aria-current="page"] { text-decoration-color: var(--project-cyan); }
 .projects-main { position: relative; display: block; width: 100%; height: 100svh; min-height: 680px; overflow: hidden; padding: 0; isolation: isolate; background: radial-gradient(ellipse at 54% 43%, rgba(11, 78, 103, .32), transparent 42%), radial-gradient(ellipse at 54% 96%, rgba(7, 95, 119, .22), transparent 38%), linear-gradient(105deg, #030609 5%, #03090d 56%, #040b11); }
 .projects-atmosphere { position: absolute; z-index: -1; inset: 0; overflow: hidden; pointer-events: none; }
 .projects-atmosphere span, .projects-atmosphere i, .projects-atmosphere b { position: absolute; display: block; border: 1px solid rgba(53, 211, 225, .085); border-radius: 50%; transform: rotate(-10deg); }
@@ -140,19 +120,6 @@
 .projects-footer a { color: rgba(194, 210, 229, .62); }
 
 @media (max-width: 780px) {
-  .projects-header { min-height: 60px; padding-inline: 18px; }
-  .projects-header .desktop-nav { display: none; }
-  .projects-header .locale-nav { position: absolute; top: 8px; right: 18px; gap: 7px; padding: 0; border: 0; }
-  .projects-header .locale-nav a { min-height: 40px; font-size: 10px; }
-  .projects-header .mobile-menu { display: block; position: absolute; top: 8px; right: 76px; }
-  .projects-header .menu-toggle { display: flex; min-height: 40px; align-items: center; gap: 7px; padding: 0 9px; border: 1px solid rgba(193, 216, 246, .2); border-radius: 999px; color: #e9f2fc; cursor: pointer; font-size: 10px; list-style: none; }
-  .projects-header .menu-toggle::-webkit-details-marker { display: none; }
-  .projects-header .menu-icon { display: inline-block; width: 12px; height: 8px; border-top: 1px solid currentColor; border-bottom: 1px solid currentColor; }
-  .projects-header .mobile-menu-panel { position: absolute; top: 48px; right: -58px; display: grid; width: min(270px, calc(100vw - 28px)); gap: 12px; padding: 16px; border: 1px solid rgba(164, 203, 249, .2); border-radius: 12px; background: rgba(5, 12, 22, .97); box-shadow: 0 18px 45px rgba(0, 0, 0, .55); }
-  .projects-header .mobile-nav { display: grid; gap: 2px; }
-  .projects-header .mobile-nav a, .projects-header .mobile-github { display: flex; min-height: 42px; align-items: center; padding-inline: 9px; color: #dbe7f7; font-size: 13px; text-decoration: none; }
-  .projects-header .mobile-nav a[aria-current="page"] { color: #fff; }
-  .projects-header .mobile-github { border-top: 1px solid rgba(180, 207, 238, .13); color: #98e6ef; }
   .projects-main { min-height: 720px; }
   .project-intro { top: 83px; left: 22px; width: min(77vw, 300px); }
   .projects-eyebrow { gap: 7px; margin-bottom: 11px; font-size: 8px; letter-spacing: .13em; }

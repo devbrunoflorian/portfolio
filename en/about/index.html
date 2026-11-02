@@ -8,15 +8,30 @@
     <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg" />
     <title>About | Bruno Florian</title>
     <link rel="stylesheet" href="/assets/site.css" />
+    <link rel="stylesheet" href="/assets/site-header.css?v=shared-header-64" />
     <script src="/assets/locale.js" defer></script>
   </head>
   <body>
     <a class="skip-link" href="#main-content">Skip to content</a>
     <div class="site-shell">
-      <header class="site-header"><a class="brand" href="/en/" aria-label="Bruno Florian, home">Bruno Florian<span aria-hidden="true">.</span></a><div class="header-actions">
-        <nav class="primary-nav" aria-label="Primary navigation"><a href="/en/">Home</a><a href="/en/about/" aria-current="page">About</a><a href="/en/labs/">Labs</a><a href="/en/projects/">Projects</a><a href="/en/contact/">Contact</a></nav>
-        <nav class="locale-nav" aria-label="Language"><a href="/pt-br/sobre/" data-locale-choice="pt-br" lang="pt-BR">PT</a><a href="/en/about/" data-locale-choice="en" aria-current="page" lang="en">EN</a></nav>
-      </div></header>
+      <header class="site-header">
+        <a class="brand" href="/en/" aria-label="Bruno Florian, home">Bruno Florian<span aria-hidden="true">.</span></a>
+        <nav class="primary-nav desktop-nav" aria-label="Primary navigation">
+          <a href="/en/">Home</a><a href="/en/about/" aria-current="page">About</a><a href="/en/labs/">Labs</a><a href="/en/projects/">Projects</a><a href="/en/contact/">Contact</a>
+        </nav>
+        <nav class="locale-nav" aria-label="Language">
+          <a href="/pt-br/sobre/" data-locale-choice="pt-br" lang="pt-BR">PT</a><a href="/en/about/" data-locale-choice="en" aria-current="page" lang="en">EN</a>
+        </nav>
+        <details class="mobile-menu">
+          <summary class="menu-toggle" aria-label="Menu"><span class="menu-icon" aria-hidden="true"></span><span>Menu</span></summary>
+          <div class="mobile-menu-panel">
+            <nav class="mobile-nav" aria-label="Primary navigation">
+              <a href="/en/">Home</a><a href="/en/about/" aria-current="page">About</a><a href="/en/labs/">Labs</a><a href="/en/projects/">Projects</a><a href="/en/contact/">Contact</a>
+            </nav>
+            <a class="mobile-github" href="https://github.com/devbrunoflorian" target="_blank" rel="noopener noreferrer">GitHub ↗</a>
+          </div>
+        </details>
+      </header>
       <main id="main-content" tabindex="-1"><p class="eyebrow">Professional profile</p><h1>About</h1><p class="placeholder-copy">Professional content for this section is awaiting editorial review and approval.</p></main>
       <footer class="site-footer"><span>© 2026 Bruno Florian</span><nav aria-label="External profiles"><a href="https://github.com/devbrunoflorian" target="_blank" rel="noopener noreferrer">GitHub</a><a href="https://github.com/engineering-proof-labs" target="_blank" rel="noopener noreferrer">Engineering Labs</a></nav></footer>
     </div>
