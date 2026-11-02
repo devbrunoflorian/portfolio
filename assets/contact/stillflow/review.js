@@ -26,6 +26,7 @@ const manifestPromise = fetch('/assets/contact/stillflow/states.json').then(resp
 });
 let scene;
 let controls;
+let rainControls;
 let epoch = 0;
 
 async function mount() {
@@ -51,6 +52,7 @@ async function mount() {
       frames: [...stage.querySelectorAll('[data-sf-frame]')], manifest,
       onError: () => { status.textContent = copy.error; },
       onChange: state => {
+        rainControls?.rain.sync();
         stage.dataset.sfPhase = state.phase;
         stage.dataset.sfState = state.stateId;
         stage.dataset.sfPaused = String(state.paused);
@@ -121,6 +123,19 @@ async function mount() {
     });
     if (reviewing) window.contactStillflow = { player: scene, manifest };
     scene.emit();
+    if (reviewing) {
+      try {
+        const { mountRainControls } = await import('./rain-controls.js');
+        if (version !== epoch) return;
+        const mountedControls = await mountRainControls({stage,player:scene,panel,parameters,valid:()=>version===epoch});
+        if (version !== epoch) { mountedControls?.dispose(); return; }
+        rainControls = mountedControls;
+        window.contactStillflow.rain = rainControls.rain;
+      } catch {
+        // An optional rain proof failure must not disable photographic controls or links.
+        panel.dataset.rainUnavailable = 'true';
+      }
+    }
     if (reviewing && parameters.get('autoplay') === '1') scene.startAuto({ seed: Number(parameters.get('seed') || 42) });
   } catch (error) {
     if (version === epoch && error.name !== 'AbortError') {
@@ -136,6 +151,8 @@ async function mount() {
 window.addEventListener('pagehide', () => {
   epoch++;
   controls?.abort();
+  rainControls?.dispose();
+  rainControls = undefined;
   scene?.dispose();
 });
 window.addEventListener('pageshow', event => { if (event.persisted) void mount(); });

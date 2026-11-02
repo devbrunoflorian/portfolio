@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1672 941" width="1672" height="941">
+  <title>SF01 camera: safe visible glass apertures</title>
+  <desc>Hand-traced in the unchanged 1672 by 941 rainy master. Insets protect frame edges; black shapes exclude the laptop, headphone, station sign, steam and plant. Interface exclusion is applied separately at runtime.</desc>
+  <defs>
+    <mask id="visible-glass" maskUnits="userSpaceOnUse" x="0" y="0" width="1672" height="941">
+      <g fill="white">
+        <path id="left-pane" d="M0 0H708L706 562L0 672Z"/>
+        <path id="middle-pane" d="M738 0H1027L1026 515L738 557Z"/>
+        <path id="right-pane" d="M1057 0H1337L1336 467C1253 452 1120 478 1057 502Z"/>
+      </g>
+      <g fill="black">
+        <path id="workstation" d="M422 396L699 402L752 624L915 614L930 655L743 679L443 669Z"/>
+        <path id="headphones" d="M294 621Q304 578 416 568Q469 557 509 583Q550 610 553 657L545 702L291 703Z"/>
+        <path id="station-display" d="M1080 46L1305 20L1316 157L1081 184Z"/>
+        <path id="display-hanger" d="M1163 0H1183V64H1163ZM1261 0H1280V37H1261Z"/>
+        <path id="baked-steam" d="M924 447Q979 431 991 477L1002 547L913 552L914 479Z"/>
+        <path id="plant" d="M1326 337Q1286 337 1273 372Q1227 357 1223 393Q1183 392 1186 429Q1210 453 1242 462Q1236 501 1278 532L1378 550L1391 335Z"/>
+      </g>
+    </mask>
+  </defs>
+  <path fill="white" mask="url(#visible-glass)" d="M0 0H1672V941H0Z"/>
+</svg>
