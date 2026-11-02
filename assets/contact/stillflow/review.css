@@ -33,6 +33,11 @@
 .sf-rain-controls { display: grid; gap: 10px; margin: 0; padding: 12px; border: 1px solid #40615c; }
 .sf-rain-controls legend { padding: 0 6px; }
 .sf-rain-controls p { font-size: 11px; color: #adc4bb; }
+
+.sf-scheduler-controls { display: grid; gap: 10px; margin: 0; padding: 12px; border: 1px solid #40615c; }
+.sf-scheduler-controls legend { padding: 0 6px; }
+.sf-scheduler-controls p { margin: 0; font-size: 11px; color: #adc4bb; }
+.sf-scheduler-controls output { display: block; min-block-size: 3em; }
 .sf-rain-controls label:has([type="checkbox"]) { display: flex; align-items: center; gap: 8px; }
 .sf-rain-controls [type="checkbox"] { width: 20px; accent-color: var(--contact-emerald); }
 .sf-controls[open] .sf-control-panel { max-height: calc(100dvh - 110px); overflow-y: auto; overscroll-behavior: contain; }

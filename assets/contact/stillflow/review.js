@@ -34,6 +34,7 @@ const manifestPromise = fetch('/assets/contact/stillflow/states.json').then(resp
 let scene;
 let controls;
 let rainControls;
+let schedulerControls;
 let epoch = 0;
 
 async function mount() {
@@ -77,7 +78,7 @@ async function mount() {
         }
         const reduced = state.pauseReasons.includes('reduced-motion');
         pause.disabled = reduced;
-        pause.setAttribute('aria-pressed', String(state.pauseReasons.includes('manual')));
+        pause.setAttribute('aria-pressed', String(state.pauseReasons.includes('manual') || state.pauseReasons.includes('scheduler:manual')));
         automatic.disabled = reduced || manifest.ambient.length < 2;
         automatic.hidden = manifest.ambient.length < 2;
         automatic.setAttribute('aria-pressed', String(state.automatic));
@@ -119,7 +120,10 @@ async function mount() {
     listen('[data-sf-mix]', 'click', () => compare(.5));
     listen('[data-sf-show]', 'click', () => { void scene.show(select.value); });
     listen('[data-sf-reset]', 'click', () => { select.value = manifest.initial; void scene.show(manifest.initial); });
-    listen('[data-sf-pause]', 'click', () => scene.setPaused(!scene.pauses.has('manual')));
+    listen('[data-sf-pause]', 'click', () => {
+      if (schedulerControls?.scheduler?.running) schedulerControls.scheduler.togglePause();
+      else scene.setPaused(!scene.pauses.has('manual'));
+    });
     listen('[data-sf-scrub]', 'input', () => { scene.setPaused(true); scene.seek(Number(scrub.value) / 100); });
     listen('[data-sf-auto]', 'click', () => {
       if (scene.autoController) scene.stopAuto();
@@ -158,6 +162,26 @@ async function mount() {
         panel.dataset.rainUnavailable = 'true';
       }
     }
+    if (reviewing && parameters.get('schedule') === '1') {
+      try {
+        const { mountSceneScheduler } = await import('./scene-scheduler.js');
+        if (version !== epoch) return;
+        const mountedControls = await mountSceneScheduler({
+          stage,
+          panel,
+          player: scene,
+          rain: rainControls?.rain,
+          manifest,
+          parameters,
+          valid: () => version === epoch,
+        });
+        if (version !== epoch) { mountedControls?.dispose(); return; }
+        schedulerControls = mountedControls;
+        window.contactStillflow.scheduler = schedulerControls?.scheduler;
+      } catch {
+        panel.dataset.schedulerUnavailable = 'true';
+      }
+    }
     if (reviewing && parameters.get('autoplay') === '1') scene.startAuto({ seed: Number(parameters.get('seed') || 42) });
   } catch (error) {
     if (version === epoch && error.name !== 'AbortError') {
@@ -173,6 +197,8 @@ async function mount() {
 window.addEventListener('pagehide', () => {
   epoch++;
   controls?.abort();
+  schedulerControls?.dispose();
+  schedulerControls = undefined;
   rainControls?.dispose();
   rainControls = undefined;
   scene?.dispose();
