@@ -1,0 +1,21 @@
+.sf-coffee-steam {
+  position: absolute;
+  z-index: 3;
+  display: block;
+  pointer-events: none;
+}
+
+.sf-frame::after {
+  position: absolute;
+  inset: 0;
+  content: '';
+  pointer-events: none;
+  background-position: center top;
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+.sf-frame[data-sf-state='rainy']::after { background-image: url('./steam-clean-patches/rainy.png'); }
+.sf-frame[data-sf-state='overcast']::after { background-image: url('./steam-clean-patches/overcast.png'); }
+.sf-frame[data-sf-state='sunny']::after { background-image: url('./steam-clean-patches/sunny.png'); }
+.sf-frame[data-sf-state='golden']::after { background-image: url('./steam-clean-patches/golden.png'); }
+.sf-frame[data-sf-state='night']::after { background-image: url('./steam-clean-patches/night.png'); }

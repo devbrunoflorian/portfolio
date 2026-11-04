@@ -92,12 +92,14 @@ export class StillflowPlayer {
   setSource(frame, id) {
     const still = this.manifest.stills[id];
     if (!Object.hasOwn(this.manifest.stills, id)) throw new TypeError(`Unknown still: ${id}`);
+    frame.dataset.sfState = id;
     frame.querySelector('source').srcset = still.mobile;
     frame.querySelector('img').src = still.desktop;
   }
 
   clearFrame(frame) {
     frame.style.opacity = '0';
+    frame.removeAttribute('data-sf-state');
     frame.querySelector('source').removeAttribute('srcset');
     frame.querySelector('img').removeAttribute('src');
   }
