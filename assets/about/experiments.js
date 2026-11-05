@@ -34,7 +34,6 @@ export function mountExperiments(root, audio, isPortuguese) {
   }
   noteButtons.forEach(button => button.addEventListener("click", () => resonate(button, [Number(button.dataset.note)], button.querySelector("span:not(.note-glyph)").textContent), { signal }));
   chordButtons.forEach(button => button.addEventListener("click", () => {
-    chordButtons.forEach(other => other.setAttribute("aria-pressed", String(other === button)));
     resonate(button, harmonyNotes[button.dataset.chord], button.textContent);
   }, { signal }));
   instrument.addEventListener("keydown", event => {

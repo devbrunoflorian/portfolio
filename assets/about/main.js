@@ -1,6 +1,7 @@
 import { score } from "./score.js";
 import { createJourneyAudio } from "./audio.js";
 import { mountExperiments } from "./experiments.js";
+import { createScoreVisual } from "./score-visual.js";
 
 const root = document.querySelector(".about-main");
 const isPortuguese = document.documentElement.lang === "pt-BR";
@@ -27,6 +28,7 @@ const audio = createJourneyAudio(score, status => {
     : labels[status.state] ?? labels.off;
 });
 const experiments = mountExperiments(root, audio, isPortuguese);
+const visual = createScoreVisual(root, score);
 const controller = new AbortController();
 const { signal } = controller;
 soundButton.addEventListener("click", () => audio.enabled ? audio.pause() : audio.start(), { signal });
@@ -45,7 +47,20 @@ const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)");
 const finePointer = matchMedia("(pointer: fine)");
 let motionPaused = reduceMotion.matches;
 let pointerFrame = 0;
+let sceneFrame = 0;
 let desiredPointer = { x: 0, y: 0 };
+function paintScenes() {
+  sceneFrame = 0;
+  for (const host of root.querySelectorAll("[data-score-scene]")) {
+    const bounds = host.closest("section").getBoundingClientRect();
+    if (bounds.bottom < 0 || bounds.top > innerHeight) continue;
+    const progress = Math.max(0, Math.min(1, (innerHeight - bounds.top) / (innerHeight + bounds.height)));
+    visual.update({ chapter: host.dataset.scoreScene, progress, motionEnabled: !motionPaused && !reduceMotion.matches, playbackSnapshot: null });
+  }
+}
+function requestScene() {
+  if (!sceneFrame && !document.hidden) sceneFrame = requestAnimationFrame(paintScenes);
+}
 function applyPointer() {
   pointerFrame = 0;
   const { x, y } = motionPaused || reduceMotion.matches || !finePointer.matches ? { x: 0, y: 0 } : desiredPointer;
@@ -60,6 +75,7 @@ function syncMotion() {
   motionButton.setAttribute("aria-pressed", String(motionPaused));
   motionButton.textContent = motionPaused ? labels.resumeMotion : labels.motion;
   applyPointer();
+  requestScene();
 }
 motionButton.addEventListener("click", () => { motionPaused = !motionPaused; syncMotion(); }, { signal });
 reduceMotion.addEventListener("change", () => { motionPaused = reduceMotion.matches; syncMotion(); }, { signal });
@@ -93,19 +109,26 @@ function selectMovement() {
 const observer = new IntersectionObserver(selectMovement, { rootMargin: "-30% 0px -60% 0px", threshold: 0 });
 chapters.forEach(chapter => observer.observe(chapter));
 window.addEventListener("scrollend", selectMovement, { signal });
+window.addEventListener("scroll", requestScene, { signal, passive: true });
 window.addEventListener("resize", selectMovement, { signal });
+window.addEventListener("resize", requestScene, { signal });
 window.addEventListener("hashchange", selectMovement, { signal });
+window.addEventListener("hashchange", requestScene, { signal });
+root.querySelector(".stack-more").addEventListener("toggle", requestScene, { signal });
+document.fonts?.ready.then(requestScene);
 selectMovement();
+requestScene();
 document.addEventListener("visibilitychange", () => {
   if (document.hidden) {
     audio.pause();
     cancelAnimationFrame(pointerFrame); pointerFrame = 0;
-  }
+    cancelAnimationFrame(sceneFrame); sceneFrame = 0;
+  } else requestScene();
 }, { signal });
 // A BFCache restoration keeps the controls mounted, but never resumes sound.
 window.addEventListener("pagehide", event => {
   audio.pause();
   if (event.persisted) return;
-  controller.abort(); observer.disconnect(); cancelAnimationFrame(pointerFrame);
-  experiments.dispose(); audio.dispose();
+  controller.abort(); observer.disconnect(); cancelAnimationFrame(pointerFrame); cancelAnimationFrame(sceneFrame);
+  experiments.dispose(); visual.dispose(); audio.dispose();
 }, { signal });

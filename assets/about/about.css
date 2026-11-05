@@ -40,6 +40,14 @@ body { background: var(--about-bg); color: var(--about-ink); }
 .field-orbit { position: absolute; inset: 0 -9% 0 -5%; width: 110%; height: 100%; fill: none; stroke: #9364be; stroke-width: .6; opacity: .4; transform: translate(var(--near-x, 0px), var(--near-y, 0px)); }
 .field-orbit path { stroke-width: .4; }
 .field-orbit .orbit-node { fill: #e4ccff; stroke: none; }
+.score-scene { pointer-events: none; overflow: hidden; }
+.score-scene svg { display: block; width: 100%; height: 100%; }
+.score-thread { fill: none; stroke: #b685ee; stroke-width: 1.25; stroke-linecap: round; stroke-dasharray: 1; stroke-dashoffset: 0; vector-effect: non-scaling-stroke; filter: drop-shadow(0 0 5px #a054cc80); }
+.score-thread[data-thread="1"], .score-thread[data-thread="3"] { stroke: #608ee8; }
+.score-thread[data-thread="4"] { stroke: #8e6fbd; stroke-width: 1; }
+.score-thread-base { opacity: .18; stroke-width: 1; filter: none; stroke-dasharray: none; }
+.score-attack { fill: #d4b9ff; filter: drop-shadow(0 0 7px #ae76fa); }
+.hero-score-scene { position: absolute; inset: 15% -5% 17% -5%; opacity: .75; }
 .hero-copy { position: relative; padding: 45px 0 52px 9%; }
 .hero-copy .section-kicker { color: #aca0c2; letter-spacing: .13em; line-height: 1.7; margin-bottom: 24px; }
 .hero-copy h1 { max-width: 600px; color: var(--about-violet); font-size: clamp(56px, 5.8vw, 92px); line-height: .98; margin: 0 0 28px; }
@@ -77,7 +85,7 @@ body { background: var(--about-bg); color: var(--about-ink); }
 .about-noscript { padding: 24px var(--about-gutter); color: var(--about-muted); line-height: 1.7; }
 
 .about-chapter { position: relative; isolation: isolate; padding: 125px var(--about-gutter); display: grid; grid-template-columns: 1fr 1fr; gap: 8%; align-items: center; scroll-margin-top: 12px; }
-.chapter-staff { pointer-events: none; position: absolute; z-index: -1; left: 0; bottom: 8px; width: 100%; height: 150px; fill: none; stroke: var(--movement-ink, #8051b3); stroke-width: .65; opacity: .25; }
+.code-score-scene { position: absolute; z-index: -1; left: 0; top: 0; width: 52%; height: 230px; opacity: .28; }
 .about-main[data-active-movement="code"] { --movement-ink: #a48ba5; }
 .about-main[data-active-movement="music"] { --movement-ink: #a35ed1; }
 .about-main[data-active-movement="art"] { --movement-ink: #9a7bc1; }
@@ -107,11 +115,19 @@ body { background: var(--about-bg); color: var(--about-ink); }
 .music-chapter { display: block; background: radial-gradient(ellipse at 25% 60%, #25103055, transparent 65%); padding-top: 100px; padding-bottom: 100px; border-top: 1px solid #27202f; }
 .music-heading { display: grid; grid-template-columns: 1.2fr 1fr; gap: 8%; align-items: end; }
 .music-intro { max-width: 410px; font-size: 14px; line-height: 1.9; color: var(--about-muted); padding-bottom: 3px; }
+.music-score-scene { height: clamp(205px, 28vw, 345px); margin-top: 46px; background: radial-gradient(ellipse at 50% 55%, #24113788, transparent 70%), linear-gradient(90deg, #1c102e40, #07152844); border-block: 1px solid #39234b; }
+.music-score-scene .score-thread { stroke-width: 1.7; }
+.music-score-scene .score-attack { filter: drop-shadow(0 0 9px #b98cff); }
 .score-figure { margin-top: 60px !important; border-block: 1px solid #382c47; padding: 20px 0; }
 .score-figure figcaption { display: flex; justify-content: space-between; gap: 20px; font: 11px/1.6 var(--about-mono); color: #c3acd9; }
 .score-figure img { display: block; width: 100%; height: auto; margin: 28px 0 18px; filter: invert(1); mix-blend-mode: screen; opacity: .62; }
 .score-figure > p { color: #a79ab5; font-size: 11px; line-height: 1.7; }
-.music-instrument { display: grid; grid-template-columns: .85fr 1.15fr; gap: 8%; margin-top: 50px; }
+.music-explore { margin-top: 42px; border-block: 1px solid #4a3458; }
+.music-explore summary { min-height: 58px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; list-style: none; font: 12px var(--about-mono); color: #c8a7df; }
+.music-explore summary::-webkit-details-marker { display: none; }
+.music-explore summary span { font-size: 21px; }
+.music-explore[open] summary span { transform: rotate(45deg); }
+.music-instrument { display: grid; grid-template-columns: .85fr 1.15fr; gap: 8%; margin: 20px 0 36px; }
 .instrument-description h3 { font-family: var(--about-serif); font-size: 28px; font-weight: 400; letter-spacing: -.025em; }
 .instrument-description > p { font-size: 12px; line-height: 1.8; color: #aea1bf; margin-top: 12px; max-width: 390px; }
 .instrument-description .instrument-help { font-size: 10px; color: #9e90b0; }
@@ -134,6 +150,7 @@ body { background: var(--about-bg); color: var(--about-ink); }
 
 .art-chapter { min-height: 720px; background: radial-gradient(ellipse at 15% 50%, #181b433b, transparent 55%); }
 .art-experiment { position: relative; min-height: 380px; display: flex; flex-direction: column; justify-content: center; padding: 30px 20px 20px 0; }
+.art-score-scene { position: absolute; z-index: -1; top: 0; bottom: 0; left: 52%; right: -8%; opacity: .5; }
 .art-shape { position: absolute; z-index: -1; inset: -45px -10px -15px -70px; overflow: hidden; opacity: .55; }
 .art-shape i { position: absolute; inset: 18% 12%; border: 1px solid #7758a2; border-radius: 49% 51% 72% 28% / 28% 44% 56% 72%; transform: rotate(-30deg); transition: transform .7s, border-radius .7s; }
 .art-shape i:nth-child(2) { transform: rotate(-15deg) scale(.92); }
@@ -150,6 +167,7 @@ body { background: var(--about-bg); color: var(--about-ink); }
 .art-experiment[data-rhythm-state="intense"] .art-shape i { border-radius: 10% 70% 10% 70%; transform: rotate(-65deg) scale(.9); }
 .art-experiment[data-rhythm-state="intense"] .art-shape i:nth-child(even) { transform: rotate(65deg); }
 .games-chapter { border-top: 1px solid #26202f; min-height: 600px; padding-block: 95px; }
+.games-score-scene { position: absolute; z-index: -1; left: 0; bottom: 6%; width: 50%; height: 130px; opacity: .27; }
 .games-experiment { align-self: center; }
 .games-mark { padding-bottom: 18px; color: #a58aff; font: 76px/1 "Segoe UI Symbol", Georgia, serif; text-align: center; text-shadow: 2px 2px #2c1f48; }
 .knight-details { border-block: 1px solid #514064; }
@@ -170,6 +188,7 @@ body { background: var(--about-bg); color: var(--about-ink); }
 .knight-meta p { font: 10px/1.5 var(--about-mono); color: #b4a3c5; }
 .knight-meta button { border: 0; background: transparent; font-size: 11px; text-decoration: underline; text-underline-offset: 4px; }
 .about-closing { padding: 95px var(--about-gutter) 65px; border-top: 1px solid #26202f; text-align: center; }
+.closing-score-scene { height: 85px; width: min(100%, 900px); margin: 0 auto 25px; opacity: .45; }
 .about-closing h2 { font-size: clamp(28px, 3.5vw, 48px); margin-top: 24px; }
 .closing-links { display: flex; justify-content: center; flex-wrap: wrap; gap: 20px 40px; margin-top: 32px; }
 .closing-links a { min-height: 44px; display: inline-flex; gap: 25px; align-items: center; font-size: 13px; }
@@ -247,18 +266,19 @@ body { background: var(--about-bg); color: var(--about-ink); }
   .games-mark { padding-bottom: 15px; font-size: 56px; }
   .about-closing { padding-block: 75px 40px; }
   .about-closing h2 { font-size: 29px; }
-  .chapter-staff { height: 90px; opacity: .2; }
+  .hero-score-scene { inset: 5% -8% 6%; }
+  .code-chapter .chapter-copy { order: 0; }
+  .code-score-scene { position: relative; z-index: 0; order: 1; width: 100%; height: 65px; opacity: .36; }
+  .code-stack { order: 2; }
+  .music-score-scene { height: 190px; margin-top: 34px; }
+  .art-score-scene { position: relative; z-index: 0; order: 4; inset: auto; width: 100%; height: 105px; margin-top: 20px; opacity: .45; }
+  .games-score-scene { width: 100%; bottom: 5%; height: 90px; opacity: .2; }
+  .closing-score-scene { height: 65px; }
   .site-footer { padding-top: 16px; }
 }
 @media (prefers-reduced-motion: no-preference) {
   .instrument-surface.is-resonating .resonance circle { animation: resonate .75s ease-out; }
   @keyframes resonate { from { transform: scale(.55); opacity: .75; } to { transform: scale(1.4); opacity: .15; } }
-}
-@media (prefers-reduced-motion: no-preference) {
-  @supports (animation-timeline: view()) {
-    .chapter-staff path { stroke-dasharray: 1800; stroke-dashoffset: 1800; animation: staff-write linear both; animation-timeline: view(); animation-range: entry 0% cover 45%; }
-    @keyframes staff-write { to { stroke-dashoffset: 0; } }
-  }
 }
 html[data-motion-paused="true"] .about-main *, html[data-motion-paused="true"] .about-main *::after { animation: none !important; transition: none !important; }
 @media (prefers-reduced-motion: reduce) {
