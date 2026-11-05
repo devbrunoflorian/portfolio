@@ -15,6 +15,12 @@ export function secondsToBeat(score, seconds) {
   return loops * score.bars * score.beatsPerBar + point.beat + (local - point.seconds) * 1000000 / point.tempo;
 }
 
+export function activeNotesAt(score, beat) {
+  const span = score.bars * score.beatsPerBar;
+  const local = beat % span;
+  return score.notes.filter(note => note.beat < local - 1e-6 && note.beat + note.duration > local + 1e-6);
+}
+
 export function createScoreTransport(score, initialMovement = "opening", startBeat = 0, repeat = true) {
   const loopBeats = score.bars * score.beatsPerBar;
   let loop = Math.floor(startBeat / loopBeats);

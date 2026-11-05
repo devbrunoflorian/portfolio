@@ -26,6 +26,8 @@ const audio = createJourneyAudio(score, status => {
   root.querySelector("[data-audio-status]").textContent = status.state === "playing"
     ? `${status.volume === 0 ? labels.muted : labels.playing} · ${status.section} · ${movementNames[status.movement]}${status.pending ? ` → ${movementNames[status.pending]} (${labels.next})` : ""}`
     : labels[status.state] ?? labels.off;
+  syncMixer(audio.snapshot?.());
+  requestScene();
 });
 const experiments = mountExperiments(root, audio, isPortuguese);
 const visual = createScoreVisual(root, score);
@@ -41,6 +43,63 @@ root.querySelector("[data-audio-repeat]").addEventListener("click", event => {
 root.querySelector("[data-volume]").addEventListener("input", event => audio.setVolume(Number(event.target.value) / 100), { signal });
 root.querySelectorAll("[data-enhanced]").forEach(element => { element.hidden = false; });
 
+const layerNames = isPortuguese
+  ? { guitar: "Guitarra", vocal: "Voz instrumental", strings: "Cordas", bass: "Baixo", percussion: "Percussão" }
+  : { guitar: "Guitar", vocal: "Instrumental voice", strings: "Strings", bass: "Bass", percussion: "Percussion" };
+const mixer = root.querySelector("[data-layer-mixer]");
+const layerButtons = mixer.querySelector(".music-layer-buttons");
+const trackRanges = new Map(score.tracks.map(track => [track.id, { first: Infinity, end: 0 }]));
+for (const note of score.notes) {
+  const range = trackRanges.get(note.track);
+  range.first = Math.min(range.first, note.beat);
+  range.end = Math.max(range.end, note.beat + note.duration);
+}
+let chosenLayer = null;
+let lastDisplaySecond = -1;
+const allButton = document.createElement("button");
+allButton.type = "button";
+allButton.textContent = isPortuguese ? "Mix original" : "Original mix";
+layerButtons.append(allButton);
+const trackButtons = new Map();
+for (const track of score.tracks) {
+  const button = document.createElement("button");
+  button.type = "button";
+  const label = layerNames[track.voice] + (track.voice === "vocal" ? ` ${track.name.endsWith("II") ? "II" : "I"}` : "");
+  const first = trackRanges.get(track.id).first;
+  const entry = score.sections.findLast(section => section.beat <= first)?.name ?? "Intro";
+  button.textContent = first ? `${label} · ${entry}` : label;
+  button.dataset.layer = String(track.id);
+  trackButtons.set(track.id, { button, label });
+  layerButtons.append(button);
+  button.addEventListener("click", () => { chosenLayer = track.id; audio.highlightTrack(track.id); syncMixer(audio.snapshot()); }, { signal });
+}
+allButton.addEventListener("click", () => { chosenLayer = null; audio.highlightTrack(null); syncMixer(audio.snapshot()); }, { signal });
+function formatTime(seconds, round = false) {
+  const safeSeconds = Math.max(0, seconds);
+  const time = round ? Math.round(safeSeconds) : Math.floor(safeSeconds);
+  return `${Math.floor(time / 60)}:${String(time % 60).padStart(2, "0")}`;
+}
+function syncMixer(snapshot) {
+  if (!snapshot) return;
+  const songBeat = snapshot.beat % (score.bars * score.beatsPerBar);
+  if (chosenLayer !== null) {
+    const range = trackRanges.get(chosenLayer);
+    if (songBeat < range.first || songBeat >= range.end) { chosenLayer = null; audio.highlightTrack(null); }
+  }
+  allButton.setAttribute("aria-pressed", String(chosenLayer === null));
+  for (const [id, { button }] of trackButtons) {
+    const range = trackRanges.get(id);
+    button.disabled = songBeat < range.first || songBeat >= range.end;
+    button.setAttribute("aria-pressed", String(chosenLayer === id));
+  }
+  const currentSeconds = snapshot.seconds % score.durationSeconds;
+  mixer.querySelector("[data-audio-position]").textContent = `${snapshot.section} · ${formatTime(currentSeconds)} / ${formatTime(score.durationSeconds, true)}`;
+  mixer.querySelector("[data-layer-status]").textContent = chosenLayer === null
+    ? isPortuguese ? "A mix original está selecionada." : "The original mix is selected."
+    : isPortuguese ? `Destaque: ${trackButtons.get(chosenLayer).label}. As outras camadas recuam.` : `Highlighting ${trackButtons.get(chosenLayer).label}. Other layers recede.`;
+}
+syncMixer(audio.snapshot?.() ?? { state: "off", beat: 0, seconds: 0, section: "Intro" });
+
 const hero = root.querySelector(".about-hero");
 const motionButton = root.querySelector("[data-motion-toggle]");
 const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)");
@@ -51,12 +110,20 @@ let sceneFrame = 0;
 let desiredPointer = { x: 0, y: 0 };
 function paintScenes() {
   sceneFrame = 0;
+  const snapshot = audio.snapshot?.() ?? null;
+  let visible = false;
   for (const host of root.querySelectorAll("[data-score-scene]")) {
     const bounds = host.closest("section").getBoundingClientRect();
     if (bounds.bottom < 0 || bounds.top > innerHeight) continue;
+    visible = true;
     const progress = Math.max(0, Math.min(1, (innerHeight - bounds.top) / (innerHeight + bounds.height)));
-    visual.update({ chapter: host.dataset.scoreScene, progress, motionEnabled: !motionPaused && !reduceMotion.matches, playbackSnapshot: null });
+    visual.update({ chapter: host.dataset.scoreScene, progress, motionEnabled: !motionPaused && !reduceMotion.matches, playbackSnapshot: snapshot });
   }
+  if (snapshot && Math.floor(snapshot.seconds) !== lastDisplaySecond) {
+    lastDisplaySecond = Math.floor(snapshot.seconds);
+    syncMixer(snapshot);
+  }
+  if (visible && audio.playing && !motionPaused && !reduceMotion.matches) requestScene();
 }
 function requestScene() {
   if (!sceneFrame && !document.hidden) sceneFrame = requestAnimationFrame(paintScenes);

@@ -118,6 +118,15 @@ body { background: var(--about-bg); color: var(--about-ink); }
 .music-score-scene { height: clamp(205px, 28vw, 345px); margin-top: 46px; background: radial-gradient(ellipse at 50% 55%, #24113788, transparent 70%), linear-gradient(90deg, #1c102e40, #07152844); border-block: 1px solid #39234b; }
 .music-score-scene .score-thread { stroke-width: 1.7; }
 .music-score-scene .score-attack { filter: drop-shadow(0 0 9px #b98cff); }
+.music-layers { padding: 24px 0 5px; border-bottom: 1px solid #382c47; }
+.music-layers-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 18px; }
+.music-layers h3 { font: 19px var(--about-serif); }
+.music-layers-heading p, .music-layers > p { color: #a99ab7; font: 10px/1.7 var(--about-mono); margin-top: 8px; }
+.music-layers-heading [data-audio-position] { white-space: nowrap; color: #b79acb; }
+.music-layer-buttons { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+.music-layer-buttons button { min-height: 42px; padding: 7px 12px; border: 1px solid #664b7b; background: #160f20; border-radius: 2px; color: #d5c1e5; font: 10px var(--about-mono); }
+.music-layer-buttons button[aria-pressed="true"] { background: #503068; border-color: #c59af0; color: #fff; }
+.music-layer-buttons button:disabled { opacity: .43; cursor: default; }
 .score-figure { margin-top: 60px !important; border-block: 1px solid #382c47; padding: 20px 0; }
 .score-figure figcaption { display: flex; justify-content: space-between; gap: 20px; font: 11px/1.6 var(--about-mono); color: #c3acd9; }
 .score-figure img { display: block; width: 100%; height: auto; margin: 28px 0 18px; filter: invert(1); mix-blend-mode: screen; opacity: .62; }
@@ -176,10 +185,13 @@ body { background: var(--about-bg); color: var(--about-ink); }
 .knight-details summary > span { font: 24px var(--about-serif); color: #bfa3dd; }
 .knight-details[open] summary > span { transform: rotate(45deg); }
 .knight-details > p { font-size: 12px; line-height: 1.75; color: #a99bb7; padding-bottom: 22px; }
+.knight-puzzle { border-top: 1px solid #30243d; padding-top: 16px; }
 .knight-board { display: grid; grid-template-columns: repeat(5, 1fr); width: min(100%, 300px); margin: 0 auto 20px; border: 1px solid #6e5384; }
 .knight-board button { aspect-ratio: 1; min-width: 0; padding: 0; border: 0; background: #191322; font-size: 28px; position: relative; }
 .knight-board button:nth-child(even) { background: #2d223b; }
 .knight-board button[data-legal="true"]::after { content: ""; position: absolute; width: 10px; height: 10px; border: 1px solid #c5a5f6; border-radius: 50%; top: calc(50% - 5px); left: calc(50% - 5px); }
+.knight-board button[data-target="true"] { box-shadow: inset 0 0 0 1px #5ad9f4; }
+.knight-board button[data-target="true"]::before { content: ""; position: absolute; inset: 5px; border: 1px solid #5ad9f4; border-radius: 50%; opacity: .65; }
 .knight-board button[data-legal="true"]:hover { background: #644b85; }
 .knight-board button[aria-pressed="true"] { color: #ebd9ff; background: #593978; }
 .knight-board button[aria-disabled="true"] { cursor: default; }
@@ -187,6 +199,8 @@ body { background: var(--about-bg); color: var(--about-ink); }
 .knight-meta { padding-bottom: 16px; display: flex; align-items: center; justify-content: space-between; gap: 15px; }
 .knight-meta p { font: 10px/1.5 var(--about-mono); color: #b4a3c5; }
 .knight-meta button { border: 0; background: transparent; font-size: 11px; text-decoration: underline; text-underline-offset: 4px; }
+.knight-actions { display: flex; gap: 14px; flex-shrink: 0; }
+.knight-hint { padding: 0 0 18px; color: #75d9ed; font: 10px/1.6 var(--about-mono); }
 .about-closing { padding: 95px var(--about-gutter) 65px; border-top: 1px solid #26202f; text-align: center; }
 .closing-score-scene { height: 85px; width: min(100%, 900px); margin: 0 auto 25px; opacity: .45; }
 .about-closing h2 { font-size: clamp(28px, 3.5vw, 48px); margin-top: 24px; }
@@ -271,6 +285,8 @@ body { background: var(--about-bg); color: var(--about-ink); }
   .code-score-scene { position: relative; z-index: 0; order: 1; width: 100%; height: 65px; opacity: .36; }
   .code-stack { order: 2; }
   .music-score-scene { height: 190px; margin-top: 34px; }
+  .music-layers-heading { display: block; }
+  .music-layers-heading [data-audio-position] { display: block; margin-top: 12px; }
   .art-score-scene { position: relative; z-index: 0; order: 4; inset: auto; width: 100%; height: 105px; margin-top: 20px; opacity: .45; }
   .games-score-scene { width: 100%; bottom: 5%; height: 90px; opacity: .2; }
   .closing-score-scene { height: 65px; }

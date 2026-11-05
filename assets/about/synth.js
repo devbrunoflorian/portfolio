@@ -6,7 +6,7 @@ const textures = {
   games: { type: "square", attack: .006, release: .05, cutoff: 3200, sustain: .17 },
 };
 
-export function createSynth(context, volume = .35) {
+export function createSynth(context, volume = .35, trackIds = []) {
   const master = context.createGain();
   const compressor = context.createDynamicsCompressor();
   compressor.threshold.value = -18;
@@ -14,6 +14,12 @@ export function createSynth(context, volume = .35) {
   compressor.ratio.value = 5;
   master.gain.value = volume;
   master.connect(compressor).connect(context.destination);
+  const trackBuses = new Map(trackIds.map(id => {
+    const bus = context.createGain();
+    bus.gain.value = 1;
+    bus.connect(master);
+    return [id, bus];
+  }));
   const voices = new Set();
   const noise = context.createBuffer(1, Math.ceil(context.sampleRate * .25), context.sampleRate);
   const samples = noise.getChannelData(0);
@@ -23,7 +29,7 @@ export function createSynth(context, volume = .35) {
     samples[index] = seed / 2147483648 - 1;
   }
 
-  function note(midi, time, duration, movement, velocity = 95, voiceType = "guitar", bend = 0, bendRange = 2, bendEvents = []) {
+  function note(midi, time, duration, movement, velocity = 95, voiceType = "guitar", bend = 0, bendRange = 2, bendEvents = [], trackId = null, loopTail = false) {
     if (!Number.isFinite(midi) || midi < 21 || midi > 108) return;
     const isBass = voiceType === "bass";
     const isDrum = voiceType === "percussion";
@@ -31,7 +37,7 @@ export function createSynth(context, volume = .35) {
     const start = Math.max(time, context.currentTime);
     const length = isDrum ? Math.min(duration, .16) : Math.max(.01, duration);
     const attack = isDrum ? .002 : Math.min(texture.attack, length * .65);
-    const release = isDrum ? .06 : texture.release;
+    const release = loopTail ? .05 : isDrum ? .06 : texture.release;
     const peak = (isDrum ? .075 : isBass ? .11 : .06) * velocity / 127;
     const frequency = 440 * 2 ** ((midi - 69) / 12);
     const filter = context.createBiquadFilter();
@@ -69,7 +75,7 @@ export function createSynth(context, volume = .35) {
     envelope.gain.linearRampToValueAtTime(peak, start + attack);
     envelope.gain.exponentialRampToValueAtTime(Math.max(.0001, peak * (isDrum ? .1 : texture.sustain)), start + Math.max(attack + .001, length));
     envelope.gain.exponentialRampToValueAtTime(.0001, start + length + release);
-    filter.connect(envelope).connect(master);
+    filter.connect(envelope).connect(trackBuses.get(trackId) ?? master);
     let stopped = false;
     const voice = {
       stop() {
@@ -92,12 +98,18 @@ export function createSynth(context, volume = .35) {
 
   return {
     note,
+    setHighlightTrack(trackId) {
+      for (const [id, bus] of trackBuses) {
+        bus.gain.setTargetAtTime(trackId === null || id === trackId ? 1 : .18, context.currentTime, .08);
+      }
+    },
     setVolume(value) {
       master.gain.setTargetAtTime(Math.max(0, Math.min(1, value)), context.currentTime, .025);
     },
     silence() { for (const voice of [...voices]) voice.stop(); },
     dispose() {
       for (const voice of [...voices]) voice.stop();
+      for (const bus of trackBuses.values()) bus.disconnect();
       master.disconnect(); compressor.disconnect();
     },
   };

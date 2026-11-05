@@ -1,8 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { score } from "../assets/about/score.js";
-import { beatToSeconds, createScoreTransport, harmonyNotes, secondsToBeat } from "../assets/about/transport.js";
-import { knightMoves } from "../assets/about/experiments.js";
+import { activeNotesAt, beatToSeconds, createScoreTransport, harmonyNotes, secondsToBeat } from "../assets/about/transport.js";
+import { knightChallenges, knightMoves } from "../assets/about/experiments.js";
 
 test("transport replaces unscheduled movement requests at the next bar", () => {
   const source = {
@@ -61,6 +61,14 @@ test("turning off repeat stops scheduling at the end of the source", () => {
   assert.deepEqual(transport.readUntil(600), []);
 });
 
+test("a paused sustained chord can resume for its remaining duration", () => {
+  const held = activeNotesAt(score, 420);
+  assert.ok(held.some(note => note.voice === "guitar"));
+  assert.ok(held.every(note => note.beat < 420 && note.beat + note.duration > 420));
+  assert.deepEqual(activeNotesAt(score, 424), []);
+  assert.deepEqual(activeNotesAt(score, 420 + 424), held);
+});
+
 test("harmony voicings stay within the keyboard and include the bass notes", () => {
   assert.deepEqual(harmonyNotes.em, [52, 55, 59, 66]);
   assert.deepEqual(harmonyNotes.c, [48, 52, 55, 59]);
@@ -72,4 +80,16 @@ test("the knight can only reach legal squares on the five-square board", () => {
   assert.deepEqual(knightMoves(0), [11, 7]);
   assert.deepEqual(knightMoves(12).sort((a, b) => a - b), [1, 3, 5, 9, 15, 19, 21, 23]);
   assert.equal(knightMoves(12).length, 8);
+});
+
+test("each optional knight puzzle has a legal path within its move limit", () => {
+  assert.equal(knightChallenges.length, 2);
+  for (const challenge of knightChallenges) {
+    assert.equal(challenge.path[0], challenge.start);
+    assert.equal(challenge.path.at(-1), challenge.target);
+    assert.ok(challenge.path.length - 1 <= challenge.limit);
+    for (let step = 1; step < challenge.path.length; step += 1) {
+      assert.ok(knightMoves(challenge.path[step - 1]).includes(challenge.path[step]));
+    }
+  }
 });

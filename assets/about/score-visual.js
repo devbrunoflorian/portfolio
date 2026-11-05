@@ -7,13 +7,20 @@ function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
 
 // These lanes are a graphic reading of the opening motif, not a transcription
 // of formal voices in the polyphonic guitar part.
-export function motifLanes(score) {
+export function motifLanes(score, startBeat = 0) {
   const lanes = Array.from({ length: 5 }, () => []);
-  for (const note of score.notes) {
-    if (note.beat >= SPAN_BEATS) break;
+  let low = 0, high = score.notes.length;
+  while (low < high) {
+    const middle = (low + high) >>> 1;
+    if (score.notes[middle].beat < startBeat) low = middle + 1;
+    else high = middle;
+  }
+  for (let index = low; index < score.notes.length; index += 1) {
+    const note = score.notes[index];
+    if (note.beat >= startBeat + SPAN_BEATS) break;
     if (note.voice !== "guitar" && note.voice !== "bass") continue;
     const lane = note.voice === "bass" ? 4 : note.midi < 48 ? 0 : note.midi < 54 ? 1 : note.midi < 60 ? 2 : 3;
-    lanes[lane].push({ beat: note.beat, midi: note.midi, velocity: note.velocity });
+    lanes[lane].push({ beat: note.beat - startBeat, absoluteBeat: note.beat, midi: note.midi, velocity: note.velocity });
   }
   return lanes.map(notes => notes.filter((_, index) => index % Math.max(1, Math.ceil(notes.length / 28)) === 0));
 }
@@ -63,13 +70,12 @@ export function createScoreVisual(root, score) {
       svg.append(base, path);
       return { base, path };
     });
-    const attacks = motif.flatMap((notes, lane) => [notes[Math.floor(notes.length * .35)], notes[Math.floor(notes.length * .7)]]
-      .filter(Boolean).map(note => {
+    const attacks = motif.flatMap((_, lane) => [0, 1].map(slot => {
         const circle = document.createElementNS(SVG_NS, "circle");
         circle.setAttribute("class", "score-attack");
         circle.setAttribute("r", lane === 4 ? "2.5" : "2");
         svg.append(circle);
-        return { circle, lane, note };
+        return { circle, lane, slot };
       }));
     host.replaceChildren(svg);
     return { host, chapter: host.dataset.scoreScene, paths, attacks };
@@ -80,22 +86,27 @@ export function createScoreVisual(root, score) {
     for (const scene of scenes) {
       if (scene.chapter !== chapter) continue;
       const local = motionEnabled ? clamp(progress, 0, 1) : .7;
-      const lanes = motif.map((notes, lane) => pointsFor(notes, lane, chapter, local, tension));
+      const live = motionEnabled && playbackSnapshot && ["playing", "paused"].includes(playbackSnapshot.state);
+      const songBeat = live ? playbackSnapshot.beat % (score.bars * score.beatsPerBar) : 0;
+      const source = live ? motifLanes(score, songBeat - 8) : motif;
+      const lanes = source.map((notes, lane) => pointsFor(notes, lane, chapter, local, tension));
       scene.paths.forEach(({ base, path }, lane) => {
         const shape = curve(lanes[lane]);
         base.setAttribute("d", shape);
         path.setAttribute("d", shape);
         path.style.strokeDashoffset = motionEnabled ? String(Math.max(0, .55 - local * .55)) : "0";
       });
-      for (const { circle, lane, note } of scene.attacks) {
-        const source = lanes[lane].find(point => Math.abs(point.x - (35 + note.beat / SPAN_BEATS * 930)) < .1);
-        if (!source) continue;
-        circle.setAttribute("cx", source.x.toFixed(1));
-        circle.setAttribute("cy", source.y.toFixed(1));
-        circle.style.opacity = !motionEnabled || source.x < local * 1000 + 80 ? String(clamp(note.velocity / 127 * .8, .2, .7)) : "0";
+      for (const { circle, lane, slot } of scene.attacks) {
+        const notes = source[lane];
+        const note = live ? notes.filter(item => item.absoluteBeat <= songBeat).at(-1 - slot) : notes[Math.floor(notes.length * (slot ? .7 : .35))];
+        if (!note) { circle.style.opacity = "0"; continue; }
+        const point = lanes[lane].find(item => Math.abs(item.x - (35 + note.beat / SPAN_BEATS * 930)) < .1);
+        if (!point) { circle.style.opacity = "0"; continue; }
+        circle.setAttribute("cx", point.x.toFixed(1));
+        circle.setAttribute("cy", point.y.toFixed(1));
+        const age = live ? songBeat - note.absoluteBeat : 0;
+        circle.style.opacity = live ? String(clamp(1 - age / 1.2, 0, .75)) : !motionEnabled || point.x < local * 1000 + 80 ? String(clamp(note.velocity / 127 * .8, .2, .7)) : "0";
       }
-      // The visual study has no playhead. A later slice will consume the audio snapshot.
-      void playbackSnapshot;
     }
   }
 
