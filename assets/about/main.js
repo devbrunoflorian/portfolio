@@ -1,4 +1,4 @@
-import { score } from "./score.js";
+import { score } from "./score.js?v=1bf9375d";
 import { createJourneyAudio, playbackPositionForDisplay } from "./audio.js";
 import { mountExperiments } from "./experiments.js";
 import { createScoreVisual } from "./score-visual.js";
@@ -49,36 +49,48 @@ root.querySelector("[data-volume]").addEventListener("input", event => audio.set
 root.querySelectorAll("[data-enhanced]").forEach(element => { element.hidden = false; });
 
 const layerNames = isPortuguese
-  ? { guitar: "Guitarra", vocal: "Voz instrumental", strings: "Cordas", bass: "Baixo", percussion: "Percussão" }
+  ? { guitar: "Violão", vocal: "Voz instrumental", strings: "Cordas", bass: "Baixo", percussion: "Bateria" }
   : { guitar: "Guitar", vocal: "Instrumental voice", strings: "Strings", bass: "Bass", percussion: "Percussion" };
 const mixer = root.querySelector("[data-layer-mixer]");
-const layerButtons = mixer.querySelector(".music-layer-buttons");
-const trackRanges = new Map(score.tracks.map(track => [track.id, { first: Infinity, end: 0 }]));
-for (const note of score.notes) {
-  const range = trackRanges.get(note.track);
-  range.first = Math.min(range.first, note.beat);
-  range.end = Math.max(range.end, note.beat + note.duration);
-}
-let chosenLayer = null;
+const trackMixer = mixer.querySelector("[data-track-mixer]");
 let lastDisplaySecond = -1;
-const allButton = document.createElement("button");
-allButton.type = "button";
-allButton.textContent = isPortuguese ? "Mix original" : "Original mix";
-layerButtons.append(allButton);
-const trackButtons = new Map();
 for (const track of score.tracks) {
-  const button = document.createElement("button");
-  button.type = "button";
-  const label = layerNames[track.voice] + (track.voice === "vocal" ? ` ${track.name.endsWith("II") ? "II" : "I"}` : "");
-  const first = trackRanges.get(track.id).first;
-  const entry = score.sections.findLast(section => section.beat <= first)?.name ?? "Intro";
-  button.textContent = first ? `${label} · ${sectionName(entry)}` : label;
-  button.dataset.layer = String(track.id);
-  trackButtons.set(track.id, { button, label });
-  layerButtons.append(button);
-  button.addEventListener("click", () => { chosenLayer = track.id; audio.highlightTrack(track.id); syncMixer(audio.snapshot()); }, { signal });
+  const strip = document.createElement("div");
+  strip.className = "music-mixer-strip";
+  const label = track.voice === "vocal"
+    ? `${layerNames.vocal} ${track.name.endsWith("II") ? "II" : "I"}`
+    : `${layerNames[track.voice]}${track.voice === "guitar" ? " I" : ""}`;
+  const sliderId = `about-track-volume-${track.id}`;
+  const heading = document.createElement("div");
+  heading.className = "music-mixer-strip-heading";
+  const labelElement = document.createElement("label");
+  labelElement.htmlFor = sliderId;
+  labelElement.textContent = label;
+  const value = document.createElement("output");
+  value.htmlFor = sliderId;
+  const initialVolume = Math.round(audio.getTrackVolume(track.id) * 100);
+  value.value = `${initialVolume}%`;
+  value.textContent = value.value;
+  const slider = document.createElement("input");
+  slider.id = sliderId;
+  slider.type = "range";
+  slider.min = "0";
+  slider.max = "100";
+  slider.step = "1";
+  slider.value = String(initialVolume);
+  slider.dataset.trackVolume = String(track.id);
+  slider.setAttribute("aria-valuetext", `${initialVolume}%`);
+  slider.addEventListener("input", () => {
+    const percent = Number(slider.value);
+    audio.setTrackVolume(track.id, percent / 100);
+    value.value = percent === 0 ? (isPortuguese ? "Silenciada" : "Muted") : `${percent}%`;
+    value.textContent = value.value;
+    slider.setAttribute("aria-valuetext", value.value);
+  }, { signal });
+  heading.append(labelElement, value);
+  strip.append(heading, slider);
+  trackMixer.append(strip);
 }
-allButton.addEventListener("click", () => { chosenLayer = null; audio.highlightTrack(null); syncMixer(audio.snapshot()); }, { signal });
 function formatTime(seconds, round = false) {
   const safeSeconds = Math.max(0, seconds);
   const time = round ? Math.round(safeSeconds) : Math.floor(safeSeconds);
@@ -86,22 +98,8 @@ function formatTime(seconds, round = false) {
 }
 function syncMixer(snapshot) {
   if (!snapshot) return;
-  const span = score.bars * score.beatsPerBar;
-  const { beat: songBeat, seconds: currentSeconds } = playbackPositionForDisplay(snapshot, score);
-  if (chosenLayer !== null) {
-    const range = trackRanges.get(chosenLayer);
-    if (songBeat < range.first || songBeat >= range.end) { chosenLayer = null; audio.highlightTrack(null); }
-  }
-  allButton.setAttribute("aria-pressed", String(chosenLayer === null));
-  for (const [id, { button }] of trackButtons) {
-    const range = trackRanges.get(id);
-    button.disabled = songBeat < range.first || songBeat >= range.end;
-    button.setAttribute("aria-pressed", String(chosenLayer === id));
-  }
+  const { seconds: currentSeconds } = playbackPositionForDisplay(snapshot, score);
   mixer.querySelector("[data-audio-position]").textContent = `${sectionName(snapshot.section)} · ${formatTime(currentSeconds, currentSeconds >= score.durationSeconds)} / ${formatTime(score.durationSeconds, true)}`;
-  mixer.querySelector("[data-layer-status]").textContent = chosenLayer === null
-    ? isPortuguese ? "A mix original está selecionada." : "The original mix is selected."
-    : isPortuguese ? `Destaque: ${trackButtons.get(chosenLayer).label}. As outras camadas recuam.` : `Highlighting ${trackButtons.get(chosenLayer).label}. Other layers recede.`;
 }
 syncMixer(audio.snapshot?.() ?? { state: "off", beat: 0, seconds: 0, section: "Intro" });
 

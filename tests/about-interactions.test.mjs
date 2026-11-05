@@ -37,8 +37,10 @@ test("full composition reaches its ending before repeating the Intro", () => {
   assert.equal(score.bpm, 102);
   assert.equal(score.beatsPerBar, 4);
   assert.equal(score.bars, 106);
-  assert.equal(score.notes.length, 4099);
-  assert.equal(score.tracks.filter(track => track.notes > 0).length, 6);
+  assert.equal(score.notes.length, 2926);
+  assert.equal(score.tracks.filter(track => track.notes > 0).length, 4);
+  assert.deepEqual(score.tracks.map(track => track.voice), ["vocal", "vocal", "guitar", "strings"]);
+  assert.ok(score.notes.every(note => note.voice !== "bass" && note.voice !== "percussion"));
   assert.deepEqual(score.sections.map(section => section.name), ["Intro", "Verso I", "Ponte I", "Refrão I", "Verso II", "Ponte II", "Refrão II", "Pós Refrão"]);
   assert.match(score.sourceSha256, /^[a-f0-9]{64}$/);
   assert.ok(original);

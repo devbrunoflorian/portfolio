@@ -7,6 +7,21 @@ export function playbackPositionForDisplay(snapshot, score) {
   return { beat: snapshot.beat % span, seconds: snapshot.seconds % score.durationSeconds };
 }
 
+function initialTrackVolumes(score) {
+  const channelVolumes = new Map();
+  for (const event of score.controls ?? []) {
+    if (event.control === 7) channelVolumes.set(event.channel, event.value / 127);
+  }
+  const channelsByTrack = new Map(score.tracks.map(track => [track.id, new Set()]));
+  for (const note of score.notes) channelsByTrack.get(note.track)?.add(note.channel);
+  return new Map(score.tracks.map(track => {
+    if (track.voice === "percussion") return [track.id, 0];
+    const channels = [...(channelsByTrack.get(track.id) ?? [])];
+    const levels = channels.map(channel => channelVolumes.get(channel) ?? 1);
+    return [track.id, levels.length ? levels.reduce((total, level) => total + level, 0) / levels.length : 1];
+  }));
+}
+
 export function createJourneyAudio(score, onState, { Context = globalThis.AudioContext ?? globalThis.webkitAudioContext } = {}) {
   let context, synth, transport, timer;
   let enabled = false;
@@ -15,12 +30,12 @@ export function createJourneyAudio(score, onState, { Context = globalThis.AudioC
   let state = "off";
   let volume = .35;
   let repeat = true;
-  let highlight = null;
   let desiredMovement = "opening";
   let resumeBeat = 0;
   let origin = 0;
   let lastReport = "";
   const trackIds = new Set(score.tracks.map(track => track.id));
+  const trackVolumes = initialTrackVolumes(score);
   const span = score.bars * score.beatsPerBar;
 
   function currentBeat() { return context ? secondsToBeat(score, Math.max(0, context.currentTime - origin)) : resumeBeat; }
@@ -58,7 +73,7 @@ export function createJourneyAudio(score, onState, { Context = globalThis.AudioC
   }
   function report(error = null) {
     const beat = state === "playing" ? currentBeat() : resumeBeat;
-    const payload = { state, volume, repeat, highlight, section: sectionAt(beat), movement: transport?.movementAt(beat) ?? desiredMovement, pending: state === "playing" ? transport?.pendingAt(beat)?.movement : null, error };
+    const payload = { state, volume, repeat, section: sectionAt(beat), movement: transport?.movementAt(beat) ?? desiredMovement, pending: state === "playing" ? transport?.pendingAt(beat)?.movement : null, error };
     const signature = JSON.stringify(payload);
     if (signature !== lastReport) { lastReport = signature; onState(payload); }
   }
@@ -110,8 +125,7 @@ export function createJourneyAudio(score, onState, { Context = globalThis.AudioC
       try {
         if (!context) {
           context = new Context();
-          synth = createSynth(context, volume, [...trackIds]);
-          synth.setHighlightTrack(highlight);
+          synth = createSynth(context, volume, [...trackIds], trackVolumes);
           context.onstatechange = () => {
             if (state === "playing" && context.state !== "running") pause();
           };
@@ -162,11 +176,12 @@ export function createJourneyAudio(score, onState, { Context = globalThis.AudioC
       synth?.setVolume(volume);
       report();
     },
-    highlightTrack(trackIdOrNull) {
-      if (trackIdOrNull !== null && !trackIds.has(trackIdOrNull)) return false;
-      highlight = trackIdOrNull;
-      synth?.setHighlightTrack(highlight);
-      report();
+    getTrackVolume(trackId) { return trackVolumes.get(trackId) ?? null; },
+    setTrackVolume(trackId, value) {
+      if (!trackIds.has(trackId)) return false;
+      const next = Math.max(0, Math.min(1, Number.isFinite(value) ? value : 0));
+      trackVolumes.set(trackId, next);
+      synth?.setTrackVolume(trackId, next);
       return true;
     },
     playNotes(notes) {

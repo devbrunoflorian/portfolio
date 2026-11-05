@@ -75,19 +75,30 @@ test("audio snapshot follows the output clock and survives pause and resume", as
   }
 });
 
-test("track highlighting attenuates other source buses and restores the original mix", async () => {
+test("voice tracks start ahead of guitar and strings, and their buses follow mixer values", async () => {
   const audio = createJourneyAudio(score, () => {}, { Context: FakeContext });
   try {
+    const vocals = score.tracks.filter(track => track.voice === "vocal");
+    const guitar = score.tracks.find(track => track.voice === "guitar");
+    const strings = score.tracks.find(track => track.voice === "strings");
+    assert.equal(vocals.length, 2);
+    assert.deepEqual(score.tracks.map(track => track.voice), ["vocal", "vocal", "guitar", "strings"]);
+    assert.ok(vocals.every(track => audio.getTrackVolume(track.id) === 1));
+    assert.ok(vocals.every(track => audio.getTrackVolume(track.id) > audio.getTrackVolume(guitar.id)));
+    assert.ok(vocals.every(track => audio.getTrackVolume(track.id) > audio.getTrackVolume(strings.id)));
+
     await audio.start();
     const buses = FakeContext.latest.gains.slice(1, score.tracks.length + 1);
     assert.equal(buses.length, score.tracks.length);
-    assert.ok(buses.every(bus => bus.gain.value === 1));
-    assert.equal(audio.highlightTrack(4), true);
-    assert.equal(buses[3].gain.value, 1);
-    assert.ok(buses.filter((_, index) => index !== 3).every(bus => bus.gain.value === .18));
-    assert.equal(audio.highlightTrack(404), false);
-    assert.equal(audio.highlightTrack(null), true);
-    assert.ok(buses.every(bus => bus.gain.value === 1));
+    assert.equal(buses[0].gain.value, 1);
+    assert.equal(buses[1].gain.value, 1);
+    assert.equal(buses[2].gain.value, 24 / 127);
+    assert.equal(buses[3].gain.value, 72 / 127);
+    assert.equal(audio.setTrackVolume(guitar.id, .4), true);
+    assert.equal(audio.getTrackVolume(guitar.id), .4);
+    assert.equal(buses[2].gain.value, .4);
+    assert.equal(audio.setTrackVolume(404, .5), false);
+    assert.equal(audio.getTrackVolume(404), null);
   } finally {
     audio.dispose();
   }

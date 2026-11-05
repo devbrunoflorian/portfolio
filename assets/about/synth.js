@@ -6,7 +6,7 @@ const textures = {
   games: { type: "square", attack: .006, release: .05, cutoff: 3200, sustain: .17 },
 };
 
-export function createSynth(context, volume = .35, trackIds = []) {
+export function createSynth(context, volume = .35, trackIds = [], trackVolumes = new Map()) {
   const master = context.createGain();
   const compressor = context.createDynamicsCompressor();
   compressor.threshold.value = -18;
@@ -16,7 +16,7 @@ export function createSynth(context, volume = .35, trackIds = []) {
   master.connect(compressor).connect(context.destination);
   const trackBuses = new Map(trackIds.map(id => {
     const bus = context.createGain();
-    bus.gain.value = 1;
+    bus.gain.value = trackVolumes.get(id) ?? 1;
     bus.connect(master);
     return [id, bus];
   }));
@@ -98,10 +98,12 @@ export function createSynth(context, volume = .35, trackIds = []) {
 
   return {
     note,
-    setHighlightTrack(trackId) {
-      for (const [id, bus] of trackBuses) {
-        bus.gain.setTargetAtTime(trackId === null || id === trackId ? 1 : .18, context.currentTime, .08);
-      }
+    setTrackVolume(trackId, value) {
+      const bus = trackBuses.get(trackId);
+      if (!bus) return false;
+      trackVolumes.set(trackId, Math.max(0, Math.min(1, value)));
+      bus.gain.setTargetAtTime(trackVolumes.get(trackId), context.currentTime, .035);
+      return true;
     },
     setVolume(value) {
       master.gain.setTargetAtTime(Math.max(0, Math.min(1, value)), context.currentTime, .025);
