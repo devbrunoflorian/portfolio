@@ -1,6 +1,12 @@
 import { activeNotesAt, beatToSeconds, createScoreTransport, secondsToBeat } from "./transport.js";
 import { createSynth } from "./synth.js";
 
+export function playbackPositionForDisplay(snapshot, score) {
+  const span = score.bars * score.beatsPerBar;
+  if (snapshot.state === "finished") return { beat: span, seconds: score.durationSeconds };
+  return { beat: snapshot.beat % span, seconds: snapshot.seconds % score.durationSeconds };
+}
+
 export function createJourneyAudio(score, onState, { Context = globalThis.AudioContext ?? globalThis.webkitAudioContext } = {}) {
   let context, synth, transport, timer;
   let enabled = false;
@@ -18,8 +24,8 @@ export function createJourneyAudio(score, onState, { Context = globalThis.AudioC
   const span = score.bars * score.beatsPerBar;
 
   function currentBeat() { return context ? secondsToBeat(score, Math.max(0, context.currentTime - origin)) : resumeBeat; }
-  function sectionAt(beat) {
-    const local = !repeat && beat >= span ? span - 1e-6 : beat % span;
+  function sectionAt(beat, finished = false) {
+    const local = finished ? span - 1e-6 : beat % span;
     return score.sections?.findLast(item => item.beat <= local)?.name ?? "Intro";
   }
   function playbackSnapshot() {
@@ -32,8 +38,9 @@ export function createJourneyAudio(score, onState, { Context = globalThis.AudioC
       }
       beat = secondsToBeat(score, Math.max(0, outputTime - origin));
     }
-    beat = !repeat && beat >= span ? span : beat % span;
-    return { state, beat, seconds: beatToSeconds(score, beat), section: sectionAt(beat) };
+    const finished = state === "finished";
+    beat = finished ? span : beat % span;
+    return { state, beat, seconds: finished ? score.durationSeconds : beatToSeconds(score, beat), section: sectionAt(beat, finished) };
   }
   function resumeHeldNotes() {
     const localBeat = resumeBeat % span;
@@ -58,7 +65,9 @@ export function createJourneyAudio(score, onState, { Context = globalThis.AudioC
   function schedule() {
     if (state !== "playing" || !context) return;
     const now = currentBeat();
-    for (const event of transport.readUntil(secondsToBeat(score, context.currentTime - origin + .12))) {
+    const nextLoopBoundary = (Math.floor(now / span) + 1) * span;
+    const horizon = Math.min(secondsToBeat(score, context.currentTime - origin + .12), nextLoopBoundary - 1e-6);
+    for (const event of transport.readUntil(horizon)) {
       const start = origin + event.time;
       // A stalled foreground frame must not replay a burst of overdue notes.
       if (start < context.currentTime - .06) continue;
@@ -66,15 +75,20 @@ export function createJourneyAudio(score, onState, { Context = globalThis.AudioC
       synth.note(event.midi, start, event.durationSeconds, event.movement, event.velocity, event.voice,
         event.bend, event.bendRange, event.bendEvents, event.track, loopTail);
     }
-    if (!repeat && now >= score.bars * score.beatsPerBar + 2) { pause("finished"); return; }
+    if (!repeat && now >= transport.endBeat - 1e-6) { pause("finished"); return; }
     report();
   }
   function pause(reason = "paused") {
+    if (state !== "playing" && state !== "starting") return;
     enabled = false;
     revision += 1;
-    if (state === "playing") resumeBeat = currentBeat();
+    if (state === "playing") {
+      resumeBeat = currentBeat();
+      if (!repeat && resumeBeat >= transport.endBeat - 1e-6) reason = "finished";
+    }
     state = reason;
     clearInterval(timer);
+    timer = undefined;
     synth?.silence();
     if (context && context.state !== "closed") context.suspend().catch(() => {});
     report();
@@ -114,7 +128,7 @@ export function createJourneyAudio(score, onState, { Context = globalThis.AudioC
         state = "playing";
         resumeHeldNotes();
         schedule();
-        timer = setInterval(schedule, 25);
+        if (state === "playing") timer = setInterval(schedule, 25);
         report();
       } catch (error) {
         if (disposed || attempt !== revision) return;
@@ -135,7 +149,7 @@ export function createJourneyAudio(score, onState, { Context = globalThis.AudioC
     },
     setRepeat(value) {
       repeat = Boolean(value);
-      transport?.setRepeat(repeat);
+      transport?.setRepeat(repeat, currentBeat());
       report();
     },
     setMovement(movement) {

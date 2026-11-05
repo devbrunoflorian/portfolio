@@ -61,6 +61,22 @@ test("turning off repeat stops scheduling at the end of the source", () => {
   assert.deepEqual(transport.readUntil(600), []);
 });
 
+test("repeat toggles do not schedule an early Intro and can be restored near the ending", () => {
+  const endBeat = score.bars * score.beatsPerBar;
+  const looping = createScoreTransport(score, "opening", 0, true);
+  assert.equal(looping.readUntil(endBeat - .01).length, score.notes.length);
+  looping.setRepeat(false, endBeat - .01);
+  assert.equal(looping.endBeat, endBeat);
+  assert.deepEqual(looping.readUntil(endBeat + .2), []);
+
+  const oneShot = createScoreTransport(score, "opening", 0, false);
+  assert.equal(oneShot.readUntil(endBeat - .01).length, score.notes.length);
+  oneShot.setRepeat(true, endBeat - .01);
+  const intro = oneShot.readUntil(endBeat + .2);
+  assert.ok(intro.length > 0);
+  assert.ok(intro.every(event => event.beat >= endBeat));
+});
+
 test("a paused sustained chord can resume for its remaining duration", () => {
   const held = activeNotesAt(score, 420);
   assert.ok(held.some(note => note.voice === "guitar"));

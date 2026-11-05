@@ -1,5 +1,5 @@
 import { score } from "./score.js";
-import { createJourneyAudio } from "./audio.js";
+import { createJourneyAudio, playbackPositionForDisplay } from "./audio.js";
 import { mountExperiments } from "./experiments.js";
 import { createScoreVisual } from "./score-visual.js";
 
@@ -17,6 +17,11 @@ const labels = isPortuguese ? {
   playing: "Playing", finished: "Piece finished", next: "next bar", muted: "Volume at zero", motion: "Pause motion", resumeMotion: "Resume motion",
 };
 const movementNames = { opening: "Dissonância", code: "Code / lo-fi", music: "Music / Dissonância", art: "Art / legato", games: "Games / 8-bit" };
+const sectionNames = isPortuguese ? {} : {
+  "Verso I": "Verse I", "Ponte I": "Bridge I", "Refrão I": "Chorus I",
+  "Verso II": "Verse II", "Ponte II": "Bridge II", "Refrão II": "Chorus II", "Pós Refrão": "Post-Chorus",
+};
+const sectionName = name => sectionNames[name] ?? name;
 const soundButton = root.querySelector("[data-sound-toggle]");
 const audio = createJourneyAudio(score, status => {
   const active = status.state === "playing" || status.state === "starting";
@@ -24,7 +29,7 @@ const audio = createJourneyAudio(score, status => {
   soundButton.setAttribute("aria-busy", String(status.state === "starting"));
   root.querySelector("[data-sound-label]").textContent = status.state === "starting" ? labels.loading : active ? labels.pause : labels.listen;
   root.querySelector("[data-audio-status]").textContent = status.state === "playing"
-    ? `${status.volume === 0 ? labels.muted : labels.playing} · ${status.section} · ${movementNames[status.movement]}${status.pending ? ` → ${movementNames[status.pending]} (${labels.next})` : ""}`
+    ? `${status.volume === 0 ? labels.muted : labels.playing} · ${sectionName(status.section)} · ${movementNames[status.movement]}${status.pending ? ` → ${movementNames[status.pending]} (${labels.next})` : ""}`
     : labels[status.state] ?? labels.off;
   syncMixer(audio.snapshot?.());
   requestScene();
@@ -67,7 +72,7 @@ for (const track of score.tracks) {
   const label = layerNames[track.voice] + (track.voice === "vocal" ? ` ${track.name.endsWith("II") ? "II" : "I"}` : "");
   const first = trackRanges.get(track.id).first;
   const entry = score.sections.findLast(section => section.beat <= first)?.name ?? "Intro";
-  button.textContent = first ? `${label} · ${entry}` : label;
+  button.textContent = first ? `${label} · ${sectionName(entry)}` : label;
   button.dataset.layer = String(track.id);
   trackButtons.set(track.id, { button, label });
   layerButtons.append(button);
@@ -81,7 +86,8 @@ function formatTime(seconds, round = false) {
 }
 function syncMixer(snapshot) {
   if (!snapshot) return;
-  const songBeat = snapshot.beat % (score.bars * score.beatsPerBar);
+  const span = score.bars * score.beatsPerBar;
+  const { beat: songBeat, seconds: currentSeconds } = playbackPositionForDisplay(snapshot, score);
   if (chosenLayer !== null) {
     const range = trackRanges.get(chosenLayer);
     if (songBeat < range.first || songBeat >= range.end) { chosenLayer = null; audio.highlightTrack(null); }
@@ -92,8 +98,7 @@ function syncMixer(snapshot) {
     button.disabled = songBeat < range.first || songBeat >= range.end;
     button.setAttribute("aria-pressed", String(chosenLayer === id));
   }
-  const currentSeconds = snapshot.seconds % score.durationSeconds;
-  mixer.querySelector("[data-audio-position]").textContent = `${snapshot.section} · ${formatTime(currentSeconds)} / ${formatTime(score.durationSeconds, true)}`;
+  mixer.querySelector("[data-audio-position]").textContent = `${sectionName(snapshot.section)} · ${formatTime(currentSeconds, currentSeconds >= score.durationSeconds)} / ${formatTime(score.durationSeconds, true)}`;
   mixer.querySelector("[data-layer-status]").textContent = chosenLayer === null
     ? isPortuguese ? "A mix original está selecionada." : "The original mix is selected."
     : isPortuguese ? `Destaque: ${trackButtons.get(chosenLayer).label}. As outras camadas recuam.` : `Highlighting ${trackButtons.get(chosenLayer).label}. Other layers recede.`;

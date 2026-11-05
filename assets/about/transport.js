@@ -26,6 +26,7 @@ export function createScoreTransport(score, initialMovement = "opening", startBe
   let loop = Math.floor(startBeat / loopBeats);
   let index = score.notes.findIndex(note => note.beat + loop * loopBeats >= startBeat - 1e-6);
   if (index === -1) { loop += 1; index = 0; }
+  let stopAtBeat = repeat ? Infinity : (Math.floor(startBeat / loopBeats) + 1) * loopBeats;
   let scheduledThrough = startBeat;
   let changes = [{ beat: startBeat, movement: initialMovement }];
 
@@ -35,7 +36,23 @@ export function createScoreTransport(score, initialMovement = "opening", startBe
 
   return {
     movementAt,
-    setRepeat(value) { repeat = Boolean(value); },
+    get endBeat() { return stopAtBeat; },
+    setRepeat(value, currentBeat = startBeat) {
+      const next = Boolean(value);
+      const activeLoop = Math.floor(Math.max(0, currentBeat) / loopBeats);
+      if (next) {
+        stopAtBeat = Infinity;
+        // If the final note was already read with repeat off, prepare the next
+        // loop so enabling repeat near the ending still takes effect.
+        if (index >= score.notes.length && loop === activeLoop) { loop = activeLoop + 1; index = 0; }
+      } else {
+        stopAtBeat = (activeLoop + 1) * loopBeats;
+        // Lookahead can consume the current iteration's last note before its
+        // final sustain ends. Discard the not-yet-started next iteration.
+        if (loop > activeLoop) { loop = activeLoop; index = score.notes.length; }
+      }
+      repeat = next;
+    },
     requestMovement(movement, currentBeat) {
       if (!MOVEMENTS.has(movement)) return;
       // A decision already sent to the audio graph cannot be replaced. New requests
@@ -51,6 +68,7 @@ export function createScoreTransport(score, initialMovement = "opening", startBe
         const note = score.notes[index];
         const beat = note.beat + loop * loopBeats;
         if (beat > endBeat + 1e-6) break;
+        if (beat >= stopAtBeat - 1e-6) break;
         events.push({ ...note, beat, time: note.time + loop * score.durationSeconds, movement: movementAt(beat) });
         index += 1;
         if (index === score.notes.length && repeat) { index = 0; loop += 1; }

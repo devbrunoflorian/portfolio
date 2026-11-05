@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createJourneyAudio } from "../assets/about/audio.js";
+import { createJourneyAudio, playbackPositionForDisplay } from "../assets/about/audio.js";
 import { score } from "../assets/about/score.js";
 
 function parameter(value = 0) {
@@ -91,4 +91,37 @@ test("track highlighting attenuates other source buses and restores the original
   } finally {
     audio.dispose();
   }
+});
+
+test("a completed one-shot stays finished when the page asks to pause it", async () => {
+  const audio = createJourneyAudio(score, () => {}, { Context: FakeContext });
+  try {
+    audio.pause();
+    assert.equal(audio.snapshot().state, "off");
+    await audio.start();
+    audio.setRepeat(false);
+    const context = FakeContext.latest;
+    context.currentTime = score.durationSeconds + 1;
+    await new Promise(resolve => setTimeout(resolve, 35));
+    const finished = audio.snapshot();
+    assert.equal(finished.state, "finished");
+    assert.equal(finished.beat, score.bars * score.beatsPerBar);
+    assert.equal(finished.seconds, score.durationSeconds);
+    audio.pause();
+    assert.deepEqual(audio.snapshot(), finished);
+  } finally {
+    audio.dispose();
+  }
+});
+
+test("display position wraps repeats but preserves the completed ending", () => {
+  const span = score.bars * score.beatsPerBar;
+  assert.deepEqual(playbackPositionForDisplay({ state: "playing", beat: span + 3, seconds: score.durationSeconds + 1.5 }, score), {
+    beat: 3,
+    seconds: 1.5,
+  });
+  assert.deepEqual(playbackPositionForDisplay({ state: "finished", beat: span, seconds: score.durationSeconds }, score), {
+    beat: span,
+    seconds: score.durationSeconds,
+  });
 });

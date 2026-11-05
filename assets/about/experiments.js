@@ -113,7 +113,10 @@ export function mountExperiments(root, audio, isPortuguese) {
         ? `Cavalo em ${squareName(position)}. ${movesMade} de ${challenge.limit} movimentos. Siga para ${target}.`
         : `Knight on ${squareName(position)}. ${movesMade} of ${challenge.limit} moves. Continue to ${target}.`;
     } else {
-      boardStatus.textContent = isPortuguese ? `Cavalo em ${squareName(position)}. Escolha uma casa marcada.` : `Knight on ${squareName(position)}. Choose a marked square.`;
+      const target = squareName(challenge.target);
+      boardStatus.textContent = isPortuguese
+        ? `Desafio ${challengeIndex + 1} de 2. Cavalo em ${squareName(position)}. Chegue a ${target} em até ${challenge.limit} movimentos.`
+        : `Puzzle ${challengeIndex + 1} of 2. Knight on ${squareName(position)}. Reach ${target} in ${challenge.limit} moves or fewer.`;
     }
   }
   board.addEventListener("keydown", event => {
