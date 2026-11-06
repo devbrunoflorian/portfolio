@@ -1,16 +1,21 @@
 import { harmonyNotes } from "./transport.js";
 
-export function knightMoves(position, size = 5) {
+export function knightMoves(position, size = 5, blocked = []) {
   const row = Math.floor(position / size), column = position % size;
+  const blockedSquares = new Set(blocked);
   return [[2, 1], [2, -1], [-2, 1], [-2, -1], [1, 2], [1, -2], [-1, 2], [-1, -2]]
     .map(([y, x]) => [row + y, column + x])
     .filter(([y, x]) => y >= 0 && y < size && x >= 0 && x < size)
-    .map(([y, x]) => y * size + x);
+    .map(([y, x]) => y * size + x)
+    .filter(square => !blockedSquares.has(square));
 }
 
 export const knightChallenges = [
-  { start: 12, target: 6, limit: 2, path: [12, 3, 6], hint: "d5" },
-  { start: 12, target: 10, limit: 2, path: [12, 21, 10], hint: "b1" },
+  { start: 0, target: 2, limit: 2, blocked: [], path: [0, 11, 2] },
+  { start: 0, target: 3, limit: 3, blocked: [], path: [0, 7, 14, 3] },
+  { start: 4, target: 0, limit: 4, blocked: [7, 22], path: [4, 13, 2, 11, 0] },
+  { start: 9, target: 16, limit: 5, blocked: [2, 7, 12], path: [9, 18, 11, 22, 13, 16] },
+  { start: 3, target: 23, limit: 6, blocked: [12, 13, 14], path: [3, 6, 17, 10, 7, 16, 23] },
 ];
 
 export function mountExperiments(root, audio, isPortuguese) {
@@ -58,23 +63,33 @@ export function mountExperiments(root, audio, isPortuguese) {
   const boardStatus = root.querySelector("[data-knight-status]");
   const challengeLabel = root.querySelector("[data-knight-challenge-label]");
   const challengeCopy = root.querySelector("[data-knight-challenge]");
+  const nextButton = root.querySelector("[data-knight-next]");
+  const details = root.querySelector(".knight-details");
+  const gamesChapter = root.querySelector(".games-chapter");
   const hintButton = root.querySelector("[data-knight-hint]");
   const hintCopy = root.querySelector("[data-knight-hint-copy]");
-  const challengeText = isPortuguese
-    ? ["Chegue em b4 em até dois movimentos.", "Chegue em a3 em até dois movimentos."]
-    : ["Reach b4 in two moves or fewer.", "Reach a3 in two moves or fewer."];
-  const challengeHints = isPortuguese ? ["Passe por d5.", "Passe por b1."] : ["Pass through d5.", "Pass through b1."];
   let challengeIndex = 0;
   let position = knightChallenges[challengeIndex].start;
   let movesMade = 0;
   let finished = false;
   const squareName = index => `${String.fromCharCode(97 + index % 5)}${5 - Math.floor(index / 5)}`;
+  details.addEventListener("toggle", () => {
+    gamesChapter.dataset.puzzleOpen = String(details.open);
+  }, { signal });
   const squares = Array.from({ length: 25 }, (_, index) => {
     const button = document.createElement("button");
     button.type = "button";
     button.addEventListener("click", () => {
       const challenge = knightChallenges[challengeIndex];
-      if (finished || movesMade >= challenge.limit || !knightMoves(position).includes(index)) return;
+      if (finished || movesMade >= challenge.limit) return;
+      if (challenge.blocked.includes(index)) {
+        boardStatus.textContent = isPortuguese ? `A casa ${squareName(index)} está fechada.` : `Square ${squareName(index)} is blocked.`;
+        return;
+      }
+      if (!knightMoves(position, 5, challenge.blocked).includes(index)) {
+        boardStatus.textContent = isPortuguese ? "Esse movimento não é de cavalo. Escolha uma casa marcada." : "That is not a knight move. Choose a marked square.";
+        return;
+      }
       position = index;
       movesMade += 1;
       if (position === challenge.target) finished = true;
@@ -87,36 +102,52 @@ export function mountExperiments(root, audio, isPortuguese) {
   });
   function renderBoard() {
     const challenge = knightChallenges[challengeIndex];
-    const legal = knightMoves(position);
+    const blocked = new Set(challenge.blocked);
+    const legal = knightMoves(position, 5, blocked);
+    const solved = position === challenge.target;
+    const finalChallenge = challengeIndex === knightChallenges.length - 1;
     squares.forEach((button, index) => {
       const occupied = index === position;
+      const isBlocked = blocked.has(index);
       const canMove = !finished && movesMade < challenge.limit && legal.includes(index);
-      button.textContent = occupied ? "♞" : "";
+      button.textContent = occupied ? "♞" : isBlocked ? "×" : "";
       button.dataset.legal = String(canMove);
       button.dataset.target = String(index === challenge.target);
+      button.dataset.blocked = String(isBlocked);
       button.setAttribute("aria-pressed", String(occupied));
       button.setAttribute("aria-disabled", String(!canMove));
       const targetLabel = index === challenge.target ? `, ${isPortuguese ? "alvo" : "target"}` : "";
-      button.setAttribute("aria-label", `${occupied ? (isPortuguese ? "Cavalo em" : "Knight on") : canMove ? (isPortuguese ? "Mover para" : "Move to") : (isPortuguese ? "Casa" : "Square")} ${squareName(index)}${targetLabel}`);
+      const blockedLabel = isBlocked ? `, ${isPortuguese ? "casa fechada" : "blocked square"}` : "";
+      button.setAttribute("aria-label", `${occupied ? (isPortuguese ? "Cavalo em" : "Knight on") : canMove ? (isPortuguese ? "Mover para" : "Move to") : (isPortuguese ? "Casa" : "Square")} ${squareName(index)}${targetLabel}${blockedLabel}`);
       button.tabIndex = occupied ? 0 : -1;
     });
-    challengeLabel.textContent = `${isPortuguese ? "Desafio" : "Puzzle"} ${challengeIndex + 1}/2`;
-    challengeCopy.textContent = challengeText[challengeIndex];
-    hintCopy.textContent = challengeHints[challengeIndex];
-    if (position === challenge.target) {
-      boardStatus.textContent = isPortuguese ? `Desafio concluído em ${movesMade} movimentos.` : `Puzzle solved in ${movesMade} moves.`;
+    challengeLabel.textContent = `${isPortuguese ? "Etapa" : "Stage"} ${challengeIndex + 1}/${knightChallenges.length} · ${challenge.limit} ${isPortuguese ? "lances" : "moves"}`;
+    challengeCopy.textContent = isPortuguese
+      ? `De ${squareName(challenge.start)} até ${squareName(challenge.target)} em ${challenge.limit} lances.`
+      : `From ${squareName(challenge.start)} to ${squareName(challenge.target)} in ${challenge.limit} moves.`;
+    hintCopy.textContent = isPortuguese
+      ? `A primeira casa é ${squareName(challenge.path[1])}.`
+      : `The first square is ${squareName(challenge.path[1])}.`;
+    nextButton.disabled = !solved || finalChallenge;
+    nextButton.textContent = finalChallenge && solved
+      ? (isPortuguese ? "Trilha concluída" : "Trail complete")
+      : (isPortuguese ? "Próxima etapa" : "Next stage");
+    if (solved && finalChallenge) {
+      boardStatus.textContent = isPortuguese ? "Trilha concluída. Você resolveu as cinco etapas." : "Trail complete. You solved all five stages.";
+    } else if (solved) {
+      boardStatus.textContent = isPortuguese ? `Etapa concluída em ${movesMade} lances. A próxima está liberada.` : `Stage solved in ${movesMade} moves. The next one is unlocked.`;
     } else if (finished) {
-      boardStatus.textContent = isPortuguese ? "Limite de movimentos atingido. Recomece para tentar." : "Move limit reached. Start again to retry.";
+      boardStatus.textContent = isPortuguese ? "Lances esgotados. Recomece para tentar outra vez." : "Moves used. Start again to retry.";
     } else if (movesMade > 0) {
       const target = squareName(challenge.target);
       boardStatus.textContent = isPortuguese
-        ? `Cavalo em ${squareName(position)}. ${movesMade} de ${challenge.limit} movimentos. Siga para ${target}.`
+        ? `Cavalo em ${squareName(position)}. ${movesMade} de ${challenge.limit} lances. Siga para ${target}.`
         : `Knight on ${squareName(position)}. ${movesMade} of ${challenge.limit} moves. Continue to ${target}.`;
     } else {
       const target = squareName(challenge.target);
       boardStatus.textContent = isPortuguese
-        ? `Desafio ${challengeIndex + 1} de 2. Cavalo em ${squareName(position)}. Chegue a ${target} em até ${challenge.limit} movimentos.`
-        : `Puzzle ${challengeIndex + 1} of 2. Knight on ${squareName(position)}. Reach ${target} in ${challenge.limit} moves or fewer.`;
+        ? `Etapa ${challengeIndex + 1} de ${knightChallenges.length}. Cavalo em ${squareName(position)}. Chegue a ${target} em ${challenge.limit} lances.`
+        : `Stage ${challengeIndex + 1} of ${knightChallenges.length}. Knight on ${squareName(position)}. Reach ${target} in ${challenge.limit} moves.`;
     }
   }
   board.addEventListener("keydown", event => {
@@ -139,12 +170,17 @@ export function mountExperiments(root, audio, isPortuguese) {
     position = knightChallenges[challengeIndex].start;
     movesMade = 0;
     finished = false;
+    hintButton.setAttribute("aria-expanded", "false");
+    hintButton.textContent = isPortuguese ? "Ver dica" : "Show hint";
+    hintCopy.hidden = true;
     renderBoard();
   }
   root.querySelector("[data-knight-reset]").addEventListener("click", resetPuzzle, { signal });
-  root.querySelector("[data-knight-next]").addEventListener("click", () => {
-    challengeIndex = (challengeIndex + 1) % knightChallenges.length;
+  nextButton.addEventListener("click", () => {
+    if (nextButton.disabled || challengeIndex === knightChallenges.length - 1) return;
+    challengeIndex += 1;
     resetPuzzle();
+    squares[position].focus({ preventScroll: true });
   }, { signal });
   hintButton.addEventListener("click", () => {
     const expanded = hintButton.getAttribute("aria-expanded") !== "true";

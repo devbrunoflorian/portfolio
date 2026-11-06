@@ -248,6 +248,7 @@ body { background: var(--about-bg); color: var(--about-ink); }
 .art-experiment[data-rhythm-state="pause"] .poem span:nth-child(3) { padding-top: 14px; }
 .art-experiment[data-rhythm-state="intense"] .poem { font-style: normal; color: #e6c7ff; }
 .games-chapter { min-height: clamp(330px, 46svh, 430px); padding-block: 52px; }
+.games-chapter[data-puzzle-open="true"] { padding-bottom: calc(88px + env(safe-area-inset-bottom)); }
 .games-chapter .chapter-copy { grid-column: 2; grid-row: 1; }
 .games-experiment { grid-column: 1; grid-row: 1; position: relative; padding: 22px 0; }
 .games-chapter h2 { font-size: clamp(36px, 2rem + .8vw, 48px); }
@@ -270,10 +271,12 @@ body { background: var(--about-bg); color: var(--about-ink); }
 .knight-board button[data-legal="true"]:hover { background: #644b85; }
 .knight-board button[aria-pressed="true"] { color: #ebd9ff; background: #593978; }
 .knight-board button[aria-disabled="true"] { cursor: default; }
+.knight-board button[data-blocked="true"] { color: #9685a3; background-image: repeating-linear-gradient(135deg, transparent 0 7px, #b39ac51f 7px 9px); font-size: 20px; }
 .knight-board button:focus-visible { z-index: 1; outline-offset: -3px; }
 .knight-meta { padding-bottom: 16px; display: flex; align-items: center; justify-content: space-between; gap: 15px; }
 .knight-meta p { font: 10px/1.5 var(--about-mono); color: #b4a3c5; }
 .knight-meta button { border: 0; background: transparent; font-size: 11px; text-decoration: underline; text-underline-offset: 4px; }
+.knight-meta button:disabled { color: #82768f; cursor: not-allowed; opacity: .65; text-decoration: none; }
 .knight-actions { display: flex; gap: 14px; flex-shrink: 0; }
 .knight-hint { padding: 0 0 18px; color: #75d9ed; font: 10px/1.6 var(--about-mono); }
 

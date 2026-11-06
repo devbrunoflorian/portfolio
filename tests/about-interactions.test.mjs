@@ -104,16 +104,40 @@ test("the knight can only reach legal squares on the five-square board", () => {
   assert.deepEqual(knightMoves(0), [11, 7]);
   assert.deepEqual(knightMoves(12).sort((a, b) => a - b), [1, 3, 5, 9, 15, 19, 21, 23]);
   assert.equal(knightMoves(12).length, 8);
+  assert.deepEqual(knightMoves(4, 5, [7]), [13]);
 });
 
-test("each optional knight puzzle has a legal path within its move limit", () => {
-  assert.equal(knightChallenges.length, 2);
+test("optional knight stages have one valid shortest path and increase in length", () => {
+  assert.deepEqual(knightChallenges.map(challenge => challenge.limit), [2, 3, 4, 5, 6]);
   for (const challenge of knightChallenges) {
     assert.equal(challenge.path[0], challenge.start);
     assert.equal(challenge.path.at(-1), challenge.target);
-    assert.ok(challenge.path.length - 1 <= challenge.limit);
+    assert.equal(challenge.path.length - 1, challenge.limit);
+    assert.ok(!challenge.blocked.includes(challenge.start));
+    assert.ok(!challenge.blocked.includes(challenge.target));
     for (let step = 1; step < challenge.path.length; step += 1) {
-      assert.ok(knightMoves(challenge.path[step - 1]).includes(challenge.path[step]));
+      assert.ok(knightMoves(challenge.path[step - 1], 5, challenge.blocked).includes(challenge.path[step]));
     }
+
+    const distance = Array(25).fill(Infinity);
+    const shortestPaths = Array(25).fill(0);
+    const queue = [challenge.start];
+    distance[challenge.start] = 0;
+    shortestPaths[challenge.start] = 1;
+    for (let cursor = 0; cursor < queue.length; cursor += 1) {
+      const current = queue[cursor];
+      for (const next of knightMoves(current, 5, challenge.blocked)) {
+        const nextDistance = distance[current] + 1;
+        if (nextDistance < distance[next]) {
+          distance[next] = nextDistance;
+          shortestPaths[next] = shortestPaths[current];
+          queue.push(next);
+        } else if (nextDistance === distance[next]) {
+          shortestPaths[next] += shortestPaths[current];
+        }
+      }
+    }
+    assert.equal(distance[challenge.target], challenge.limit);
+    assert.equal(shortestPaths[challenge.target], 1);
   }
 });
