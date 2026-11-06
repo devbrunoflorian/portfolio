@@ -41,7 +41,6 @@
           <div class="hero-composition">
             <div class="hero-field" aria-hidden="true">
               <svg class="field-orbit" viewBox="0 0 700 700" preserveAspectRatio="xMidYMid meet"><circle cx="350" cy="330" r="270"/><path d="M60 570V160H570M105 98L620 600M28 375H667M465 34V650"/><circle class="orbit-node" cx="465" cy="85" r="3"/><circle class="orbit-node" cx="94" cy="375" r="3"/><circle class="orbit-node" cx="570" cy="160" r="3"/></svg>
-              <div class="score-scene hero-score-scene" data-score-scene="opening"></div>
             </div>
             <div class="hero-copy">
               <p class="section-kicker">Different languages.<br>The same restless mind.</p>
@@ -63,7 +62,6 @@
         <div class="journey-status"><p>Scroll at your own pace. Sound is optional.</p><p data-audio-status role="status">Sound is off</p></div>
         <noscript><p class="about-noscript">The story is available without JavaScript. Enable it to try the sound and interactive experiments.</p></noscript>
         <section class="about-chapter code-chapter" id="code" data-movement="code" aria-labelledby="code-title">
-          <div class="score-scene code-score-scene" data-score-scene="code" aria-hidden="true"></div>
           <div class="chapter-copy"><p class="section-kicker">01 / CODE <span>LO-FI</span></p><h2 id="code-title">Give an idea<br><em>a structure.</em></h2><p>I turn product ideas into software across frontend, backend, data and AI.</p></div>
           <div class="code-stack">
             <div class="experiment-label"><span>MY STACK / SELECTED TOOLS</span><span aria-hidden="true">↘</span></div>
@@ -74,9 +72,15 @@
         </section>
         <section class="about-chapter music-chapter" id="music" data-movement="music" aria-labelledby="music-title">
           <div class="music-heading"><div class="chapter-copy"><p class="section-kicker">02 / MUSIC <span>DISSONÂNCIA</span></p><h2 id="music-title">Some things<br>need to be <em>felt.</em></h2></div><p class="music-intro">Music has its own gravity in my life. Dissonância travels through its verses, bridges and choruses as this page changes around it.</p></div>
-          <div class="score-scene music-score-scene" data-score-scene="music" aria-hidden="true"></div>
-          <div class="music-layers" data-layer-mixer data-enhanced hidden><div class="music-layers-heading"><div><h3>Track mixer</h3><p>Both vocal lines lead the mix. Guitar and strings sit behind them.</p></div><p data-audio-position aria-live="off">Intro · 0:00 / 4:10</p></div><div class="music-mixer" data-track-mixer role="group" aria-label="Individual track volume controls"></div><p class="music-mixer-hint" data-layer-status>Adjust each part in this study mix.</p></div>
-          <figure class="score-figure"><figcaption><span>Dissonância · opening two bars</span><span>♩ = 102 <span aria-hidden="true">·</span> 4/4</span></figcaption><img src="/assets/about/score-opening.png" width="1325" height="213" loading="lazy" alt="First two guitar bars of Dissonância: triplet arpeggios in 4/4, with one sharp in the key signature." /><p>The complete composition, about four minutes, rendered here with electronic study sounds.</p></figure>
+          <figure class="score-figure">
+            <div class="score-scene music-score-scene" data-score-scene="music" aria-hidden="true"></div>
+            <figcaption>
+              <div class="score-caption-top"><span>Dissonância · full-piece score study</span><span>♩ = 102 <span aria-hidden="true">·</span> 4/4 · 106</span></div>
+              <ul class="score-legend" aria-label="Score layers"><li class="score-legend-one"><span aria-hidden="true"></span>Voice I</li><li class="score-legend-two"><span aria-hidden="true"></span>Voice II</li><li class="score-legend-background"><span aria-hidden="true"></span>Guitar · score watermark</li></ul>
+              <p class="score-guide">Start the audio to follow both vocal lines over the guitar score.</p><p class="score-arrangement">Two colored lines follow the vocal pitches over a static excerpt from the guitar score. This is a visual study, not a complete vocal engraving; the 4:09 piece uses electronic study sounds.</p>
+            </figcaption>
+          </figure>
+          <div class="music-layers" data-layer-mixer data-enhanced hidden><div class="music-layers-heading"><div><h3>Track mixer</h3><p>Both vocal lines lead the mix. Guitar and strings sit behind them.</p></div><p data-audio-position aria-live="off">Intro · 0:00 / 4:09</p></div><div class="music-mixer" data-track-mixer role="group" aria-label="Individual track volume controls"></div><p class="music-mixer-hint" data-layer-status>Adjust each part in this study mix.</p></div>
           <div class="music-player-actions" data-enhanced hidden><button class="journey-audio-action" type="button" data-audio-restart>Start from Intro</button><button class="journey-audio-action" type="button" aria-pressed="true" data-audio-repeat>Repeat the whole piece</button></div>
           <details class="music-explore" data-enhanced hidden><summary>Explore notes and chords<span aria-hidden="true">＋</span></summary><div class="music-instrument">
             <div class="instrument-description"><p>Play a chord or a note. These are separate sketches alongside the composition.</p><p class="instrument-help" id="play-help">Enable sound to play. The notes still respond visually in silence.</p><div class="chord-keys" role="group" aria-label="Harmonies"><button type="button" data-chord="em">Em(add9)</button><button type="button" data-chord="c">Cmaj7</button><button type="button" data-chord="am">Am9</button></div></div>
@@ -85,15 +89,14 @@
           <p class="quiet-note">No sound? You can still explore every movement.</p>
         </section>
         <section class="about-chapter art-chapter" id="art" data-movement="art" aria-labelledby="art-title">
-          <div class="art-experiment" data-rhythm-state="flow"><div class="score-scene art-score-scene" data-score-scene="art" aria-hidden="true"></div><div class="art-shape" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div><p class="poem"><span>Between one idea</span><span>and the next,</span><span>silence creates too.</span></p><p class="poem-caption">A brief text for this experiment</p><div class="rhythm-keys" role="group" aria-label="Change the rhythm" data-enhanced hidden><button type="button" data-rhythm="flow" aria-pressed="true">Flow</button><button type="button" data-rhythm="pause" aria-pressed="false">Pause</button><button type="button" data-rhythm="intense" aria-pressed="false">Intensity</button></div></div>
+          <div class="art-experiment" data-rhythm-state="flow"><div class="art-shape" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div><p class="poem"><span>Between one idea</span><span>and the next,</span><span>silence creates too.</span></p><p class="poem-caption">A brief text for this experiment</p><div class="rhythm-keys" role="group" aria-label="Change the rhythm" data-enhanced hidden><button type="button" data-rhythm="flow" aria-pressed="true">Flow</button><button type="button" data-rhythm="pause" aria-pressed="false">Pause</button><button type="button" data-rhythm="intense" aria-pressed="false">Intensity</button></div></div>
           <div class="chapter-copy"><p class="section-kicker">03 / ART <span>LEGATO</span></p><h2 id="art-title">Between the words,<br><em>another world.</em></h2><p>Poetry, literature and visual art share this space. The same words can breathe differently when their rhythm changes.</p></div>
         </section>
         <section class="about-chapter games-chapter" id="games" data-movement="games" aria-labelledby="games-title">
-          <div class="score-scene games-score-scene" data-score-scene="games" aria-hidden="true"></div>
           <div class="chapter-copy"><p class="section-kicker">04 / GAMES <span>8-BIT</span></p><h2 id="games-title">Games are another way<br><em>to think.</em></h2><p>Games and chess are part of the picture too: strategy, pattern recognition and a change of perspective.</p></div>
           <div class="games-experiment"><div class="games-mark" aria-hidden="true">♞</div><details class="knight-details"><summary>Solve a small knight path puzzle<span aria-hidden="true">+</span></summary><p>Move in an L: two squares in one direction, then one across.</p><div data-enhanced hidden><div class="knight-puzzle"><div class="knight-meta"><p><span data-knight-challenge-label>Challenge 1/2</span> · <span data-knight-challenge>Reach b4 in two moves or fewer.</span></p><button type="button" data-knight-next>Next puzzle</button></div><div class="knight-board" role="group" aria-label="Knight path puzzle on a five by five board" data-knight-board></div><div class="knight-meta"><p role="status" data-knight-status>Knight on c3. Choose a marked square.</p><div class="knight-actions"><button type="button" data-knight-hint aria-expanded="false">Show hint</button><button type="button" data-knight-reset>Start again</button></div></div><p class="knight-hint" data-knight-hint-copy hidden></p></div></div></details></div>
         </section>
-        <section class="about-closing" aria-labelledby="closing-title"><div class="score-scene closing-score-scene" data-score-scene="closing" aria-hidden="true"></div><p class="section-kicker">CODA</p><h2 id="closing-title">Ideas become more interesting<br>when they become <em>real.</em></h2><div class="closing-links"><a href="/en/projects/">Explore the work <span aria-hidden="true">↗</span></a><a href="/en/contact/">Let’s talk <span aria-hidden="true">↗</span></a></div><a class="back-to-top" href="#opening">↑ Back to the beginning</a></section>
+        <section class="about-closing" aria-labelledby="closing-title"><p class="section-kicker">CODA</p><h2 id="closing-title">Ideas become more interesting<br>when they become <em>real.</em></h2><div class="closing-links"><a href="/en/projects/">Explore the work <span aria-hidden="true">↗</span></a><a href="/en/contact/">Let’s talk <span aria-hidden="true">↗</span></a></div><a class="back-to-top" href="#opening">↑ Back to the beginning</a></section>
       </main>
       <footer class="site-footer"><span>© 2026 Bruno Florian</span><nav aria-label="External profiles"><a href="https://github.com/devbrunoflorian" target="_blank" rel="noopener noreferrer">GitHub</a><a href="https://github.com/engineering-proof-labs" target="_blank" rel="noopener noreferrer">Engineering Labs</a></nav></footer>
     </div>

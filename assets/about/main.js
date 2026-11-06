@@ -1,4 +1,4 @@
-import { score } from "./score.js?v=1bf9375d";
+import { score } from "./score.js?v=a1c14c40";
 import { createJourneyAudio, playbackPositionForDisplay } from "./audio.js";
 import { mountExperiments } from "./experiments.js";
 import { createScoreVisual } from "./score-visual.js";
