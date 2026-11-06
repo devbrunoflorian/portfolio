@@ -17,6 +17,14 @@ const REST_GAP_TOLERANCE = 0.55;
 const pendingSvgLoads = new Map();
 const scoreMetadataCache = new WeakMap();
 let nextSceneId = 1;
+const LEAD_MASK_SELECTORS = {
+  opening: ".hero-copy .section-kicker, .hero-copy h1, .hero-intro, .hero-actions, .hero-movements",
+  code: ".chapter-copy .section-kicker, .chapter-copy h2, .chapter-copy > p:last-child, .code-stack",
+  music: ".music-heading .section-kicker, .music-heading h2, .music-intro, .score-caption-top, .score-legend li, .score-guide, .music-tools summary, .music-tools button, .music-tools input, .music-tools p, .music-explore summary, .music-explore button, .music-instrument p, .music-instrument button",
+  art: ".chapter-copy .section-kicker, .chapter-copy h2, .chapter-copy > p:last-child, .poem, .poem-caption, .rhythm-keys",
+  games: ".chapter-copy .section-kicker, .chapter-copy h2, .chapter-copy > p:last-child, .games-experiment",
+  closing: "h2, .closing-links, .back-to-top",
+};
 
 function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
 
@@ -300,7 +308,7 @@ function appendBarSymbol(scene, number, x) {
   return use;
 }
 
-function makeScene(host) {
+function makeScene(host, leadsHost) {
   const id = `score-scene-${nextSceneId++}`;
   const svg = svgElement("svg", "score-score-svg");
   svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
@@ -315,6 +323,31 @@ function makeScene(host) {
   defs.append(clipPath);
   svg.append(defs);
   host.append(svg);
+
+  const leadsSvg = svgElement("svg", "score-score-svg score-leads-svg");
+  leadsSvg.setAttribute("preserveAspectRatio", "xMidYMid meet");
+  leadsSvg.setAttribute("aria-hidden", "true");
+  leadsSvg.setAttribute("focusable", "false");
+  const leadsDefs = svgElement("defs");
+  const leadsClip = svgElement("clipPath");
+  leadsClip.id = `${id}-leads-clip`;
+  leadsClip.setAttribute("clipPathUnits", "userSpaceOnUse");
+  const leadsClipRect = svgElement("rect");
+  leadsClip.append(leadsClipRect);
+  const leadsMask = svgElement("mask");
+  leadsMask.id = `${id}-leads-mask`;
+  leadsMask.setAttribute("maskUnits", "userSpaceOnUse");
+  leadsMask.setAttribute("maskContentUnits", "userSpaceOnUse");
+  leadsMask.setAttribute("mask-type", "luminance");
+  const leadsMaskBase = svgElement("rect");
+  leadsMaskBase.setAttribute("fill", "white");
+  leadsMask.append(leadsMaskBase);
+  const leadsMaskHoles = svgElement("g", "score-lead-mask-holes");
+  leadsMask.append(leadsMaskHoles);
+  leadsDefs.append(leadsClip, leadsMask);
+  leadsSvg.append(leadsDefs);
+  leadsHost.append(leadsSvg);
+
   const staff = svgElement("g", "score-staff");
   svg.append(staff);
   const guitar = svgElement("g", "score-guitar-measures");
@@ -326,18 +359,82 @@ function makeScene(host) {
   const barlines = svgElement("g", "score-measure-lines");
   barlines.setAttribute("clip-path", `url(#${clipPath.id})`);
   svg.append(barlines);
-  const playhead = appendLine(svg, 0, 0, 0, 0, "score-playhead");
+  const foreground = svgElement("g", "score-foreground-layer");
+  foreground.setAttribute("clip-path", `url(#${leadsClip.id})`);
+  foreground.setAttribute("mask", `url(#${leadsMask.id})`);
+  leadsSvg.append(foreground);
+  const playhead = appendLine(foreground, 0, 0, 0, 0, "score-playhead");
   playhead.style.display = "none";
   const traceLayer = svgElement("g", "score-voice-traces");
-  traceLayer.setAttribute("clip-path", `url(#${clipPath.id})`);
+  traceLayer.setAttribute("clip-path", `url(#${leadsClip.id})`);
   const traces = [makeVoiceTrace("melodyOne", traceLayer), makeVoiceTrace("melodyTwo", traceLayer)];
-  svg.append(traceLayer);
+  foreground.append(traceLayer);
   return {
     id, headerId: `${id}-header`, measureId: number => `${id}-bar-${String(number).padStart(3, "0")}`,
-    host, svg, defs, clipPath, clipRect, staff, guitar, crossTies, barlines, playhead, traces,
+    host, leadsHost, svg, leadsSvg, defs, leadsMask, leadsMaskBase, leadsMaskHoles, leadsClipRect,
+    clipPath, clipRect, staff, guitar, crossTies, barlines, playhead, traces,
     geometry: null, bars: [], barMarks: new Map(), tiePaths: new Map(),
-    systemDocs: new Map(), hasLiveFrame: false, playbackBeat: null, resourceVersion: 0, active: true,
+    systemDocs: new Map(), hasLiveFrame: false, playbackBeat: null, resourceVersion: 0, active: true, maskKey: "",
   };
+}
+
+function textRects(element) {
+  const range = document.createRange();
+  range.selectNodeContents(element);
+  const rects = [...range.getClientRects()];
+  range.detach();
+  return rects.length ? rects : [...element.getClientRects()];
+}
+
+function updateLeadMask(scene, root, chapter, layoutRevision) {
+  const selector = LEAD_MASK_SELECTORS[chapter];
+  scene.leadsHost.dataset.active = selector ? chapter : "false";
+  if (!selector || !scene.geometry) return;
+  const key = `${chapter}|${Math.round(window.scrollY)}|${window.innerWidth}|${window.innerHeight}|${layoutRevision}|${scene.geometry.viewBox}`;
+  if (key === scene.maskKey) return;
+  scene.maskKey = key;
+
+  const geometry = scene.geometry;
+  const svgRect = scene.leadsSvg.getBoundingClientRect();
+  const matrix = new DOMMatrix(getComputedStyle(scene.leadsSvg).transform);
+  const cameraScale = Math.max(.001, Math.hypot(matrix.a, matrix.b));
+  const fitScale = Math.min(window.innerWidth / geometry.width, window.innerHeight / geometry.height);
+  const fitLeft = (window.innerWidth - geometry.width * fitScale) / 2;
+  const fitTop = (window.innerHeight - geometry.height * fitScale) / 2;
+  const toViewBox = (position, origin, fitOffset) => ((position - origin) / cameraScale - fitOffset) / fitScale;
+
+  scene.leadsMaskBase.setAttribute("x", "0");
+  scene.leadsMaskBase.setAttribute("y", "0");
+  scene.leadsMaskBase.setAttribute("width", String(geometry.width));
+  scene.leadsMaskBase.setAttribute("height", String(geometry.height));
+  scene.leadsClipRect.setAttribute("x", String(geometry.headerWidth));
+  scene.leadsClipRect.setAttribute("y", "0");
+  scene.leadsClipRect.setAttribute("width", String(geometry.width - geometry.headerWidth));
+  scene.leadsClipRect.setAttribute("height", String(geometry.height));
+  scene.leadsMaskHoles.replaceChildren();
+
+  const section = root.querySelector(`[data-movement="${chapter}"]`);
+  for (const element of section?.querySelectorAll(selector) ?? []) {
+    if (!element.getClientRects().length) continue;
+    for (const rect of textRects(element)) {
+      if (rect.width < 1 || rect.height < 1 || rect.right < 0 || rect.left > innerWidth || rect.bottom < 0 || rect.top > innerHeight) continue;
+      const paddingX = 14 / Math.max(.001, fitScale * cameraScale);
+      const paddingY = 14 / Math.max(.001, fitScale * cameraScale);
+      const left = Math.max(geometry.headerWidth, toViewBox(rect.left, svgRect.left, fitLeft) - paddingX);
+      const top = Math.max(0, toViewBox(rect.top, svgRect.top, fitTop) - paddingY);
+      const right = Math.min(geometry.width, toViewBox(rect.right, svgRect.left, fitLeft) + paddingX);
+      const bottom = Math.min(geometry.height, toViewBox(rect.bottom, svgRect.top, fitTop) + paddingY);
+      if (right <= left || bottom <= top) continue;
+      const hole = svgElement("rect", "score-lead-mask-hole");
+      hole.setAttribute("x", left.toFixed(1));
+      hole.setAttribute("y", top.toFixed(1));
+      hole.setAttribute("width", (right - left).toFixed(1));
+      hole.setAttribute("height", (bottom - top).toFixed(1));
+      hole.setAttribute("rx", String(6 / Math.max(.001, fitScale * cameraScale)));
+      hole.setAttribute("fill", "black");
+      scene.leadsMaskHoles.append(hole);
+    }
+  }
 }
 
 function updateBarMarks(scene, score, leftBeat, geometry) {
@@ -478,9 +575,10 @@ function renderMeasures(scene, score, leftBeat, rightBeat, geometry, onReady) {
   loadSceneResources(scene, score, onReady, scene.resourceVersion);
 }
 
-function updateScene(scene, score, centerBeat, scrollBeat, motionEnabled, reducedMotion, playbackSnapshot, onReady) {
+function updateScene(scene, score, centerBeat, scrollBeat, motionEnabled, reducedMotion, playbackSnapshot, onReady, chapter, root, layoutRevision) {
   const hasPlayback = !reducedMotion && ["playing", "paused", "finished"].includes(playbackSnapshot?.state);
   if (!motionEnabled && scene.hasLiveFrame && !reducedMotion) {
+    updateLeadMask(scene, root, chapter, layoutRevision);
     return { beat: scene.playbackBeat, bars: scene.bars, live: true, frozen: true };
   }
   const live = hasPlayback && motionEnabled;
@@ -489,10 +587,19 @@ function updateScene(scene, score, centerBeat, scrollBeat, motionEnabled, reduce
   if (geometryChanged) {
     scene.geometry = geometry;
     scene.svg.setAttribute("viewBox", geometry.viewBox);
+    scene.leadsSvg.setAttribute("viewBox", geometry.viewBox);
     scene.clipRect.setAttribute("x", String(geometry.headerWidth));
     scene.clipRect.setAttribute("y", "0");
     scene.clipRect.setAttribute("width", String(geometry.width - geometry.headerWidth));
     scene.clipRect.setAttribute("height", String(HEIGHT));
+    scene.leadsMask.setAttribute("x", "0");
+    scene.leadsMask.setAttribute("y", "0");
+    scene.leadsMask.setAttribute("width", String(geometry.width));
+    scene.leadsMask.setAttribute("height", String(HEIGHT));
+    scene.leadsClipRect.setAttribute("x", String(geometry.headerWidth));
+    scene.leadsClipRect.setAttribute("y", "0");
+    scene.leadsClipRect.setAttribute("width", String(geometry.width - geometry.headerWidth));
+    scene.leadsClipRect.setAttribute("height", String(HEIGHT));
     scene.staff.replaceChildren();
     appendStaff(scene.staff, geometry);
     appendScoreHeader(scene, geometry);
@@ -526,6 +633,8 @@ function updateScene(scene, score, centerBeat, scrollBeat, motionEnabled, reduce
   }
   scene.playhead.style.display = live ? "" : "none";
   scene.svg.dataset.playback = live ? playbackSnapshot.state : "preview";
+  scene.leadsSvg.dataset.playback = live ? playbackSnapshot.state : "preview";
+  updateLeadMask(scene, root, chapter, layoutRevision);
   scene.hasLiveFrame = live && motionEnabled;
   scene.playbackBeat = visualBeat;
   return { beat: visualBeat, bars, live, frozen: false };
@@ -533,9 +642,10 @@ function updateScene(scene, score, centerBeat, scrollBeat, motionEnabled, reduce
 
 export function createScoreVisual(root, score, onReady = () => {}) {
   const hosts = [...root.querySelectorAll("[data-score-scene]")];
-  const scenes = hosts.map(makeScene);
+  const leadsHost = root.querySelector("[data-score-leads]");
+  const scenes = hosts.map(host => makeScene(host, leadsHost));
 
-  function update({ chapter = "music", scrollBeat = PREVIEW_BEAT, motionEnabled = true, reducedMotion = false, playbackSnapshot = null } = {}) {
+  function update({ chapter = "music", scrollBeat = PREVIEW_BEAT, motionEnabled = true, reducedMotion = false, playbackSnapshot = null, layoutRevision = 0 } = {}) {
     const beat = ["playing", "paused", "finished"].includes(playbackSnapshot?.state)
       ? playbackSnapshot.beat : PREVIEW_BEAT;
     let result = null;
@@ -546,7 +656,7 @@ export function createScoreVisual(root, score, onReady = () => {}) {
         const bounds = scene.host.closest("section")?.getBoundingClientRect();
         if (!bounds || bounds.bottom < 0 || bounds.top > innerHeight) continue;
       }
-      result = updateScene(scene, score, beat, scrollBeat, motionEnabled, reducedMotion, playbackSnapshot, onReady);
+      result = updateScene(scene, score, beat, scrollBeat, motionEnabled, reducedMotion, playbackSnapshot, onReady, chapter, root, layoutRevision);
     }
     return result;
   }
@@ -557,7 +667,9 @@ export function createScoreVisual(root, score, onReady = () => {}) {
       scenes.forEach(scene => {
         scene.active = false;
         scene.host.querySelector(".score-score-svg")?.remove();
+        scene.leadsHost?.querySelector(".score-leads-svg")?.remove();
         delete scene.host.dataset.scoreReady;
+        delete scene.leadsHost?.dataset.active;
       });
     },
   };
