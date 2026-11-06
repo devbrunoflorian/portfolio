@@ -413,7 +413,6 @@ body { background: var(--about-bg); color: var(--about-ink); }
   @keyframes resonate { from { transform: scale(.55); opacity: .75; } to { transform: scale(1.4); opacity: .15; } }
 }
 html[data-motion-paused="true"] .about-main :not(.scroll-fill), html[data-motion-paused="true"] .about-main :not(.scroll-fill)::after { animation: none !important; transition: none !important; }
-html[data-motion-paused="true"] .about-main .scroll-fill { animation-play-state: paused !important; }
 @media (prefers-reduced-motion: reduce) { .about-main *, .about-main *::after { transition: none !important; } }
 @media (prefers-reduced-motion: reduce) {
   html[data-content-id="about"] { scroll-behavior: auto; }

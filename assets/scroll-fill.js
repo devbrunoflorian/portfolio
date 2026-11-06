@@ -1,5 +1,6 @@
 const headings = [...document.querySelectorAll(".scroll-fill")];
 const motionPreference = window.matchMedia("(prefers-reduced-motion: reduce)");
+const documentRoot = document.documentElement;
 const fillWords = new Map();
 let frameRequested = false;
 
@@ -41,8 +42,14 @@ function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
 }
 
-function updateFill() {
+function isMotionPaused() {
+  return documentRoot.dataset.motionPaused === "true" && !motionPreference.matches;
+}
+
+function updateFill(force = false) {
   frameRequested = false;
+  if (isMotionPaused() && !force) return;
+
   const viewportHeight = window.innerHeight;
   const startLine = viewportHeight * 0.82;
   const finishLine = viewportHeight * 0.28;
@@ -60,6 +67,7 @@ function updateFill() {
 }
 
 function requestFillUpdate() {
+  if (isMotionPaused()) return;
   if (frameRequested) return;
   frameRequested = true;
   window.requestAnimationFrame(updateFill);
@@ -71,5 +79,10 @@ if (headings.length) {
   window.addEventListener("scroll", requestFillUpdate, { passive: true });
   window.addEventListener("resize", requestFillUpdate, { passive: true });
   motionPreference.addEventListener("change", requestFillUpdate);
+  const motionStateObserver = new MutationObserver(() => {
+    if (isMotionPaused()) updateFill(true);
+    else requestFillUpdate();
+  });
+  motionStateObserver.observe(documentRoot, { attributes: true, attributeFilter: ["data-motion-paused"] });
   document.fonts?.ready.then(requestFillUpdate);
 }
