@@ -7,12 +7,12 @@ const root = document.querySelector(".about-main");
 const chapters = [...root.querySelectorAll("[data-movement]")];
 const scoreThread = root.querySelector("[data-score-thread]");
 const scoreCameraStops = [
-  { x: .28, y: .015, scale: .94, opacity: 0, rotate: 0 },
-  { x: .13, y: .075, scale: 1.02, opacity: .085, rotate: 0 },
-  { x: -.025, y: -.025, scale: 1.24, opacity: .14, rotate: 0 },
-  { x: -.19, y: -.06, scale: .96, opacity: .11, rotate: 0 },
-  { x: -.34, y: .025, scale: .86, opacity: .09, rotate: 0 },
-  { x: -.48, y: .075, scale: .94, opacity: .15, rotate: 0 },
+  { x: .015, y: .015, scale: 1.08, opacity: .22, rotate: 0 },
+  { x: .03, y: .005, scale: 1.02, opacity: .045, rotate: 0 },
+  { x: 0, y: -.025, scale: 1.16, opacity: .54, rotate: 0 },
+  { x: -.035, y: -.015, scale: .98, opacity: .19, rotate: 0 },
+  { x: -.05, y: .025, scale: .9, opacity: .1, rotate: 0 },
+  { x: -.06, y: .045, scale: .92, opacity: .08, rotate: 0 },
 ];
 let scoreThreadCenters = [];
 let scoreThreadNeedsMeasure = true;
@@ -29,12 +29,12 @@ function scoreBeatForScroll() {
   return scoreProgressForScroll() * score.bars * score.beatsPerBar;
 }
 const revealSelectors = {
-  opening: ".hero-copy .section-kicker, .hero-copy h1, .hero-copy .hero-intro, .hero-copy .hero-actions",
-  code: ".code-chapter .chapter-copy .section-kicker, .code-chapter .chapter-copy h2, .code-chapter .chapter-copy > p:last-child, .code-stack > .experiment-label, .code-stack > .stack-intro, .code-stack > .stack-groups, .code-stack > .stack-more",
-  music: ".music-heading .section-kicker, .music-heading h2, .music-intro, .score-figure, .music-tools, .music-explore",
-  art: ".art-chapter .art-experiment, .art-chapter .chapter-copy .section-kicker, .art-chapter h2, .art-chapter .chapter-copy > p:last-child",
-  games: ".games-chapter .chapter-copy .section-kicker, .games-chapter h2, .games-chapter .chapter-copy > p:last-child, .games-experiment",
-  closing: ".about-closing h2, .about-closing .closing-links, .about-closing .back-to-top",
+  opening: ".hero-copy .section-kicker, .hero-copy .hero-intro, .hero-copy .hero-actions",
+  code: ".code-chapter .chapter-copy .section-kicker, .code-chapter .chapter-copy > p:last-child, .code-stack > .experiment-label, .code-stack > .stack-intro, .code-stack > .stack-groups, .code-stack > .stack-more",
+  music: ".music-heading .section-kicker, .music-intro, .score-figure, .music-tools, .music-explore",
+  art: ".art-chapter .art-experiment, .art-chapter .chapter-copy .section-kicker, .art-chapter .chapter-copy > p:last-child",
+  games: ".games-chapter .chapter-copy .section-kicker, .games-chapter .chapter-copy > p:last-child, .games-experiment",
+  closing: ".about-closing .closing-links, .about-closing .back-to-top",
 };
 const revealTargets = new Set();
 for (const [movement, selector] of Object.entries(revealSelectors)) {
@@ -43,14 +43,6 @@ for (const [movement, selector] of Object.entries(revealSelectors)) {
     element.dataset.aboutRevealOrder = String(index + 1);
     revealTargets.add(element);
   });
-}
-const revealWords = [...root.querySelectorAll(".hero-copy h1 em, .chapter-copy h2 em, .about-closing h2 em")];
-for (const word of revealWords) {
-  const movement = word.closest("[data-movement]")?.dataset.movement ?? "opening";
-  word.dataset.aboutWord = "";
-  word.dataset.aboutReveal = movement;
-  word.dataset.aboutRevealOrder = "2";
-  revealTargets.add(word);
 }
 const supportsViewTimeline = CSS.supports("(animation-timeline: view()) and (animation-range: entry)");
 const revealObserver = supportsViewTimeline ? null : new IntersectionObserver(entries => {
