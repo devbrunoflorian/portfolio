@@ -1,7 +1,9 @@
 function createProjector(width, height, study) {
   const rangeX = study.x1 - study.x0;
   const rangeY = study.y1 - study.y0;
-  const unitScale = Math.min((width - 112) / rangeX, (height - 76) / rangeY);
+  const horizontalInset = width < 520 ? 22 : 56;
+  const verticalInset = width < 520 ? 44 : 76;
+  const unitScale = Math.min((width - horizontalInset * 2) / rangeX, (height - verticalInset) / rangeY);
   const cameraDistance = 600;
   const xInset = (width - rangeX * unitScale) / 2;
   const staffMiddle = (study.staffLines[0] + study.staffLines.at(-1)) / 2;

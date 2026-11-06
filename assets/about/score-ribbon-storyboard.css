@@ -1,0 +1,29 @@
+body[data-score-ribbon-storyboard="music"] .about-score-thread,
+body[data-score-ribbon-storyboard="music"] .about-score-leads[data-score-leads-global] {
+  visibility: hidden;
+}
+
+body[data-score-ribbon-storyboard="music"] .score-ribbon-storyboard__canvas {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  display: block;
+  max-width: none;
+  pointer-events: none;
+}
+
+body[data-score-ribbon-storyboard="music"] .score-stage-spacer {
+  height: clamp(224px, 30vh, 252px);
+}
+
+@media (max-width: 700px) {
+  body[data-score-ribbon-storyboard="music"] .score-stage-spacer {
+    height: 154px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body[data-score-ribbon-storyboard="music"] .score-ribbon-storyboard__canvas {
+    animation: none;
+  }
+}

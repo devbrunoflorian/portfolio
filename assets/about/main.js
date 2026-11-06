@@ -4,8 +4,10 @@ import { mountExperiments } from "./experiments.js";
 import { createScoreVisual, scoreStageOffsets } from "./score-visual.js";
 
 const root = document.querySelector(".about-main");
-const scoreGridStudyMode = new URLSearchParams(window.location.search).get("score-grid") === "study";
-const scoreRibbonStudyMode = new URLSearchParams(window.location.search).get("score-ribbon") === "study";
+const query = new URLSearchParams(window.location.search);
+const scoreGridStudyMode = query.get("score-grid") === "study";
+const scoreRibbonStudyMode = query.get("score-ribbon") === "study";
+const scoreRibbonStoryboardMode = query.get("score-ribbon") === "storyboard";
 const chapters = [...root.querySelectorAll("[data-movement]")];
 const scoreThread = root.querySelector("[data-score-thread]");
 const scoreLeads = root.querySelector("[data-score-leads-global]");
@@ -327,11 +329,11 @@ let sceneFrame = 0;
 let desiredPointer = { x: 0, y: 0 };
 function paintScenes() {
   sceneFrame = 0;
-  updateScoreThread();
+  if (!scoreRibbonStoryboardMode) updateScoreThread();
   const snapshot = audio.snapshot?.() ?? null;
   const mainBounds = root.getBoundingClientRect();
   const visible = mainBounds.bottom >= 0 && mainBounds.top <= innerHeight;
-  if (visible) {
+  if (visible && !scoreRibbonStoryboardMode) {
     const chapter = root.dataset.activeMovement ?? "opening";
     // Silence uses the page's reading position as a visual-only score cursor.
     // Playback remains authoritative whenever audio is active.
@@ -352,7 +354,7 @@ function paintScenes() {
     lastDisplaySecond = Math.floor(snapshot.seconds);
     syncMixer(snapshot);
   }
-  if (visible && audio.playing && !motionPaused && !reduceMotion.matches) requestScene();
+  if (visible && !scoreRibbonStoryboardMode && audio.playing && !motionPaused && !reduceMotion.matches) requestScene();
 }
 function requestScene() {
   if (!sceneFrame && !document.hidden) sceneFrame = requestAnimationFrame(paintScenes);
@@ -447,4 +449,8 @@ if (scoreGridStudyMode) {
 
 if (scoreRibbonStudyMode) {
   import("./score-ribbon-study.js");
+}
+
+if (scoreRibbonStoryboardMode) {
+  import("./score-ribbon-storyboard.js");
 }
