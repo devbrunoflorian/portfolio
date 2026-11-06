@@ -44,10 +44,60 @@ body[data-score-grid-study="true"] .score-grid-sheet {
 }
 
 body[data-score-grid-study="true"] .score-grid-system {
+  position: relative;
   display: grid;
   grid-template-columns: 150px repeat(var(--bars-per-system), 320px);
   inline-size: var(--score-row-width);
   block-size: 252px;
+  isolation: isolate;
+}
+
+body[data-score-grid-study="true"] .score-grid-voices {
+  position: absolute;
+  z-index: 4;
+  inset: 0;
+  display: block;
+  inline-size: var(--score-row-width);
+  block-size: 252px;
+  overflow: clip;
+  pointer-events: none;
+}
+
+body[data-score-grid-study="true"] .score-grid-voice {
+  --voice-color: #70a8ff;
+}
+
+body[data-score-grid-study="true"] .score-grid-voice--melodyTwo {
+  --voice-color: #c39aff;
+}
+
+body[data-score-grid-study="true"] .score-grid-voice-glow,
+body[data-score-grid-study="true"] .score-grid-voice-trace {
+  fill: none;
+  stroke: var(--voice-color);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+body[data-score-grid-study="true"] .score-grid-voice-glow {
+  stroke-width: 5px;
+  opacity: .18;
+}
+
+body[data-score-grid-study="true"] .score-grid-voice-trace {
+  stroke-width: 1.8px;
+  opacity: .96;
+}
+
+body[data-score-grid-study="true"] .score-grid-voice-note-halo {
+  fill: var(--voice-color);
+  opacity: .2;
+}
+
+body[data-score-grid-study="true"] .score-grid-voice-note {
+  fill: var(--voice-color);
+  stroke: #09080d;
+  stroke-width: 1px;
 }
 
 body[data-score-grid-study="true"] .score-grid-header {

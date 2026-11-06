@@ -76,6 +76,17 @@ export function scoreNotesInWindow(score, centerBeat, windowBeats = 12) {
   return voiceNotesInLayers(score, centerBeat, windowBeats);
 }
 
+// The static score study needs the actual notes inside a system even when the
+// system's center precedes a voice's first entrance.
+export function scoreVoiceNotesInRange(score, firstBeat, endBeat) {
+  const tracksById = new Map(score.tracks.map(track => [track.id, track]));
+  return score.notes.flatMap(note => {
+    const layer = layerFor(note, tracksById);
+    if (!layer || note.beat > endBeat || note.beat + note.duration < firstBeat) return [];
+    return [{ ...note, layer }];
+  });
+}
+
 export function contourPoints(notes) {
   const groups = new Map();
   for (const note of notes) {

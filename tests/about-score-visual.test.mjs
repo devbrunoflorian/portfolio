@@ -1,7 +1,14 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { score } from "../assets/about/score.js";
-import { contourPathForNotes, contourPoints, contourYForMidi, scoreNotesInWindow, staffYForMidi } from "../assets/about/score-visual.js";
+import {
+  contourPathForNotes,
+  contourPoints,
+  contourYForMidi,
+  scoreNotesInWindow,
+  scoreVoiceNotesInRange,
+  staffYForMidi,
+} from "../assets/about/score-visual.js";
 
 test("only the two melodies enter the rolling score window", () => {
   const notes = scoreNotesInWindow(score, 136);
@@ -54,6 +61,33 @@ test("each melody stays hidden until its first real entrance", () => {
   assert.deepEqual(scoreNotesInWindow(shortScore, 1.5, 4), []);
   assert.deepEqual(scoreNotesInWindow(shortScore, 2.5, 4).map(note => note.layer), ["melodyOne"]);
   assert.deepEqual(scoreNotesInWindow(shortScore, 3.5, 4).map(note => note.layer), ["melodyOne", "melodyTwo"]);
+});
+
+test("the static score system keeps voice entrances even when its center comes earlier", () => {
+  const shortScore = {
+    tracks: [
+      { id: 1, name: "Melody I", voice: "vocal" },
+      { id: 2, name: "Melody II", voice: "vocal" },
+      { id: 3, name: "Guitar I", voice: "guitar" },
+    ],
+    notes: [
+      { beat: 8, duration: 1, midi: 60, track: 1 },
+      { beat: 10, duration: 1, midi: 67, track: 2 },
+      { beat: 10, duration: 2, midi: 52, track: 3 },
+    ],
+  };
+
+  assert.deepEqual(scoreNotesInWindow(shortScore, 6, 12), []);
+  assert.deepEqual(scoreVoiceNotesInRange(shortScore, 0, 12).map(note => note.layer), ["melodyOne", "melodyTwo"]);
+});
+
+test("the complete static overlay preserves all 399 voice attacks", () => {
+  const notes = scoreVoiceNotesInRange(score, 0, score.bars * score.beatsPerBar);
+  assert.equal(notes.length, 399);
+  assert.equal(notes.filter(note => note.layer === "melodyOne").length, 203);
+  assert.equal(notes.filter(note => note.layer === "melodyTwo").length, 196);
+  assert.equal(["melodyOne", "melodyTwo"]
+    .reduce((total, layer) => total + contourPoints(notes.filter(note => note.layer === layer)).length, 0), 396);
 });
 
 test("the two voice contours collapse simultaneous pitches and hold before a smooth transition", () => {

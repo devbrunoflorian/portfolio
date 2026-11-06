@@ -1,10 +1,14 @@
 import { scoreGridStudy } from "./score-grid-study-data.js";
+import { score } from "./score.js?v=a1c14c40";
+import { contourPathForNotes, contourPoints, contourYForMidi, scoreVoiceNotesInRange } from "./score-visual.js?v=score-grid-voices-1";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 const SYSTEM_GAP = 18;
+const NOTEHEAD_CENTER_BIAS = 5.9;
 const root = document.querySelector(".about-main");
 const stage = root?.querySelector('.score-stage-spacer[data-score-anchor="music"]');
 const excerptLabel = root?.querySelector("[data-score-excerpt]");
+const voiceStudyMode = new URLSearchParams(window.location.search).get("score-grid-voices") === "1";
 const pageController = new AbortController();
 let resizeObserver;
 let currentBarsPerSystem = 0;
@@ -276,6 +280,77 @@ function createBar(sourceMeasure, bar, pattern, patternId, templates) {
   return measure;
 }
 
+function createVoiceOverlay(rowBars, rowWidth) {
+  const firstBeat = (rowBars[0].number - 1) * scoreGridStudy.beatsPerBar;
+  const rowBeats = rowBars.length * scoreGridStudy.beatsPerBar;
+  const endBeat = firstBeat + rowBeats;
+  const centerBeat = firstBeat + rowBeats / 2;
+  const geometry = {
+    cursorX: 150 + rowBeats / 2 * scoreGridStudy.pixelsPerBeat + NOTEHEAD_CENTER_BIAS,
+    pixelsPerBeat: scoreGridStudy.pixelsPerBeat,
+    staffBottomY: scoreGridStudy.staffBottom,
+    halfStepY: scoreGridStudy.staffLineGap / 2,
+  };
+  const windowNotes = scoreVoiceNotesInRange(score, firstBeat, endBeat);
+  const overlay = svgElement("svg", {
+    class: "score-grid-voices",
+    viewBox: `0 ${scoreGridStudy.cropTop} ${rowWidth} ${scoreGridStudy.cropHeight}`,
+    width: rowWidth,
+    height: scoreGridStudy.cropHeight,
+    "aria-hidden": "true",
+    focusable: "false",
+  });
+  const defs = svgElement("defs");
+  const clipPath = svgElement("clipPath", { id: `score-grid-voice-clip-${rowBars[0].number}` });
+  const clip = svgElement("rect", {
+    x: 150,
+    y: scoreGridStudy.cropTop,
+    width: rowWidth - 150,
+    height: scoreGridStudy.cropHeight,
+  });
+  clipPath.append(clip);
+  defs.append(clipPath);
+  overlay.append(defs);
+
+  const traces = svgElement("g", { class: "score-grid-voice-traces", "clip-path": `url(#score-grid-voice-clip-${rowBars[0].number})` });
+  for (const layer of ["melodyOne", "melodyTwo"]) {
+    const layerNotes = windowNotes.filter(note => note.layer === layer);
+    const pathData = contourPathForNotes(layerNotes, centerBeat, geometry);
+    const group = svgElement("g", { class: `score-grid-voice score-grid-voice--${layer}` });
+    const glow = svgElement("path", { class: "score-grid-voice-glow", d: pathData });
+    const path = svgElement("path", { class: "score-grid-voice-trace", d: pathData });
+    group.append(glow, path);
+
+    const points = contourPoints(layerNotes).filter(point => point.beat >= firstBeat && point.beat < endBeat);
+    points.forEach((point, index) => {
+      const x = geometry.cursorX + (point.beat - centerBeat) * geometry.pixelsPerBeat;
+      const y = contourYForMidi(point.midi, geometry);
+      const noteId = `${layer}-beat-${point.beat.toFixed(4)}`;
+      const halo = svgElement("circle", {
+        class: "score-grid-voice-note-halo",
+        cx: x.toFixed(3),
+        cy: y.toFixed(3),
+        r: "6",
+      });
+      const note = svgElement("circle", {
+        class: "score-grid-voice-note",
+        cx: x.toFixed(3),
+        cy: y.toFixed(3),
+        r: "2.6",
+      });
+      note.dataset.scoreVoiceEventId = `${rowBars[0].number}-${noteId}`;
+      note.dataset.patternVoiceEventId = noteId;
+      note.dataset.beat = point.beat.toFixed(4);
+      note.dataset.midi = String(point.midi);
+      note.dataset.voicePointIndex = String(index);
+      group.append(halo, note);
+    });
+    traces.append(group);
+  }
+  overlay.append(traces);
+  return overlay;
+}
+
 function barsPerSystemForViewport() {
   return window.matchMedia("(max-width: 700px)").matches ? 1
     : window.matchMedia("(max-width: 900px)").matches ? 2 : 3;
@@ -336,16 +411,17 @@ function createStudyFrame(stage, headerDocument, scoreDocuments, patterns) {
         spacer.setAttribute("aria-hidden", "true");
         row.append(spacer);
       }
+      if (voiceStudyMode) row.append(createVoiceOverlay(rowBars, currentSheetWidth));
       sheet.append(row);
     }
 
     const isPortuguese = document.documentElement.lang.toLowerCase().startsWith("pt");
-    if (excerptLabel) excerptLabel.textContent = isPortuguese
-      ? `Partitura completa · 106 compassos · 26 padrões`
-      : `Complete score · 106 bars · 26 patterns`;
-    viewport.setAttribute("aria-label", isPortuguese
-      ? "Partitura completa de guitarra, 106 compassos, com 26 padrões reutilizados"
-      : "Complete guitar score, 106 bars, using 26 repeated patterns");
+    if (excerptLabel) excerptLabel.textContent = voiceStudyMode
+      ? isPortuguese ? "Partitura + duas vozes · 106 compassos" : "Score + two voices · 106 bars"
+      : isPortuguese ? "Partitura completa · 106 compassos · 26 padrões" : "Complete score · 106 bars · 26 patterns";
+    viewport.setAttribute("aria-label", voiceStudyMode
+      ? isPortuguese ? "Partitura de guitarra com Voz I azul e Voz II violeta, em 106 compassos" : "Guitar score with blue Voice I and violet Voice II across 106 bars"
+      : isPortuguese ? "Partitura completa de guitarra, 106 compassos, com 26 padrões reutilizados" : "Complete guitar score, 106 bars, using 26 repeated patterns");
     updateScale();
   };
 
