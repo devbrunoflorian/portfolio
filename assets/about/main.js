@@ -5,6 +5,7 @@ import { createScoreVisual, scoreStageOffsets } from "./score-visual.js";
 
 const root = document.querySelector(".about-main");
 const scoreGridStudyMode = new URLSearchParams(window.location.search).get("score-grid") === "study";
+const scoreRibbonStudyMode = new URLSearchParams(window.location.search).get("score-ribbon") === "study";
 const chapters = [...root.querySelectorAll("[data-movement]")];
 const scoreThread = root.querySelector("[data-score-thread]");
 const scoreLeads = root.querySelector("[data-score-leads-global]");
@@ -442,4 +443,8 @@ window.addEventListener("pagehide", event => {
 
 if (scoreGridStudyMode) {
   import("./score-grid-study.js");
+}
+
+if (scoreRibbonStudyMode) {
+  import("./score-ribbon-study.js");
 }
