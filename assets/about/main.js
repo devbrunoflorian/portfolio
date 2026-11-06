@@ -9,12 +9,12 @@ const labels = isPortuguese ? {
   listen: "Ouvir", heroListen: "Ouvir Dissonância", resume: "Continuar", replay: "Ouvir de novo", pause: "Pausar", loading: "Iniciando…", off: "Som desligado",
   paused: "Som pausado · retome quando quiser", error: "Não foi possível ativar o som. Tente ouvir novamente.",
   unavailable: "Som indisponível neste navegador. A página continua em silêncio.",
-  playing: "Tocando", finished: "Música concluída", next: "próximo compasso", muted: "Volume em zero", motion: "Pausar movimento", resumeMotion: "Retomar movimento",
+  playing: "Tocando", finished: "Música concluída", next: "próximo compasso", muted: "Volume em zero", motion: "Pausar movimento", resumeMotion: "Retomar movimento", bars: "Compassos", bar: "Compasso",
 } : {
   listen: "Listen", heroListen: "Listen to Dissonância", resume: "Continue", replay: "Play again", pause: "Pause", loading: "Starting…", off: "Sound is off",
   paused: "Sound paused · resume when you like", error: "Sound could not start. Try listening again.",
   unavailable: "Sound is unavailable in this browser. Explore in silence.",
-  playing: "Playing", finished: "Piece finished", next: "next bar", muted: "Volume at zero", motion: "Pause motion", resumeMotion: "Resume motion",
+  playing: "Playing", finished: "Piece finished", next: "next bar", muted: "Volume at zero", motion: "Pause motion", resumeMotion: "Resume motion", bars: "Bars", bar: "Bar",
 };
 const sectionNames = isPortuguese ? {} : {
   "Verso I": "Verse I", "Ponte I": "Bridge I", "Refrão I": "Chorus I",
@@ -50,7 +50,7 @@ const audio = createJourneyAudio(score, status => {
   requestScene();
 });
 const experiments = mountExperiments(root, audio, isPortuguese);
-const visual = createScoreVisual(root, score);
+const visual = createScoreVisual(root, score, requestScene);
 const controller = new AbortController();
 const { signal } = controller;
 soundButtons.forEach(button => button.addEventListener("click", () => audio.enabled ? audio.pause() : audio.start(), { signal }));
@@ -195,7 +195,16 @@ function paintScenes() {
     if (bounds.bottom < 0 || bounds.top > innerHeight) continue;
     visible = true;
     const progress = Math.max(0, Math.min(1, (innerHeight - bounds.top) / (innerHeight + bounds.height)));
-    visual.update({ chapter: host.dataset.scoreScene, progress, motionEnabled: !motionPaused && !reduceMotion.matches, playbackSnapshot: snapshot });
+    const result = visual.update({ chapter: host.dataset.scoreScene, progress, motionEnabled: !motionPaused && !reduceMotion.matches, reducedMotion: reduceMotion.matches, playbackSnapshot: snapshot });
+    if (result && !result.frozen) {
+      const excerpt = root.querySelector("[data-score-excerpt]");
+      if (excerpt && result.bars.length) {
+        const first = result.bars[0];
+        const last = result.bars.at(-1);
+        const label = first === last ? `${labels.bar} ${first}` : `${labels.bars} ${first}–${last}`;
+        if (excerpt.textContent !== label) excerpt.textContent = label;
+      }
+    }
   }
   if (snapshot && Math.floor(snapshot.seconds) !== lastDisplaySecond) {
     lastDisplaySecond = Math.floor(snapshot.seconds);

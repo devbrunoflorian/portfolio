@@ -1,11 +1,18 @@
+import { guitarScoreTies } from "./guitar-score-ties.js";
+
 const SVG_NS = "http://www.w3.org/2000/svg";
-const WINDOW_BEATS = 16;
-const PREVIEW_BEAT = 116;
-const MAX_NOTE_DURATION = 16;
-const VOICE_LIMITS = { melodyOne: 36, melodyTwo: 36 };
+const PREVIEW_BEAT = 134;
 const WRITTEN_OCTAVE_OFFSET = 12;
-const STAFF = { bottomLineY: 151, halfStepY: 5.25 };
+const HEADER_SOURCE_WIDTH = 150;
+const MEASURE_WIDTH = 320;
+const HEIGHT = 360;
+const STAFF_TOP = 80;
+const STAFF_LINE_GAP = 24;
+const STAFF_BOTTOM = STAFF_TOP + STAFF_LINE_GAP * 4;
+const PIXELS_PER_BEAT = 80;
 const NATURAL_DIATONIC_STEP = [0, 0, 1, 1, 2, 3, 3, 4, 4, 5, 5, 6];
+const pendingSvgLoads = new Map();
+const scoreMetadataCache = new WeakMap();
 
 function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
 
@@ -16,7 +23,8 @@ function layerFor(note, tracksById) {
 }
 
 function lowerBound(notes, beat) {
-  let low = 0, high = notes.length;
+  let low = 0;
+  let high = notes.length;
   while (low < high) {
     const middle = (low + high) >>> 1;
     if (notes[middle].beat < beat) low = middle + 1;
@@ -25,37 +33,43 @@ function lowerBound(notes, beat) {
   return low;
 }
 
-function sampleNotes(notes, limit, centerBeat) {
-  if (notes.length <= limit) return notes;
-  const selected = new Set();
-  for (let index = 0; index < limit; index += 1) {
-    selected.add(notes[Math.round(index * (notes.length - 1) / (limit - 1))]);
+function scoreMetadata(score) {
+  let metadata = scoreMetadataCache.get(score);
+  if (metadata) return metadata;
+  const tracksById = new Map(score.tracks.map(track => [track.id, track]));
+  const firstVoiceBeat = new Map();
+  let maxDuration = 0;
+  for (const note of score.notes) {
+    const layer = layerFor(note, tracksById);
+    if (layer && !firstVoiceBeat.has(layer)) firstVoiceBeat.set(layer, note.beat);
+    maxDuration = Math.max(maxDuration, note.duration);
   }
-  notes.filter(note => note.beat <= centerBeat && note.beat + note.duration > centerBeat)
-    .slice(-4).forEach(note => selected.add(note));
-  return [...selected].sort((a, b) => a.beat - b.beat || a.midi - b.midi).slice(0, limit + 4);
+  metadata = { tracksById, firstVoiceBeat, maxDuration };
+  scoreMetadataCache.set(score, metadata);
+  return metadata;
 }
 
 function voiceNotesInLayers(score, centerBeat, windowBeats) {
   const totalBeats = score.bars * score.beatsPerBar;
-  const left = centerBeat - windowBeats / 2;
+  const left = Math.max(0, centerBeat - windowBeats / 2);
   const right = Math.min(totalBeats, centerBeat + windowBeats / 2);
-  const tracksById = new Map(score.tracks.map(track => [track.id, track]));
-  const byLayer = { melodyOne: [], melodyTwo: [] };
-  const startIndex = lowerBound(score.notes, Math.max(0, left - MAX_NOTE_DURATION));
+  const { tracksById, firstVoiceBeat, maxDuration } = scoreMetadata(score);
+  const earliest = Math.max(0, left - maxDuration);
+  const startIndex = lowerBound(score.notes, earliest);
+  const visible = [];
   for (let index = startIndex; index < score.notes.length; index += 1) {
     const note = score.notes[index];
     if (note.beat > right) break;
     if (note.beat + note.duration < left) continue;
     const layer = layerFor(note, tracksById);
-    if (layer) byLayer[layer].push({ ...note, layer });
+    if (!layer || centerBeat < firstVoiceBeat.get(layer)) continue;
+    visible.push({ ...note, layer });
   }
-  return Object.entries(VOICE_LIMITS).flatMap(([layer, limit]) => sampleNotes(byLayer[layer], limit, centerBeat));
+  return visible;
 }
 
-// Only Melody I and II become moving traces. Guitar I stays as a real, static
-// score fragment behind them; simultaneous pitches collapse to one visual line.
-export function scoreNotesInWindow(score, centerBeat, windowBeats = WINDOW_BEATS) {
+// Only the two melodic tracks become colored contours; every visible event is retained.
+export function scoreNotesInWindow(score, centerBeat, windowBeats = 12) {
   return voiceNotesInLayers(score, centerBeat, windowBeats);
 }
 
@@ -66,17 +80,14 @@ export function contourPoints(notes) {
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key).push(note);
   }
-  return [...groups.values()].map(group => {
-    const pitches = group.map(note => note.midi).sort((a, b) => a - b);
-    return {
-      beat: group[0].beat,
-      midi: pitches[Math.floor(pitches.length / 2)],
-      duration: Math.max(...group.map(note => note.duration)),
-    };
-  }).sort((a, b) => a.beat - b.beat);
+  return [...groups.values()].map(group => ({
+    beat: group[0].beat,
+    midi: Math.max(...group.map(note => note.midi)),
+    duration: Math.max(...group.map(note => note.duration)),
+  })).sort((a, b) => a.beat - b.beat);
 }
 
-export function staffYForMidi(midi, bottomLineY = STAFF.bottomLineY, halfStepY = STAFF.halfStepY) {
+export function staffYForMidi(midi, bottomLineY = STAFF_BOTTOM, halfStepY = STAFF_LINE_GAP / 2) {
   const pitchClass = ((midi % 12) + 12) % 12;
   const octave = Math.floor(midi / 12) - 1;
   const diatonic = octave * 7 + NATURAL_DIATONIC_STEP[pitchClass];
@@ -85,7 +96,6 @@ export function staffYForMidi(midi, bottomLineY = STAFF.bottomLineY, halfStepY =
 }
 
 export function contourYForMidi(midi, geometry) {
-  // The supplied MIDI pitches are an octave below the written vocal staff.
   return staffYForMidi(midi + WRITTEN_OCTAVE_OFFSET, geometry.staffBottomY, geometry.halfStepY);
 }
 
@@ -96,7 +106,6 @@ function xForBeat(beat, centerBeat, geometry) {
 export function contourPathForNotes(notes, centerBeat, geometry) {
   const points = contourPoints(notes);
   if (!points.length) return "";
-
   const first = points[0];
   const firstY = contourYForMidi(first.midi, geometry);
   let path = `M ${xForBeat(first.beat, centerBeat, geometry).toFixed(1)} ${firstY.toFixed(1)}`;
@@ -115,20 +124,30 @@ export function contourPathForNotes(notes, centerBeat, geometry) {
     const reach = Math.max(1, (nextX - glideX) * .42);
     path += ` C ${(glideX + reach).toFixed(1)} ${currentY.toFixed(1)} ${(nextX - reach).toFixed(1)} ${nextY.toFixed(1)} ${nextX.toFixed(1)} ${nextY.toFixed(1)}`;
   }
-
   const last = points.at(-1);
   const lastEnd = last.beat + last.duration;
-  if (lastEnd > last.beat) {
-    path += ` L ${xForBeat(lastEnd, centerBeat, geometry).toFixed(1)} ${contourYForMidi(last.midi, geometry).toFixed(1)}`;
-  }
+  if (lastEnd > last.beat) path += ` L ${xForBeat(lastEnd, centerBeat, geometry).toFixed(1)} ${contourYForMidi(last.midi, geometry).toFixed(1)}`;
   return path;
 }
 
 function geometryFor(host) {
-  const mobile = host.getBoundingClientRect().width <= 700;
-  return mobile
-    ? { mobile, viewBox: "0 0 520 270", cursorX: 260, pixelsPerBeat: 45, windowBeats: 8, titleX: 116, meterX: 374, scoreX: 15, scoreY: 96, scoreWidth: 490, scoreHeight: 77, staffBottomY: 136, halfStepY: 2.75 }
-    : { mobile, viewBox: "0 0 1000 270", cursorX: 500, pixelsPerBeat: 46, windowBeats: WINDOW_BEATS, titleX: 80, meterX: 835, scoreX: 32, scoreY: 75, scoreWidth: 936, scoreHeight: 145, staffBottomY: 151, halfStepY: 5.25 };
+  const mobile = window.innerWidth <= 700;
+  const headerWidth = mobile ? 120 : HEADER_SOURCE_WIDTH;
+  const width = mobile ? 440 : 1110;
+  return {
+    mobile,
+    viewBox: `0 0 ${width} ${HEIGHT}`,
+    width,
+    height: HEIGHT,
+    headerWidth,
+    cursorX: headerWidth + (width - headerWidth) / 2,
+    cursorY1: STAFF_TOP - 44,
+    cursorY2: STAFF_BOTTOM + 94,
+    pixelsPerBeat: PIXELS_PER_BEAT,
+    windowBeats: (width - headerWidth) / PIXELS_PER_BEAT,
+    staffBottomY: STAFF_BOTTOM,
+    halfStepY: STAFF_LINE_GAP / 2,
+  };
 }
 
 function svgElement(name, className = "") {
@@ -137,120 +156,371 @@ function svgElement(name, className = "") {
   return element;
 }
 
-function addText(svg, text, x, y, className) {
-  const element = svgElement("text", className);
-  element.setAttribute("x", String(x));
-  element.setAttribute("y", String(y));
-  element.textContent = text;
-  svg.append(element);
-  return element;
+function appendLine(parent, x1, y1, x2, y2, className) {
+  const line = svgElement("line", className);
+  line.setAttribute("x1", String(x1));
+  line.setAttribute("y1", String(y1));
+  line.setAttribute("x2", String(x2));
+  line.setAttribute("y2", String(y2));
+  parent.append(line);
+  return line;
 }
 
 function makeVoiceTrace(layer, parent) {
   const group = svgElement("g", `score-voice-trace-group score-voice-trace-group--${layer}`);
+  const glow = svgElement("path", "score-voice-glow");
   const path = svgElement("path", "score-voice-trace");
   const held = svgElement("line", "score-voice-held");
   held.style.display = "none";
+  const pulse = svgElement("circle", "score-voice-pulse");
+  pulse.setAttribute("r", "12");
+  pulse.style.display = "none";
   const current = svgElement("circle", "score-voice-current");
-  current.setAttribute("r", "5.2");
+  current.setAttribute("r", "4.5");
   current.style.display = "none";
-  group.append(path, held, current);
+  group.append(glow, path, held, pulse, current);
   parent.append(group);
-  return { group, path, held, current, layer };
+  return { group, glow, path, held, pulse, current, layer };
 }
 
 function paintVoiceTrace(trace, notes, centerBeat, geometry, live) {
-  trace.path.setAttribute("d", contourPathForNotes(notes, centerBeat, geometry));
+  const path = contourPathForNotes(notes, centerBeat, geometry);
+  trace.path.setAttribute("d", path);
+  trace.glow.setAttribute("d", path);
   const activeNotes = live ? notes.filter(note => centerBeat >= note.beat && centerBeat < note.beat + note.duration) : [];
   const active = contourPoints(activeNotes).at(-1);
   if (!active) {
     trace.held.style.display = "none";
     trace.current.style.display = "none";
+    trace.pulse.style.display = "none";
     return;
   }
-
-  const x1 = xForBeat(active.beat, centerBeat, geometry);
-  const x2 = xForBeat(active.beat + active.duration, centerBeat, geometry);
+  const x = xForBeat(active.beat, centerBeat, geometry);
   const y = contourYForMidi(active.midi, geometry);
+  const elapsed = Math.max(0, centerBeat - active.beat);
+  const attackEnergy = Math.exp(-elapsed * 5);
   trace.held.style.display = "";
-  trace.held.setAttribute("x1", x1.toFixed(1));
-  trace.held.setAttribute("x2", x2.toFixed(1));
+  trace.held.setAttribute("x1", x.toFixed(1));
+  trace.held.setAttribute("x2", xForBeat(Math.min(active.beat + active.duration, centerBeat + .55), centerBeat, geometry).toFixed(1));
   trace.held.setAttribute("y1", y.toFixed(1));
   trace.held.setAttribute("y2", y.toFixed(1));
   trace.current.style.display = "";
   trace.current.setAttribute("cx", String(geometry.cursorX));
   trace.current.setAttribute("cy", y.toFixed(1));
+  trace.current.setAttribute("fill-opacity", String(.56 + attackEnergy * .44));
+  trace.pulse.style.display = "";
+  trace.pulse.setAttribute("cx", String(geometry.cursorX));
+  trace.pulse.setAttribute("cy", y.toFixed(1));
+  trace.pulse.setAttribute("stroke-opacity", String(.15 + attackEnergy * .58));
 }
 
-function createScene(host, geometry) {
+function appendScoreHeader(scene, geometry) {
+  const header = svgElement("use", "score-staff-header");
+  header.setAttribute("href", "#score-header");
+  header.setAttribute("x", "0");
+  header.setAttribute("y", "0");
+  header.setAttribute("width", String(geometry.headerWidth));
+  header.setAttribute("height", String(HEIGHT));
+  scene.append(header);
+}
+
+function appendStaff(scene, geometry) {
+  for (let line = 0; line < 5; line += 1) {
+    const y = STAFF_TOP + line * STAFF_LINE_GAP;
+    appendLine(scene, geometry.headerWidth, y, geometry.width, y, "score-staff-line");
+  }
+}
+
+function visibleBars(leftBeat, rightBeat, score) {
+  const first = clamp(Math.floor(leftBeat / score.beatsPerBar) + 1, 1, score.bars);
+  const last = clamp(Math.floor(Math.max(leftBeat, rightBeat - .001) / score.beatsPerBar) + 1, 1, score.bars);
+  const bars = [];
+  for (let number = first; number <= last; number += 1) bars.push(number);
+  return bars;
+}
+
+function systemStartForBar(number) {
+  return Math.floor((number - 1) / 3) * 3 + 1;
+}
+
+function systemPath(start) {
+  return `/assets/about/guitar-score/system-${String(start).padStart(3, "0")}.svg`;
+}
+
+function loadSvgDocument(url) {
+  if (!pendingSvgLoads.has(url)) {
+    const request = fetch(url).then(async response => {
+      if (!response.ok) throw new Error(`Score asset request failed: ${response.status}`);
+      const source = await response.text();
+      const parsed = new DOMParser().parseFromString(source, "image/svg+xml");
+      if (parsed.querySelector("parsererror")) throw new Error("Score asset is not valid SVG");
+      return parsed;
+    }).finally(() => pendingSvgLoads.delete(url));
+    pendingSvgLoads.set(url, request);
+  }
+  return pendingSvgLoads.get(url);
+}
+
+function appendBarSymbol(scene, number, x) {
+  const use = svgElement("use", "score-guitar-measure");
+  use.setAttribute("href", `#bar-${String(number).padStart(3, "0")}`);
+  use.setAttribute("x", x.toFixed(2));
+  use.setAttribute("y", "0");
+  use.setAttribute("width", String(MEASURE_WIDTH));
+  use.setAttribute("height", String(HEIGHT));
+  scene.append(use);
+  return use;
+}
+
+function makeScene(host) {
   const svg = svgElement("svg", "score-score-svg");
-  svg.setAttribute("viewBox", geometry.viewBox);
-  svg.setAttribute("preserveAspectRatio", "none");
+  svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
   svg.setAttribute("aria-hidden", "true");
   svg.setAttribute("focusable", "false");
-
-  addText(svg, "D I S S O N Â N C I A", geometry.titleX, 29, "score-watermark-title");
-  addText(svg, "106 BARS · 4/4", geometry.meterX, 29, "score-meter-label");
-  const guitarScore = svgElement("image", "score-guitar-watermark");
-  guitarScore.setAttribute("href", "/assets/about/guitar-score-watermark.png");
-  guitarScore.setAttribute("preserveAspectRatio", "none");
-  guitarScore.setAttribute("x", String(geometry.scoreX));
-  guitarScore.setAttribute("y", String(geometry.scoreY));
-  guitarScore.setAttribute("width", String(geometry.scoreWidth));
-  guitarScore.setAttribute("height", String(geometry.scoreHeight));
-  svg.append(guitarScore);
-
-  const playhead = svgElement("line", "score-playhead");
-  playhead.setAttribute("x1", String(geometry.cursorX));
-  playhead.setAttribute("x2", String(geometry.cursorX));
-  playhead.setAttribute("y1", "67");
-  playhead.setAttribute("y2", "205");
+  const defs = svgElement("defs");
+  const clipPath = svgElement("clipPath");
+  clipPath.id = "score-window-clip";
+  clipPath.setAttribute("clipPathUnits", "userSpaceOnUse");
+  const clipRect = svgElement("rect");
+  clipPath.append(clipRect);
+  defs.append(clipPath);
+  svg.append(defs);
+  host.append(svg);
+  const staff = svgElement("g", "score-staff");
+  svg.append(staff);
+  const guitar = svgElement("g", "score-guitar-measures");
+  guitar.setAttribute("clip-path", "url(#score-window-clip)");
+  svg.append(guitar);
+  const crossTies = svgElement("g", "score-guitar-ties");
+  crossTies.setAttribute("clip-path", "url(#score-window-clip)");
+  svg.append(crossTies);
+  const barlines = svgElement("g", "score-measure-lines");
+  barlines.setAttribute("clip-path", "url(#score-window-clip)");
+  svg.append(barlines);
+  const playhead = appendLine(svg, 0, 0, 0, 0, "score-playhead");
   playhead.style.display = "none";
-  svg.append(playhead);
-
   const traceLayer = svgElement("g", "score-voice-traces");
-  const traces = Object.keys(VOICE_LIMITS).map(layer => makeVoiceTrace(layer, traceLayer));
+  traceLayer.setAttribute("clip-path", "url(#score-window-clip)");
+  const traces = [makeVoiceTrace("melodyOne", traceLayer), makeVoiceTrace("melodyTwo", traceLayer)];
   svg.append(traceLayer);
-  host.replaceChildren(svg);
-  return { host, svg, playhead, guitarScore, traces, geometry, hasLiveFrame: false };
+  return {
+    host, svg, defs, clipPath, clipRect, staff, guitar, crossTies, barlines, playhead, traces,
+    geometry: null, bars: [], barMarks: new Map(), tiePaths: new Map(),
+    systemDocs: new Map(), hasLiveFrame: false, playbackBeat: null, resourceVersion: 0, active: true,
+  };
 }
 
-export function createScoreVisual(root, score) {
-  const scenes = [...root.querySelectorAll('[data-score-scene="music"]')].map(host => createScene(host, geometryFor(host)));
+function updateBarMarks(scene, score, leftBeat, geometry) {
+  scene.barlines.replaceChildren();
+  scene.barMarks.clear();
+  for (const number of scene.bars) {
+    const group = svgElement("g", "score-measure-mark");
+    const start = appendLine(group, 0, STAFF_TOP, 0, STAFF_BOTTOM, "score-barline");
+    const end = appendLine(group, 0, STAFF_TOP, 0, STAFF_BOTTOM, "score-barline");
+    let label = null;
+    if ((number - 1) % 3 === 0) {
+      label = svgElement("text", "score-measure-number");
+      label.setAttribute("y", String(STAFF_TOP - 12));
+      label.textContent = String(number);
+      group.append(label);
+    }
+    scene.barlines.append(group);
+    scene.barMarks.set(number, { group, start, end, label });
+  }
+  positionBarMarks(scene, score, leftBeat, geometry);
+}
 
-  function update({ chapter = "music", motionEnabled = true, playbackSnapshot = null } = {}) {
-    if (chapter !== "music") return;
-    const live = ["playing", "paused", "finished"].includes(playbackSnapshot?.state);
-    for (const scene of scenes) {
-      if (!motionEnabled && scene.hasLiveFrame) continue;
-      const nextGeometry = geometryFor(scene.host);
-      if (nextGeometry.mobile !== scene.geometry.mobile) {
-        scene.geometry = nextGeometry;
-        scene.svg.setAttribute("viewBox", nextGeometry.viewBox);
-        scene.playhead.setAttribute("x1", String(nextGeometry.cursorX));
-        scene.playhead.setAttribute("x2", String(nextGeometry.cursorX));
-        scene.guitarScore.setAttribute("x", String(nextGeometry.scoreX));
-        scene.guitarScore.setAttribute("y", String(nextGeometry.scoreY));
-        scene.guitarScore.setAttribute("width", String(nextGeometry.scoreWidth));
-        scene.guitarScore.setAttribute("height", String(nextGeometry.scoreHeight));
-        scene.svg.querySelector(".score-watermark-title")?.setAttribute("x", String(nextGeometry.titleX));
-        scene.svg.querySelector(".score-meter-label")?.setAttribute("x", String(nextGeometry.meterX));
+function positionBarMarks(scene, score, leftBeat, geometry) {
+  for (const number of scene.bars) {
+    const mark = scene.barMarks.get(number);
+    if (!mark) continue;
+    const x = geometry.headerWidth + ((number - 1) * score.beatsPerBar - leftBeat) * geometry.pixelsPerBeat;
+    for (const line of [mark.start, mark.end]) {
+      const lineX = line === mark.start ? x : x + MEASURE_WIDTH;
+      line.setAttribute("x1", lineX.toFixed(1));
+      line.setAttribute("x2", lineX.toFixed(1));
+    }
+    if (mark.label) mark.label.setAttribute("x", (x + 6).toFixed(1));
+  }
+}
+
+function updateCrossTies(scene, leftBeat, rightBeat, geometry) {
+  const activeIds = new Set();
+  guitarScoreTies.forEach((tie, index) => {
+    if (tie.fromBeat < leftBeat - 1 || tie.toBeat > rightBeat + 1) return;
+    const id = String(index);
+    activeIds.add(id);
+    let arc = scene.tiePaths.get(id);
+    if (!arc) {
+      arc = svgElement("path", "score-cross-bar-tie");
+      scene.tiePaths.set(id, arc);
+      scene.crossTies.append(arc);
+    }
+    const x1 = geometry.headerWidth + (tie.fromBeat - leftBeat) * geometry.pixelsPerBeat;
+    const x2 = geometry.headerWidth + (tie.toBeat - leftBeat) * geometry.pixelsPerBeat;
+    const y = staffYForMidi(tie.midi, geometry.staffBottomY, geometry.halfStepY);
+    arc.setAttribute("d", `M ${x1.toFixed(1)} ${(y + 2).toFixed(1)} C ${(x1 + 14).toFixed(1)} ${(y + 15).toFixed(1)} ${(x2 - 14).toFixed(1)} ${(y + 15).toFixed(1)} ${x2.toFixed(1)} ${(y + 2).toFixed(1)}`);
+  });
+  for (const [id, arc] of scene.tiePaths) {
+    if (activeIds.has(id)) continue;
+    arc.remove();
+    scene.tiePaths.delete(id);
+  }
+}
+
+function currentSystems(bars, score) {
+  const starts = new Set(bars.map(systemStartForBar));
+  const last = bars.at(-1) ?? 1;
+  if (last < score.bars) starts.add(systemStartForBar(last + 1));
+  return [...starts];
+}
+
+async function loadSceneResources(scene, score, onReady, version) {
+  const systems = currentSystems(scene.bars, score);
+  const keep = new Set(systems);
+  for (const start of [...scene.systemDocs.keys()]) {
+    if (!keep.has(start)) scene.systemDocs.delete(start);
+  }
+  try {
+    const newStarts = systems.filter(start => !scene.systemDocs.has(start));
+    const [headerDoc, ...systemDocs] = await Promise.all([
+      scene.headerSymbol ? Promise.resolve(null) : loadSvgDocument("/assets/about/guitar-score/notation-header.svg"),
+      ...newStarts.map(start => loadSvgDocument(systemPath(start))),
+    ]);
+    if (!scene.active || version !== scene.resourceVersion) return;
+    const header = scene.headerSymbol ?? headerDoc?.getElementById("score-header");
+    if (!header) throw new Error("Score header symbol is missing");
+    scene.headerSymbol = header;
+    newStarts.forEach((start, index) => {
+      if (keep.has(start)) scene.systemDocs.set(start, systemDocs[index]);
+    });
+    for (const start of [...scene.systemDocs.keys()]) {
+      if (!keep.has(start)) scene.systemDocs.delete(start);
+    }
+    const symbols = scene.bars.map(number => {
+      const start = systemStartForBar(number);
+      const source = scene.systemDocs.get(start)?.getElementById(`bar-${String(number).padStart(3, "0")}`);
+      if (!source) throw new Error(`Score measure ${number} is missing`);
+      return document.importNode(source, true);
+    });
+    scene.defs.replaceChildren(scene.clipPath, document.importNode(header, true), ...symbols.map(symbol => prefixMeasureIds(symbol)));
+    scene.host.dataset.scoreReady = "true";
+    onReady();
+  } catch (error) {
+    if (!scene.active || version !== scene.resourceVersion) return;
+    scene.host.dataset.scoreReady = "false";
+    console.warn("The musical score could not be rendered; keeping the static score preview.", error);
+  }
+}
+
+function prefixMeasureIds(symbol) {
+  const prefix = `${symbol.id}-`;
+  const replacements = new Map();
+  for (const element of [symbol, ...symbol.querySelectorAll("[id]")]) {
+    if (element === symbol) continue;
+    const previous = element.id;
+    const next = `${prefix}${previous}`;
+    replacements.set(previous, next);
+    element.id = next;
+  }
+  for (const element of [symbol, ...symbol.querySelectorAll("*")]) {
+    for (const attribute of [...element.attributes]) {
+      let value = attribute.value;
+      for (const [previous, next] of replacements) {
+        value = value.replaceAll(`url(#${previous})`, `url(#${next})`);
+        if (value === `#${previous}`) value = `#${next}`;
       }
-      const centerBeat = live ? clamp(playbackSnapshot.beat, 0, score.bars * score.beatsPerBar) : PREVIEW_BEAT;
-      const notes = scoreNotesInWindow(score, centerBeat, scene.geometry.windowBeats);
-      scene.traces.forEach(trace => {
-        const voiceNotes = notes.filter(note => note.layer === trace.layer);
-        paintVoiceTrace(trace, voiceNotes, centerBeat, scene.geometry, live);
-      });
-      scene.playhead.style.display = live ? "" : "none";
-      scene.svg.dataset.playback = live ? playbackSnapshot.state : "preview";
-      scene.hasLiveFrame = live;
+      if (value !== attribute.value) element.setAttribute(attribute.name, value);
     }
   }
+  return symbol;
+}
 
-  update({ motionEnabled: true });
+function renderMeasures(scene, score, leftBeat, rightBeat, geometry, onReady) {
+  scene.guitar.replaceChildren();
+  scene.bars.forEach(number => {
+    const x = geometry.headerWidth + ((number - 1) * score.beatsPerBar - leftBeat) * geometry.pixelsPerBeat;
+    appendBarSymbol(scene.guitar, number, x);
+  });
+  updateBarMarks(scene, score, leftBeat, geometry);
+  updateCrossTies(scene, leftBeat, rightBeat, geometry);
+  scene.host.dataset.scoreReady = "false";
+  scene.resourceVersion += 1;
+  loadSceneResources(scene, score, onReady, scene.resourceVersion);
+}
+
+function updateScene(scene, score, centerBeat, motionEnabled, reducedMotion, playbackSnapshot, onReady) {
+  const hasPlayback = !reducedMotion && ["playing", "paused", "finished"].includes(playbackSnapshot?.state);
+  if (!motionEnabled && scene.hasLiveFrame && !reducedMotion) {
+    return { beat: scene.playbackBeat, bars: scene.bars, live: true, frozen: true };
+  }
+  const live = hasPlayback && motionEnabled;
+  const geometry = geometryFor(scene.host);
+  const geometryChanged = !scene.geometry || scene.geometry.viewBox !== geometry.viewBox;
+  if (geometryChanged) {
+    scene.geometry = geometry;
+    scene.svg.setAttribute("viewBox", geometry.viewBox);
+    scene.clipRect.setAttribute("x", String(geometry.headerWidth));
+    scene.clipRect.setAttribute("y", "0");
+    scene.clipRect.setAttribute("width", String(geometry.width - geometry.headerWidth));
+    scene.clipRect.setAttribute("height", String(HEIGHT));
+    scene.staff.replaceChildren();
+    appendStaff(scene.staff, geometry);
+    appendScoreHeader(scene.staff, geometry);
+    scene.playhead.setAttribute("x1", String(geometry.cursorX));
+    scene.playhead.setAttribute("x2", String(geometry.cursorX));
+    scene.playhead.setAttribute("y1", String(geometry.cursorY1));
+    scene.playhead.setAttribute("y2", String(geometry.cursorY2));
+  }
+  const visualBeat = live && motionEnabled ? clamp(centerBeat, 0, score.bars * score.beatsPerBar) : PREVIEW_BEAT;
+  const leftBeat = visualBeat - (geometry.cursorX - geometry.headerWidth) / geometry.pixelsPerBeat;
+  const rightBeat = leftBeat + geometry.windowBeats;
+  const bars = visibleBars(leftBeat, rightBeat, score);
+  const barsChanged = geometryChanged || bars.length !== scene.bars.length || bars.some((bar, index) => bar !== scene.bars[index]);
+  if (barsChanged) {
+    scene.bars = bars;
+    renderMeasures(scene, score, leftBeat, rightBeat, geometry, onReady);
+  } else {
+    scene.guitar.querySelectorAll("use").forEach((use, index) => {
+      const number = bars[index];
+      const x = geometry.headerWidth + ((number - 1) * score.beatsPerBar - leftBeat) * geometry.pixelsPerBeat;
+      use.setAttribute("x", x.toFixed(2));
+    });
+    positionBarMarks(scene, score, leftBeat, geometry);
+    updateCrossTies(scene, leftBeat, rightBeat, geometry);
+  }
+  const notes = scoreNotesInWindow(score, visualBeat, geometry.windowBeats);
+  for (const trace of scene.traces) {
+    paintVoiceTrace(trace, notes.filter(note => note.layer === trace.layer), visualBeat, geometry, live);
+  }
+  scene.playhead.style.display = live ? "" : "none";
+  scene.svg.dataset.playback = live ? playbackSnapshot.state : "preview";
+  scene.hasLiveFrame = live && motionEnabled;
+  scene.playbackBeat = visualBeat;
+  return { beat: visualBeat, bars, live, frozen: false };
+}
+
+export function createScoreVisual(root, score, onReady = () => {}) {
+  const hosts = [...root.querySelectorAll('[data-score-scene="music"]')];
+  const scenes = hosts.map(makeScene);
+
+  function update({ chapter = "music", motionEnabled = true, reducedMotion = false, playbackSnapshot = null } = {}) {
+    if (chapter !== "music") return null;
+    const beat = ["playing", "paused", "finished"].includes(playbackSnapshot?.state)
+      ? playbackSnapshot.beat : PREVIEW_BEAT;
+    let result = null;
+    for (const scene of scenes) result = updateScene(scene, score, beat, motionEnabled, reducedMotion, playbackSnapshot, onReady);
+    return result;
+  }
+
   return {
     update,
-    dispose() { scenes.forEach(scene => scene.host.replaceChildren()); },
+    dispose() {
+      scenes.forEach(scene => {
+        scene.active = false;
+        scene.host.querySelector(".score-score-svg")?.remove();
+        delete scene.host.dataset.scoreReady;
+      });
+    },
   };
 }

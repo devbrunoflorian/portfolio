@@ -5,7 +5,7 @@ import { contourPathForNotes, contourPoints, contourYForMidi, scoreNotesInWindow
 
 test("only the two melodies enter the rolling score window", () => {
   const notes = scoreNotesInWindow(score, 136);
-  assert.ok(notes.length > 0 && notes.length <= 80);
+  assert.ok(notes.length > 0);
   assert.ok(notes.some(note => note.layer === "melodyOne"));
   assert.ok(notes.some(note => note.layer === "melodyTwo"));
   assert.ok(notes.every(note => ["melodyOne", "melodyTwo"].includes(note.layer)));
@@ -14,10 +14,46 @@ test("only the two melodies enter the rolling score window", () => {
 
 test("the ending window retains long held notes without loading the whole MIDI", () => {
   const notes = scoreNotesInWindow(score, 424);
-  assert.ok(notes.length <= 80);
   assert.ok(notes.some(note => note.beat < 416 && note.beat + note.duration >= 416));
   assert.ok(notes.some(note => note.layer === "melodyOne"));
   assert.ok(notes.some(note => note.layer === "melodyTwo"));
+});
+
+test("the rolling window retains every visible voice event instead of sampling the melody", () => {
+  const denseScore = {
+    bars: 4,
+    beatsPerBar: 4,
+    tracks: [
+      { id: 1, name: "Melody I", voice: "vocal" },
+      { id: 2, name: "Melody II", voice: "vocal" },
+      { id: 3, name: "Guitar I", voice: "guitar" },
+    ],
+    notes: Array.from({ length: 96 }, (_, index) => ({
+      beat: 1 + index / 100,
+      duration: .25,
+      midi: 48 + index % 24,
+      track: index % 2 ? 1 : 2,
+    })),
+  };
+  assert.equal(scoreNotesInWindow(denseScore, 2, 4).length, 96);
+});
+
+test("each melody stays hidden until its first real entrance", () => {
+  const shortScore = {
+    bars: 4,
+    beatsPerBar: 4,
+    tracks: [
+      { id: 1, name: "Melody I", voice: "vocal" },
+      { id: 2, name: "Melody II", voice: "vocal" },
+    ],
+    notes: [
+      { beat: 2, duration: 1, midi: 60, track: 1 },
+      { beat: 3, duration: 1, midi: 67, track: 2 },
+    ],
+  };
+  assert.deepEqual(scoreNotesInWindow(shortScore, 1.5, 4), []);
+  assert.deepEqual(scoreNotesInWindow(shortScore, 2.5, 4).map(note => note.layer), ["melodyOne"]);
+  assert.deepEqual(scoreNotesInWindow(shortScore, 3.5, 4).map(note => note.layer), ["melodyOne", "melodyTwo"]);
 });
 
 test("the two voice contours collapse simultaneous pitches and hold before a smooth transition", () => {
