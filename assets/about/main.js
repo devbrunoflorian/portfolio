@@ -8,21 +8,22 @@ const chapters = [...root.querySelectorAll("[data-movement]")];
 const scoreThread = root.querySelector("[data-score-thread]");
 const scoreLeads = root.querySelector("[data-score-leads-global]");
 const scoreCameraStops = [
-  { x: -.035, y: -.015, scale: 1.08, opacity: .36, lead: .46, rotate: 0 },
-  { x: .015, y: .30, scale: .82, opacity: .018, lead: .03, rotate: 0 },
-  { x: 0, y: 0, scale: 1, opacity: .68, lead: .98, rotate: 0 },
-  { x: -.035, y: .025, scale: 1.04, opacity: .14, lead: .24, rotate: 0 },
-  { x: .035, y: -.035, scale: .90, opacity: .23, lead: .32, rotate: 0 },
-  { x: 0, y: .055, scale: .78, opacity: .09, lead: .14, rotate: 0 },
+  { x: -.012, y: -.012, scale: .56, opacity: .38, lead: .78, rotate: 0 },
+  { x: .008, y: .018, scale: .54, opacity: .30, lead: .54, rotate: 0 },
+  { x: 0, y: .008, scale: .94, opacity: .66, lead: .98, rotate: 0 },
+  { x: -.026, y: .02, scale: .80, opacity: .24, lead: .50, rotate: 0 },
+  { x: .024, y: -.018, scale: .72, opacity: .30, lead: .46, rotate: 0 },
+  { x: 0, y: .04, scale: .62, opacity: .15, lead: .24, rotate: 0 },
 ];
 const scoreCameraAnchors = {
   opening: ".hero-field",
-  code: ".code-stack",
+  code: ".code-score-anchor",
   music: ".score-stage-spacer",
-  art: ".art-experiment",
+  art: ".art-score-anchor",
   games: ".games-experiment",
   closing: ".closing-links",
 };
+const mobileScoreScale = { opening: .72, code: .66, music: .95, art: .70, games: .62, closing: .66 };
 let scoreChapterBounds = [];
 let scoreThreadNeedsMeasure = true;
 let scoreThreadLastScrollY = Number.NaN;
@@ -107,6 +108,24 @@ function updateScoreThread(force = false) {
     lead: cameraValue("lead", index, progress) * visibility,
     rotate: cameraValue("rotate", index, progress),
   };
+  if (window.innerWidth <= 700) {
+    const startScale = mobileScoreScale[chapters[index].dataset.movement];
+    const endScale = mobileScoreScale[chapters[Math.min(chapters.length - 1, index + 1)].dataset.movement];
+    values.scale = startScale + (endScale - startScale) * progress;
+  }
+  const anchorVisibility = chapter => {
+    const anchor = scoreAnchorFor(chapter);
+    if (!anchor) return 1;
+    const bounds = anchor.getBoundingClientRect();
+    const entry = clamp((bounds.bottom + 48) / 96, 0, 1);
+    const exit = clamp((window.innerHeight - bounds.top + 48) / 96, 0, 1);
+    return Math.min(entry, exit);
+  };
+  const startExposure = anchorVisibility(chapters[index]);
+  const endExposure = anchorVisibility(chapters[Math.min(chapters.length - 1, index + 1)]);
+  const frameExposure = startExposure + (endExposure - startExposure) * progress;
+  values.opacity *= frameExposure;
+  values.lead *= frameExposure;
   const startOffset = scoreStageOffsets(scoreAnchorFor(chapters[index]), values.scale);
   const endOffset = scoreStageOffsets(scoreAnchorFor(chapters[index + 1]), values.scale);
   const x = values.x * window.innerWidth + startOffset.x + (endOffset.x - startOffset.x) * progress;
@@ -311,6 +330,7 @@ const motionButton = root.querySelector("[data-motion-toggle]");
 const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)");
 const finePointer = matchMedia("(pointer: fine)");
 let motionPaused = reduceMotion.matches;
+let frozenScrollBeat = null;
 let pointerFrame = 0;
 let sceneFrame = 0;
 let desiredPointer = { x: 0, y: 0 };
@@ -322,9 +342,10 @@ function paintScenes() {
   const visible = mainBounds.bottom >= 0 && mainBounds.top <= innerHeight;
   if (visible) {
     const chapter = root.dataset.activeMovement ?? "opening";
-    // With audio off, keep the authored preview still. Only playback moves the
-    // notes; the editorial camera continues to follow the reader's scroll.
-    const result = visual.update({ chapter, motionEnabled: !motionPaused && !reduceMotion.matches, reducedMotion: reduceMotion.matches, playbackSnapshot: snapshot });
+    // Silence uses the page's reading position as a visual-only score cursor.
+    // Playback remains authoritative whenever audio is active.
+    const scrollBeat = frozenScrollBeat ?? score.bars * score.beatsPerBar * clamp(-mainBounds.top / Math.max(1, root.offsetHeight - innerHeight), 0, 1);
+    const result = visual.update({ chapter, scrollBeat, motionEnabled: !motionPaused && !reduceMotion.matches, reducedMotion: reduceMotion.matches, playbackSnapshot: snapshot });
     if (chapter === "music" && result && !result.frozen) {
       const excerptElement = root.querySelector("[data-score-excerpt]");
       if (excerptElement && result.bars.length) {
@@ -362,6 +383,9 @@ function syncMotion() {
   document.documentElement.dataset.motionPaused = String(motionPaused);
   motionButton.setAttribute("aria-pressed", String(motionPaused));
   motionButton.textContent = motionPaused ? labels.resumeMotion : labels.motion;
+  frozenScrollBeat = motionPaused
+    ? score.bars * score.beatsPerBar * clamp(-root.getBoundingClientRect().top / Math.max(1, root.offsetHeight - innerHeight), 0, 1)
+    : null;
   applyPointer();
   if (!motionPaused && !reduceMotion.matches) {
     invalidateScoreLayout();
