@@ -14,6 +14,7 @@ const NATURAL_DIATONIC_STEP = [0, 0, 1, 1, 2, 3, 3, 4, 4, 5, 5, 6];
 const REST_GAP_TOLERANCE = 0.12;
 const pendingSvgLoads = new Map();
 const scoreMetadataCache = new WeakMap();
+let nextSceneId = 1;
 
 function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
 
@@ -253,12 +254,12 @@ function paintVoiceTrace(trace, notes, centerBeat, geometry, live) {
 
 function appendScoreHeader(scene, geometry) {
   const header = svgElement("use", "score-staff-header");
-  header.setAttribute("href", "#score-header");
+  header.setAttribute("href", `#${scene.headerId}`);
   header.setAttribute("x", "0");
   header.setAttribute("y", "0");
   header.setAttribute("width", String(geometry.headerWidth));
   header.setAttribute("height", String(HEIGHT));
-  scene.append(header);
+  scene.staff.append(header);
 }
 
 function appendStaff(scene, geometry) {
@@ -300,23 +301,24 @@ function loadSvgDocument(url) {
 
 function appendBarSymbol(scene, number, x) {
   const use = svgElement("use", "score-guitar-measure");
-  use.setAttribute("href", `#bar-${String(number).padStart(3, "0")}`);
+  use.setAttribute("href", `#${scene.measureId(number)}`);
   use.setAttribute("x", x.toFixed(2));
   use.setAttribute("y", "0");
   use.setAttribute("width", String(MEASURE_WIDTH));
   use.setAttribute("height", String(HEIGHT));
-  scene.append(use);
+  scene.guitar.append(use);
   return use;
 }
 
 function makeScene(host) {
+  const id = `score-scene-${nextSceneId++}`;
   const svg = svgElement("svg", "score-score-svg");
   svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
   svg.setAttribute("aria-hidden", "true");
   svg.setAttribute("focusable", "false");
   const defs = svgElement("defs");
   const clipPath = svgElement("clipPath");
-  clipPath.id = "score-window-clip";
+  clipPath.id = `${id}-clip`;
   clipPath.setAttribute("clipPathUnits", "userSpaceOnUse");
   const clipRect = svgElement("rect");
   clipPath.append(clipRect);
@@ -326,21 +328,22 @@ function makeScene(host) {
   const staff = svgElement("g", "score-staff");
   svg.append(staff);
   const guitar = svgElement("g", "score-guitar-measures");
-  guitar.setAttribute("clip-path", "url(#score-window-clip)");
+  guitar.setAttribute("clip-path", `url(#${clipPath.id})`);
   svg.append(guitar);
   const crossTies = svgElement("g", "score-guitar-ties");
-  crossTies.setAttribute("clip-path", "url(#score-window-clip)");
+  crossTies.setAttribute("clip-path", `url(#${clipPath.id})`);
   svg.append(crossTies);
   const barlines = svgElement("g", "score-measure-lines");
-  barlines.setAttribute("clip-path", "url(#score-window-clip)");
+  barlines.setAttribute("clip-path", `url(#${clipPath.id})`);
   svg.append(barlines);
   const playhead = appendLine(svg, 0, 0, 0, 0, "score-playhead");
   playhead.style.display = "none";
   const traceLayer = svgElement("g", "score-voice-traces");
-  traceLayer.setAttribute("clip-path", "url(#score-window-clip)");
+  traceLayer.setAttribute("clip-path", `url(#${clipPath.id})`);
   const traces = [makeVoiceTrace("melodyOne", traceLayer), makeVoiceTrace("melodyTwo", traceLayer)];
   svg.append(traceLayer);
   return {
+    id, headerId: `${id}-header`, measureId: number => `${id}-bar-${String(number).padStart(3, "0")}`,
     host, svg, defs, clipPath, clipRect, staff, guitar, crossTies, barlines, playhead, traces,
     geometry: null, bars: [], barMarks: new Map(), tiePaths: new Map(),
     systemDocs: new Map(), hasLiveFrame: false, playbackBeat: null, resourceVersion: 0, active: true,
@@ -425,9 +428,9 @@ async function loadSceneResources(scene, score, onReady, version) {
       ...newStarts.map(start => loadSvgDocument(systemPath(start))),
     ]);
     if (!scene.active || version !== scene.resourceVersion) return;
-    const header = scene.headerSymbol ?? headerDoc?.getElementById("score-header");
-    if (!header) throw new Error("Score header symbol is missing");
-    scene.headerSymbol = header;
+    const headerSource = scene.headerSymbol ?? headerDoc?.getElementById("score-header");
+    if (!headerSource) throw new Error("Score header symbol is missing");
+    if (!scene.headerSymbol) scene.headerSymbol = namespaceSvgIds(document.importNode(headerSource, true), scene.headerId);
     newStarts.forEach((start, index) => {
       if (keep.has(start)) scene.systemDocs.set(start, systemDocs[index]);
     });
@@ -438,9 +441,9 @@ async function loadSceneResources(scene, score, onReady, version) {
       const start = systemStartForBar(number);
       const source = scene.systemDocs.get(start)?.getElementById(`bar-${String(number).padStart(3, "0")}`);
       if (!source) throw new Error(`Score measure ${number} is missing`);
-      return document.importNode(source, true);
+      return namespaceSvgIds(document.importNode(source, true), scene.measureId(number));
     });
-    scene.defs.replaceChildren(scene.clipPath, document.importNode(header, true), ...symbols.map(symbol => prefixMeasureIds(symbol)));
+    scene.defs.replaceChildren(scene.clipPath, scene.headerSymbol, ...symbols);
     scene.host.dataset.scoreReady = "true";
     onReady();
   } catch (error) {
@@ -450,17 +453,16 @@ async function loadSceneResources(scene, score, onReady, version) {
   }
 }
 
-function prefixMeasureIds(symbol) {
-  const prefix = `${symbol.id}-`;
+function namespaceSvgIds(root, rootId) {
   const replacements = new Map();
-  for (const element of [symbol, ...symbol.querySelectorAll("[id]")]) {
-    if (element === symbol) continue;
+  for (const element of [root, ...root.querySelectorAll("[id]")]) {
+    if (!element.id) continue;
     const previous = element.id;
-    const next = `${prefix}${previous}`;
+    const next = element === root ? rootId : `${rootId}-${previous}`;
     replacements.set(previous, next);
     element.id = next;
   }
-  for (const element of [symbol, ...symbol.querySelectorAll("*")]) {
+  for (const element of [root, ...root.querySelectorAll("*")]) {
     for (const attribute of [...element.attributes]) {
       let value = attribute.value;
       for (const [previous, next] of replacements) {
@@ -470,14 +472,14 @@ function prefixMeasureIds(symbol) {
       if (value !== attribute.value) element.setAttribute(attribute.name, value);
     }
   }
-  return symbol;
+  return root;
 }
 
 function renderMeasures(scene, score, leftBeat, rightBeat, geometry, onReady) {
   scene.guitar.replaceChildren();
   scene.bars.forEach(number => {
     const x = geometry.headerWidth + ((number - 1) * score.beatsPerBar - leftBeat) * geometry.pixelsPerBeat;
-    appendBarSymbol(scene.guitar, number, x);
+    appendBarSymbol(scene, number, x);
   });
   updateBarMarks(scene, score, leftBeat, geometry);
   updateCrossTies(scene, leftBeat, rightBeat, geometry);
@@ -486,7 +488,7 @@ function renderMeasures(scene, score, leftBeat, rightBeat, geometry, onReady) {
   loadSceneResources(scene, score, onReady, scene.resourceVersion);
 }
 
-function updateScene(scene, score, centerBeat, motionEnabled, reducedMotion, playbackSnapshot, onReady) {
+function updateScene(scene, score, centerBeat, scrollBeat, motionEnabled, reducedMotion, playbackSnapshot, onReady) {
   const hasPlayback = !reducedMotion && ["playing", "paused", "finished"].includes(playbackSnapshot?.state);
   if (!motionEnabled && scene.hasLiveFrame && !reducedMotion) {
     return { beat: scene.playbackBeat, bars: scene.bars, live: true, frozen: true };
@@ -503,13 +505,15 @@ function updateScene(scene, score, centerBeat, motionEnabled, reducedMotion, pla
     scene.clipRect.setAttribute("height", String(HEIGHT));
     scene.staff.replaceChildren();
     appendStaff(scene.staff, geometry);
-    appendScoreHeader(scene.staff, geometry);
+    appendScoreHeader(scene, geometry);
     scene.playhead.setAttribute("x1", String(geometry.cursorX));
     scene.playhead.setAttribute("x2", String(geometry.cursorX));
     scene.playhead.setAttribute("y1", String(geometry.cursorY1));
     scene.playhead.setAttribute("y2", String(geometry.cursorY2));
   }
-  const visualBeat = live && motionEnabled ? clamp(centerBeat, 0, score.bars * score.beatsPerBar) : PREVIEW_BEAT;
+  const visualBeat = hasPlayback
+    ? clamp(centerBeat, 0, score.bars * score.beatsPerBar)
+    : clamp(scrollBeat ?? PREVIEW_BEAT, 0, score.bars * score.beatsPerBar);
   const leftBeat = visualBeat - (geometry.cursorX - geometry.headerWidth) / geometry.pixelsPerBeat;
   const rightBeat = leftBeat + geometry.windowBeats;
   const bars = visibleBars(leftBeat, rightBeat, score);
@@ -538,15 +542,22 @@ function updateScene(scene, score, centerBeat, motionEnabled, reducedMotion, pla
 }
 
 export function createScoreVisual(root, score, onReady = () => {}) {
-  const hosts = [...root.querySelectorAll('[data-score-scene="music"]')];
+  const hosts = [...root.querySelectorAll("[data-score-scene]")];
   const scenes = hosts.map(makeScene);
 
-  function update({ chapter = "music", motionEnabled = true, reducedMotion = false, playbackSnapshot = null } = {}) {
-    if (chapter !== "music") return null;
+  function update({ chapter = "music", scrollBeat = PREVIEW_BEAT, motionEnabled = true, reducedMotion = false, playbackSnapshot = null } = {}) {
     const beat = ["playing", "paused", "finished"].includes(playbackSnapshot?.state)
       ? playbackSnapshot.beat : PREVIEW_BEAT;
     let result = null;
-    for (const scene of scenes) result = updateScene(scene, score, beat, motionEnabled, reducedMotion, playbackSnapshot, onReady);
+    for (const scene of scenes) {
+      const isThread = scene.host.dataset.scoreScene === "thread";
+      if (!isThread && chapter !== scene.host.dataset.scoreScene) continue;
+      if (!isThread) {
+        const bounds = scene.host.closest("section")?.getBoundingClientRect();
+        if (!bounds || bounds.bottom < 0 || bounds.top > innerHeight) continue;
+      }
+      result = updateScene(scene, score, beat, scrollBeat, motionEnabled, reducedMotion, playbackSnapshot, onReady);
+    }
     return result;
   }
 
