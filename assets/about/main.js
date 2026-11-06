@@ -6,31 +6,46 @@ import { createScoreVisual } from "./score-visual.js";
 const root = document.querySelector(".about-main");
 const isPortuguese = document.documentElement.lang === "pt-BR";
 const labels = isPortuguese ? {
-  listen: "Ouvir o percurso", pause: "Pausar som", loading: "Ativando som…", off: "Som desligado",
+  listen: "Ouvir", heroListen: "Ouvir Dissonância", resume: "Continuar", replay: "Ouvir de novo", pause: "Pausar", loading: "Iniciando…", off: "Som desligado",
   paused: "Som pausado · retome quando quiser", error: "Não foi possível ativar o som. Tente ouvir novamente.",
   unavailable: "Som indisponível neste navegador. A página continua em silêncio.",
   playing: "Tocando", finished: "Música concluída", next: "próximo compasso", muted: "Volume em zero", motion: "Pausar movimento", resumeMotion: "Retomar movimento",
 } : {
-  listen: "Listen to the journey", pause: "Pause sound", loading: "Starting sound…", off: "Sound is off",
+  listen: "Listen", heroListen: "Listen to Dissonância", resume: "Continue", replay: "Play again", pause: "Pause", loading: "Starting…", off: "Sound is off",
   paused: "Sound paused · resume when you like", error: "Sound could not start. Try listening again.",
   unavailable: "Sound is unavailable in this browser. Explore in silence.",
   playing: "Playing", finished: "Piece finished", next: "next bar", muted: "Volume at zero", motion: "Pause motion", resumeMotion: "Resume motion",
 };
-const movementNames = { opening: "Dissonância", code: "Code / lo-fi", music: "Music / Dissonância", art: "Art / legato", games: "Games / 8-bit" };
 const sectionNames = isPortuguese ? {} : {
   "Verso I": "Verse I", "Ponte I": "Bridge I", "Refrão I": "Chorus I",
   "Verso II": "Verse II", "Ponte II": "Bridge II", "Refrão II": "Chorus II", "Pós Refrão": "Post-Chorus",
 };
 const sectionName = name => sectionNames[name] ?? name;
-const soundButton = root.querySelector("[data-sound-toggle]");
+const soundButtons = [...root.querySelectorAll("[data-sound-toggle]")];
+let displayTimer = 0;
 const audio = createJourneyAudio(score, status => {
   const active = status.state === "playing" || status.state === "starting";
-  soundButton.setAttribute("aria-pressed", String(active));
-  soundButton.setAttribute("aria-busy", String(status.state === "starting"));
-  root.querySelector("[data-sound-label]").textContent = status.state === "starting" ? labels.loading : active ? labels.pause : labels.listen;
+  for (const button of soundButtons) {
+    button.setAttribute("aria-pressed", String(active));
+    button.setAttribute("aria-busy", String(status.state === "starting"));
+    button.querySelector("[data-sound-label]").textContent = status.state === "starting" ? labels.loading : active ? labels.pause
+      : status.state === "paused" ? labels.resume : status.state === "finished" ? labels.replay
+      : button.classList.contains("hero-listen") ? labels.heroListen : labels.listen;
+    button.querySelector(".sound-icon").textContent = active ? "Ⅱ" : "▶";
+  }
   root.querySelector("[data-audio-status]").textContent = status.state === "playing"
-    ? `${status.volume === 0 ? labels.muted : labels.playing} · ${sectionName(status.section)} · ${movementNames[status.movement]}${status.pending ? ` → ${movementNames[status.pending]} (${labels.next})` : ""}`
+    ? `${status.volume === 0 ? labels.muted : labels.playing} · ${sectionName(status.section)}`
     : labels[status.state] ?? labels.off;
+  root.querySelectorAll("[data-audio-feedback]").forEach(feedback => {
+    feedback.hidden = !["error", "unavailable"].includes(status.state);
+    feedback.textContent = feedback.hidden ? "" : labels[status.state];
+  });
+  if (status.state === "playing" && !displayTimer) {
+    displayTimer = setInterval(() => syncMixer(audio.snapshot()), 250);
+  } else if (status.state !== "playing") {
+    clearInterval(displayTimer);
+    displayTimer = 0;
+  }
   syncMixer(audio.snapshot?.());
   requestScene();
 });
@@ -38,28 +53,33 @@ const experiments = mountExperiments(root, audio, isPortuguese);
 const visual = createScoreVisual(root, score);
 const controller = new AbortController();
 const { signal } = controller;
-soundButton.addEventListener("click", () => audio.enabled ? audio.pause() : audio.start(), { signal });
+soundButtons.forEach(button => button.addEventListener("click", () => audio.enabled ? audio.pause() : audio.start(), { signal }));
 root.querySelector("[data-audio-restart]").addEventListener("click", () => audio.restart(), { signal });
 root.querySelector("[data-audio-repeat]").addEventListener("click", event => {
   const next = event.currentTarget.getAttribute("aria-pressed") !== "true";
   event.currentTarget.setAttribute("aria-pressed", String(next));
   audio.setRepeat(next);
 }, { signal });
-root.querySelector("[data-volume]").addEventListener("input", event => audio.setVolume(Number(event.target.value) / 100), { signal });
+const volumeInputs = [...root.querySelectorAll("[data-volume]")];
+volumeInputs.forEach(input => input.addEventListener("input", () => {
+  volumeInputs.forEach(other => { other.value = input.value; });
+  audio.setVolume(Number(input.value) / 100);
+}, { signal }));
 root.querySelectorAll("[data-enhanced]").forEach(element => { element.hidden = false; });
 
 const layerNames = isPortuguese
-  ? { guitar: "Violão", vocal: "Voz instrumental", strings: "Cordas", bass: "Baixo", percussion: "Bateria" }
-  : { guitar: "Guitar", vocal: "Instrumental voice", strings: "Strings", bass: "Bass", percussion: "Percussion" };
+  ? { guitar: "Violão", vocal: "Voz", strings: "Cordas", bass: "Baixo", percussion: "Bateria" }
+  : { guitar: "Guitar", vocal: "Voice", strings: "Strings", bass: "Bass", percussion: "Percussion" };
 const mixer = root.querySelector("[data-layer-mixer]");
 const trackMixer = mixer.querySelector("[data-track-mixer]");
+const initialMix = new Map(score.tracks.map(track => [track.id, audio.getTrackVolume(track.id)]));
 let lastDisplaySecond = -1;
 for (const track of score.tracks) {
   const strip = document.createElement("div");
   strip.className = "music-mixer-strip";
   const label = track.voice === "vocal"
     ? `${layerNames.vocal} ${track.name.endsWith("II") ? "II" : "I"}`
-    : `${layerNames[track.voice]}${track.voice === "guitar" ? " I" : ""}`;
+    : layerNames[track.voice];
   const sliderId = `about-track-volume-${track.id}`;
   const heading = document.createElement("div");
   heading.className = "music-mixer-strip-heading";
@@ -91,6 +111,15 @@ for (const track of score.tracks) {
   strip.append(heading, slider);
   trackMixer.append(strip);
 }
+root.querySelector("[data-mix-reset]").addEventListener("click", () => {
+  for (const slider of trackMixer.querySelectorAll("[data-track-volume]")) {
+    slider.value = String(Math.round(initialMix.get(Number(slider.dataset.trackVolume)) * 100));
+    slider.dispatchEvent(new Event("input", { bubbles: true }));
+    // The source gain is more precise than its rounded slider percentage.
+    audio.setTrackVolume(Number(slider.dataset.trackVolume), initialMix.get(Number(slider.dataset.trackVolume)));
+  }
+  root.querySelector("[data-layer-status]").textContent = isPortuguese ? "Mix restaurada." : "Mix restored.";
+}, { signal });
 function formatTime(seconds, round = false) {
   const safeSeconds = Math.max(0, seconds);
   const time = round ? Math.round(safeSeconds) : Math.floor(safeSeconds);
@@ -99,11 +128,57 @@ function formatTime(seconds, round = false) {
 function syncMixer(snapshot) {
   if (!snapshot) return;
   const { seconds: currentSeconds } = playbackPositionForDisplay(snapshot, score);
-  mixer.querySelector("[data-audio-position]").textContent = `${sectionName(snapshot.section)} · ${formatTime(currentSeconds, currentSeconds >= score.durationSeconds)} / ${formatTime(score.durationSeconds, true)}`;
+  const text = `${sectionName(snapshot.section)} · ${formatTime(currentSeconds, currentSeconds >= score.durationSeconds)} / ${formatTime(score.durationSeconds, true)}`;
+  root.querySelectorAll("[data-audio-position]").forEach(element => { element.textContent = text; });
 }
 syncMixer(audio.snapshot?.() ?? { state: "off", beat: 0, seconds: 0, section: "Intro" });
 
 const hero = root.querySelector(".about-hero");
+const dock = root.querySelector("[data-dock]");
+const panels = [...root.querySelectorAll(".dock-panel")];
+const nativePopover = "popover" in HTMLElement.prototype;
+if (nativePopover) panels.forEach(panel => { panel.hidden = false; });
+function closePanel(panel) {
+  if (nativePopover) { if (panel.matches(":popover-open")) panel.hidePopover(); }
+  else {
+    panel.hidden = true;
+    root.querySelector(`[popovertarget="${panel.id}"]`)?.setAttribute("aria-expanded", "false");
+  }
+}
+function syncDock() {
+  const focusInControls = dock.contains(document.activeElement) || panels.some(panel => panel.contains(document.activeElement));
+  dock.hidden = hero.getBoundingClientRect().bottom > 96 && !focusInControls;
+}
+const dockObserver = new IntersectionObserver(syncDock, { rootMargin: "-96px 0px 0px", threshold: 0 });
+dockObserver.observe(hero);
+if (!nativePopover) {
+  panels.forEach(panel => { panel.hidden = true; });
+  root.querySelectorAll("[popovertarget]").forEach(button => button.addEventListener("click", () => {
+    const target = root.querySelector(`#${button.getAttribute("popovertarget")}`);
+    const opening = target.hidden;
+    panels.forEach(closePanel);
+    target.hidden = !opening;
+    button.setAttribute("aria-expanded", String(opening));
+  }, { signal }));
+  document.addEventListener("pointerdown", event => {
+    if (!panels.some(panel => panel.contains(event.target)) && !event.target.closest("[popovertarget]")) panels.forEach(closePanel);
+  }, { signal });
+  document.addEventListener("keydown", event => {
+    if (event.key !== "Escape") return;
+    const open = panels.find(panel => !panel.hidden);
+    if (!open) return;
+    closePanel(open);
+    root.querySelector(`[popovertarget="${open.id}"]`).focus();
+  }, { signal });
+}
+root.querySelector("[data-open-mixer]").addEventListener("click", () => {
+  mixer.open = true;
+  panels.forEach(closePanel);
+  requestAnimationFrame(() => mixer.querySelector("summary").focus({ preventScroll: true }));
+}, { signal });
+root.querySelectorAll(".chapter-menu a").forEach(link => link.addEventListener("click", () => panels.forEach(closePanel), { signal }));
+root.addEventListener("focusout", () => requestAnimationFrame(syncDock), { signal });
+syncDock();
 const motionButton = root.querySelector("[data-motion-toggle]");
 const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)");
 const finePointer = matchMedia("(pointer: fine)");
@@ -170,11 +245,15 @@ function selectMovement() {
   }
   const movement = active.dataset.movement;
   root.dataset.activeMovement = movement;
-  if (movement !== activeMovement) { activeMovement = movement; audio.setMovement(movement); }
+  if (movement !== activeMovement) {
+    activeMovement = movement;
+    if (movement !== "closing") audio.setMovement(movement);
+  }
   links.forEach(link => {
     if (link.hash === `#${movement}`) link.setAttribute("aria-current", "location");
     else link.removeAttribute("aria-current");
   });
+  syncDock();
 }
 const observer = new IntersectionObserver(selectMovement, { rootMargin: "-30% 0px -60% 0px", threshold: 0 });
 chapters.forEach(chapter => observer.observe(chapter));
@@ -199,6 +278,7 @@ document.addEventListener("visibilitychange", () => {
 window.addEventListener("pagehide", event => {
   audio.pause();
   if (event.persisted) return;
-  controller.abort(); observer.disconnect(); cancelAnimationFrame(pointerFrame); cancelAnimationFrame(sceneFrame);
+  clearInterval(displayTimer);
+  controller.abort(); observer.disconnect(); dockObserver.disconnect(); cancelAnimationFrame(pointerFrame); cancelAnimationFrame(sceneFrame);
   experiments.dispose(); visual.dispose(); audio.dispose();
 }, { signal });
