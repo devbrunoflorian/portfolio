@@ -1,0 +1,171 @@
+/* Diagnostic renderer: the notation SVGs stay at their source geometry. */
+body[data-score-grid-study="true"] .about-score-thread,
+body[data-score-grid-study="true"] .about-score-leads[data-score-leads-global] {
+  display: none !important;
+}
+
+body[data-score-grid-study="true"] .score-stage-spacer {
+  display: grid;
+  place-items: center;
+  inline-size: 100%;
+  block-size: auto;
+  min-block-size: 0;
+  overflow: visible;
+  background: none;
+  -webkit-mask-image: none;
+  mask-image: none;
+}
+
+body[data-score-grid-study="true"] .score-grid-window {
+  display: grid;
+  place-items: center;
+  inline-size: 100%;
+  min-inline-size: 0;
+  color: #aca3b5;
+}
+
+body[data-score-grid-study="true"] .score-grid-fit {
+  position: relative;
+  flex: none;
+  inline-size: var(--score-fit-width);
+  block-size: var(--score-fit-height);
+}
+
+body[data-score-grid-study="true"] .score-grid-sheet {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: 0;
+  display: grid;
+  grid-template-columns: 150px repeat(var(--bar-count), 320px);
+  inline-size: var(--score-sheet-width);
+  block-size: 252px;
+  transform: scale(var(--score-scale));
+  transform-origin: top left;
+  isolation: isolate;
+}
+
+body[data-score-grid-study="true"] .score-grid-header {
+  display: block;
+  inline-size: 150px;
+  block-size: 252px;
+  overflow: visible;
+  opacity: .84;
+}
+
+body[data-score-grid-study="true"] .score-grid-bar {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(96, minmax(0, 1fr));
+  grid-template-rows: repeat(21, 12px);
+  inline-size: 320px;
+  block-size: 252px;
+  overflow: visible;
+  isolation: isolate;
+}
+
+body[data-score-grid-study="true"] .score-grid-staff,
+body[data-score-grid-study="true"] .score-grid-guides,
+body[data-score-grid-study="true"] .score-grid-engraving {
+  position: absolute;
+  inset: 0;
+  inline-size: 320px;
+  block-size: 252px;
+  pointer-events: none;
+}
+
+body[data-score-grid-study="true"] .score-grid-staff { z-index: 0; }
+
+body[data-score-grid-study="true"] .score-grid-staff-line {
+  position: absolute;
+  inset-inline: 0;
+  block-size: 1px;
+  background: rgb(190 181 201 / 47%);
+}
+
+body[data-score-grid-study="true"] .score-grid-guides { z-index: 0; }
+
+body[data-score-grid-study="true"] .score-grid-beat-line {
+  position: absolute;
+  inset-block-start: 56.5px;
+  inline-size: 1px;
+  block-size: 184px;
+  background: linear-gradient(to bottom, rgb(171 154 190 / 8%), rgb(171 154 190 / 18%), rgb(171 154 190 / 7%));
+}
+
+body[data-score-grid-study="true"] .score-grid-engraving {
+  z-index: 1;
+  display: block;
+  overflow: visible;
+  color: #9d94a7;
+  opacity: .78;
+}
+
+body[data-score-grid-study="true"] .score-grid-engraving * {
+  fill: #9d94a7;
+  stroke: #9d94a7;
+}
+
+body[data-score-grid-study="true"] .score-grid-engraving [fill="none"] { fill: none; }
+body[data-score-grid-study="true"] .score-grid-engraving [stroke="none"] { stroke: none; }
+
+body[data-score-grid-study="true"] .score-grid-note {
+  position: relative;
+  z-index: 2;
+  display: block;
+  justify-self: start;
+  align-self: start;
+  inline-size: var(--note-width);
+  block-size: var(--note-height);
+  max-inline-size: none;
+  overflow: visible;
+  transform: translate(var(--note-offset-x), var(--note-offset-y));
+  color: #d3cadd;
+  opacity: .98;
+  pointer-events: none;
+}
+
+body[data-score-grid-study="true"] .score-grid-note * {
+  fill: #c9c0d1;
+  stroke: #c9c0d1;
+}
+
+body[data-score-grid-study="true"] .score-grid-note [fill="none"] { fill: none; }
+body[data-score-grid-study="true"] .score-grid-note [stroke="none"] { stroke: none; }
+
+body[data-score-grid-study="true"] .score-grid-measure-number {
+  position: absolute;
+  z-index: 3;
+  inset-block-start: 32px;
+  inset-inline-start: 4px;
+  color: #b6adc0;
+  font: 11px/1 var(--about-mono);
+  letter-spacing: .04em;
+  pointer-events: none;
+}
+
+body[data-score-grid-study="true"] .score-grid-measure-number::after {
+  position: absolute;
+  inset-block-start: 15px;
+  inset-inline-start: 0;
+  inline-size: 24px;
+  block-size: 1px;
+  background: rgb(190 181 201 / 32%);
+  content: "";
+}
+
+body[data-score-grid-study="true"] .score-grid-probe {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: -10000px;
+  inline-size: 320px;
+  block-size: 372px;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+@media (max-width: 700px) {
+  body[data-score-grid-study="true"] .score-stage-spacer {
+    inline-size: calc(100% + 1.5rem);
+    margin-inline-start: -.75rem;
+  }
+}

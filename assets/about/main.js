@@ -4,6 +4,7 @@ import { mountExperiments } from "./experiments.js";
 import { createScoreVisual, scoreStageOffsets } from "./score-visual.js";
 
 const root = document.querySelector(".about-main");
+const scoreGridStudyMode = new URLSearchParams(window.location.search).get("score-grid") === "study";
 const chapters = [...root.querySelectorAll("[data-movement]")];
 const scoreThread = root.querySelector("[data-score-thread]");
 const scoreLeads = root.querySelector("[data-score-leads-global]");
@@ -348,7 +349,7 @@ function paintScenes() {
     // Playback remains authoritative whenever audio is active.
     const scrollBeat = frozenScrollBeat ?? score.bars * score.beatsPerBar * clamp(-mainBounds.top / Math.max(1, root.offsetHeight - innerHeight), 0, 1);
     const result = visual.update({ chapter, scrollBeat, motionEnabled: !motionPaused && !reduceMotion.matches, reducedMotion: reduceMotion.matches, playbackSnapshot: snapshot });
-    if (chapter === "music" && result && !result.frozen) {
+    if (!scoreGridStudyMode && chapter === "music" && result && !result.frozen) {
       const excerptElement = root.querySelector("[data-score-excerpt]");
       if (excerptElement && result.bars.length) {
         const first = result.bars[0];
@@ -451,3 +452,7 @@ window.addEventListener("pagehide", event => {
   controller.abort(); observer.disconnect(); dockObserver.disconnect(); revealObserver?.disconnect(); cancelAnimationFrame(pointerFrame); cancelAnimationFrame(sceneFrame);
   experiments.dispose(); visual.dispose(); audio.dispose();
 }, { signal });
+
+if (scoreGridStudyMode) {
+  import("./score-grid-study.js");
+}
