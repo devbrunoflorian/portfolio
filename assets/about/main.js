@@ -1,20 +1,19 @@
 import { score } from "./score.js?v=a1c14c40";
 import { createJourneyAudio, playbackPositionForDisplay } from "./audio.js";
 import { mountExperiments } from "./experiments.js";
-import { createScoreVisual, scoreStageOffset } from "./score-visual.js";
+import { createScoreVisual, scoreStageOffsets } from "./score-visual.js";
 
 const root = document.querySelector(".about-main");
 const chapters = [...root.querySelectorAll("[data-movement]")];
 const scoreThread = root.querySelector("[data-score-thread]");
 const scoreLeads = root.querySelector("[data-score-leads-global]");
-const musicScoreStage = root.querySelector('[data-score-scene="music"]');
 const scoreCameraStops = [
-  { x: -.18, y: 0, scale: 1.1, opacity: .28, lead: .48, rotate: 0 },
-  { x: -.07, y: 0, scale: .94, opacity: .16, lead: .24, rotate: 0 },
-  { x: 0, y: 0, scale: 1.06, opacity: .18, lead: .16, rotate: 0 },
-  { x: .045, y: 0, scale: 1, opacity: .22, lead: .38, rotate: 0 },
-  { x: .015, y: 0, scale: .93, opacity: .16, lead: .22, rotate: 0 },
-  { x: 0, y: 0, scale: .86, opacity: .09, lead: .08, rotate: 0 },
+  { x: -.035, y: -.015, scale: 1.08, opacity: .36, lead: .46, rotate: 0 },
+  { x: .015, y: .045, scale: .88, opacity: .055, lead: .09, rotate: 0 },
+  { x: 0, y: 0, scale: 1.22, opacity: .68, lead: .98, rotate: 0 },
+  { x: -.035, y: .025, scale: 1.04, opacity: .14, lead: .24, rotate: 0 },
+  { x: .035, y: -.035, scale: .90, opacity: .23, lead: .32, rotate: 0 },
+  { x: 0, y: .055, scale: .78, opacity: .09, lead: .14, rotate: 0 },
 ];
 const scoreCameraAnchors = {
   opening: ".hero-field",
@@ -28,17 +27,7 @@ let scoreThreadCenters = [];
 let scoreThreadNeedsMeasure = true;
 let scoreThreadLastScrollY = Number.NaN;
 let scoreThreadLastStyle = "";
-let scoreLayoutRevision = 0;
 function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
-function scoreProgressForScroll() {
-  const bounds = root.getBoundingClientRect();
-  const rootTop = bounds.top + window.scrollY;
-  const scrollRange = Math.max(1, bounds.height - window.innerHeight);
-  return clamp((window.scrollY - rootTop) / scrollRange, 0, 1);
-}
-function scoreBeatForScroll() {
-  return scoreProgressForScroll() * score.bars * score.beatsPerBar;
-}
 function scoreAnchorFor(chapter) {
   const selector = scoreCameraAnchors[chapter?.dataset.movement];
   return selector ? chapter.querySelector(selector) : null;
@@ -96,31 +85,27 @@ function updateScoreThread(force = false) {
   const enter = clamp((window.innerHeight - mainBounds.top) / (window.innerHeight * .42), 0, 1);
   const leave = clamp(mainBounds.bottom / (window.innerHeight * .42), 0, 1);
   const visibility = Math.min(enter, leave);
-  const stageBounds = musicScoreStage?.getBoundingClientRect();
-  const stageOverlap = stageBounds
-    ? clamp((Math.min(window.innerHeight, stageBounds.bottom) - Math.max(0, stageBounds.top)) / Math.max(1, stageBounds.height), 0, 1)
-    : 0;
-  const globalSceneWeight = 1 - stageOverlap * .96;
   const values = {
     x: cameraValue("x", index, progress),
     y: cameraValue("y", index, progress),
     scale: cameraValue("scale", index, progress),
-    opacity: cameraValue("opacity", index, progress) * visibility * globalSceneWeight,
-    lead: cameraValue("lead", index, progress) * visibility * globalSceneWeight,
+    opacity: cameraValue("opacity", index, progress) * visibility,
+    lead: cameraValue("lead", index, progress) * visibility,
     rotate: cameraValue("rotate", index, progress),
   };
-  const startOffset = scoreStageOffset(scoreAnchorFor(chapters[index]), values.scale);
-  const endOffset = scoreStageOffset(scoreAnchorFor(chapters[index + 1]), values.scale);
-  const y = values.y * window.innerHeight + startOffset + (endOffset - startOffset) * progress;
-  const signature = `${values.x.toFixed(4)}|${y.toFixed(2)}|${values.scale.toFixed(4)}|${values.opacity.toFixed(4)}|${values.lead.toFixed(4)}|${values.rotate.toFixed(3)}`;
+  const startOffset = scoreStageOffsets(scoreAnchorFor(chapters[index]), values.scale);
+  const endOffset = scoreStageOffsets(scoreAnchorFor(chapters[index + 1]), values.scale);
+  const x = values.x * window.innerWidth + startOffset.x + (endOffset.x - startOffset.x) * progress;
+  const y = values.y * window.innerHeight + startOffset.y + (endOffset.y - startOffset.y) * progress;
+  const signature = `${x.toFixed(2)}|${y.toFixed(2)}|${values.scale.toFixed(4)}|${values.opacity.toFixed(4)}|${values.lead.toFixed(4)}|${values.rotate.toFixed(3)}`;
   if (signature === scoreThreadLastStyle) return;
   scoreThreadLastStyle = signature;
-  scoreThread.style.setProperty("--thread-x", `${(values.x * 100).toFixed(3)}vw`);
+  scoreThread.style.setProperty("--thread-x", `${x.toFixed(2)}px`);
   scoreThread.style.setProperty("--thread-y", `${y.toFixed(2)}px`);
   scoreThread.style.setProperty("--thread-scale", values.scale.toFixed(4));
   scoreThread.style.setProperty("--thread-opacity", values.opacity.toFixed(4));
   scoreThread.style.setProperty("--thread-rotate", `${values.rotate.toFixed(3)}deg`);
-  scoreLeads.style.setProperty("--thread-x", `${(values.x * 100).toFixed(3)}vw`);
+  scoreLeads.style.setProperty("--thread-x", `${x.toFixed(2)}px`);
   scoreLeads.style.setProperty("--thread-y", `${y.toFixed(2)}px`);
   scoreLeads.style.setProperty("--thread-scale", values.scale.toFixed(4));
   scoreLeads.style.setProperty("--thread-rotate", `${values.rotate.toFixed(3)}deg`);
@@ -312,7 +297,6 @@ const motionButton = root.querySelector("[data-motion-toggle]");
 const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)");
 const finePointer = matchMedia("(pointer: fine)");
 let motionPaused = reduceMotion.matches;
-let frozenScrollBeat = null;
 let pointerFrame = 0;
 let sceneFrame = 0;
 let desiredPointer = { x: 0, y: 0 };
@@ -324,13 +308,9 @@ function paintScenes() {
   const visible = mainBounds.bottom >= 0 && mainBounds.top <= innerHeight;
   if (visible) {
     const chapter = root.dataset.activeMovement ?? "opening";
-    const activeChapter = chapters.find(item => item.dataset.movement === chapter) ?? chapters[0];
-    const chapterBounds = activeChapter.getBoundingClientRect();
-    const progress = Math.max(0, Math.min(1, (innerHeight - chapterBounds.top) / (innerHeight + chapterBounds.height)));
-    // With audio off, the score still travels through the page with the scroll.
-    // Playback, when active, supplies its own beat to the renderer.
-    const scrollBeat = motionPaused || reduceMotion.matches ? frozenScrollBeat ?? scoreBeatForScroll() : scoreBeatForScroll();
-    const result = visual.update({ chapter, progress, scrollBeat, motionEnabled: !motionPaused && !reduceMotion.matches, reducedMotion: reduceMotion.matches, playbackSnapshot: snapshot, layoutRevision: scoreLayoutRevision });
+    // With audio off, keep the authored preview still. Only playback moves the
+    // notes; the editorial camera continues to follow the reader's scroll.
+    const result = visual.update({ chapter, motionEnabled: !motionPaused && !reduceMotion.matches, reducedMotion: reduceMotion.matches, playbackSnapshot: snapshot });
     if (chapter === "music" && result && !result.frozen) {
       const excerptElement = root.querySelector("[data-score-excerpt]");
       if (excerptElement && result.bars.length) {
@@ -353,7 +333,6 @@ function requestScene() {
 }
 function invalidateScoreLayout() {
   scoreThreadNeedsMeasure = true;
-  scoreLayoutRevision += 1;
   requestScene();
 }
 function applyPointer() {
@@ -370,10 +349,7 @@ function syncMotion() {
   motionButton.setAttribute("aria-pressed", String(motionPaused));
   motionButton.textContent = motionPaused ? labels.resumeMotion : labels.motion;
   applyPointer();
-  if (motionPaused || reduceMotion.matches) {
-    if (frozenScrollBeat === null) frozenScrollBeat = scoreBeatForScroll();
-  } else {
-    frozenScrollBeat = null;
+  if (!motionPaused && !reduceMotion.matches) {
     invalidateScoreLayout();
   }
   requestScene();
