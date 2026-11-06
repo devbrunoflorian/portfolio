@@ -1,6 +1,6 @@
 import { scoreRibbonStudy as study } from "./score-ribbon-study-data.js";
+import { drawScoreRibbon } from "./score-ribbon-renderer.js";
 
-const SVG_NS = "http://www.w3.org/2000/svg";
 const root = document.querySelector(".about-main");
 const isEnglish = document.documentElement.lang.toLowerCase().startsWith("en");
 const words = isEnglish ? {
@@ -11,8 +11,8 @@ const words = isEnglish ? {
   sourceCaption: "Original PDF crop · guitar staff only",
   planeTitle: "Shared pitch grid",
   planeMeta: "PDF positions · voice pitches from MIDI",
-  ribbonTitle: "Score ribbon · first spatial study",
-  ribbonMeta: "The same PDF row, gently carried through depth",
+  ribbonTitle: "Score ribbon · curved engraving proof",
+  ribbonMeta: "PDF vectors follow the ribbon; note glyphs stay upright",
   voiceI: "Voice I",
   voiceII: "Voice II",
   guitar: "Guitar staff · PDF",
@@ -29,8 +29,8 @@ const words = isEnglish ? {
   sourceCaption: "Recorte original do PDF · apenas pauta do violão",
   planeTitle: "Grade de alturas compartilhada",
   planeMeta: "Posições do PDF · alturas das vozes vindas do MIDI",
-  ribbonTitle: "Fita de partitura · primeiro estudo espacial",
-  ribbonMeta: "A mesma pauta do PDF, conduzida suavemente pela profundidade",
+  ribbonTitle: "Fita de partitura · prova de gravura curva",
+  ribbonMeta: "Os vetores do PDF acompanham a fita; os glifos ficam em pé",
   voiceI: "Voz I",
   voiceII: "Voz II",
   guitar: "Pauta do violão · PDF",
@@ -221,145 +221,9 @@ function drawPlane() {
   traceCurve(context, voicePoints[1], "#c39aff", 1.8, 6);
 }
 
-function ribbonPoint(x, y, width, height) {
-  const u = (x - study.x0) / (study.x1 - study.x0);
-  const v = (y - study.y0) / (study.y1 - study.y0);
-  const centerY = height * .50 + Math.sin((u * 1.35 - .15) * Math.PI * 2) * height * .18;
-  const depth = .7 + .42 * Math.sin(Math.PI * u);
-  const horizontalSkew = (v - .5) * (u - .5) * 76;
-  return {
-    x: 40 + u * (width - 80) + horizontalSkew,
-    y: centerY + (v - .5) * 62 * depth,
-    depth,
-    u,
-    radius: 3 + Math.max(0, depth - .72) * 2.1,
-  };
-}
-
-function destinationPoint(u, v, width, height) {
-  const x = study.x0 + u * (study.x1 - study.x0);
-  const y = study.y0 + v * (study.y1 - study.y0);
-  return ribbonPoint(x, y, width, height);
-}
-
-function drawTriangle(context, image, sourcePoints, destinationPoints) {
-  const [s0, s1, s2] = sourcePoints;
-  const [d0, d1, d2] = destinationPoints;
-  const dx1 = s1.x - s0.x;
-  const dy1 = s1.y - s0.y;
-  const dx2 = s2.x - s0.x;
-  const dy2 = s2.y - s0.y;
-  const determinant = dx1 * dy2 - dx2 * dy1;
-  if (Math.abs(determinant) < .001) return;
-  const du1 = d1.x - d0.x;
-  const dv1 = d1.y - d0.y;
-  const du2 = d2.x - d0.x;
-  const dv2 = d2.y - d0.y;
-  const a = (du1 * dy2 - du2 * dy1) / determinant;
-  const c = (dx1 * du2 - dx2 * du1) / determinant;
-  const b = (dv1 * dy2 - dv2 * dy1) / determinant;
-  const d = (dx1 * dv2 - dx2 * dv1) / determinant;
-  const e = d0.x - a * s0.x - c * s0.y;
-  const f = d0.y - b * s0.x - d * s0.y;
-
-  context.save();
-  context.beginPath();
-  context.moveTo(d0.x, d0.y);
-  context.lineTo(d1.x, d1.y);
-  context.lineTo(d2.x, d2.y);
-  context.closePath();
-  context.clip();
-  context.transform(a, b, c, d, e, f);
-  context.drawImage(image, 0, 0);
-  context.restore();
-}
-
-function drawRibbonTexture(context, width, height) {
-  const columns = 32;
-  const rows = 3;
-  const sourceWidth = inkCanvas.width;
-  const sourceHeight = inkCanvas.height;
-  context.save();
-  context.globalAlpha = .56;
-  for (let column = 0; column < columns; column += 1) {
-    const u0 = column / columns;
-    const u1 = (column + 1) / columns;
-    for (let row = 0; row < rows; row += 1) {
-      const v0 = row / rows;
-      const v1 = (row + 1) / rows;
-      const s0 = { x: u0 * sourceWidth, y: v0 * sourceHeight };
-      const s1 = { x: u1 * sourceWidth, y: v0 * sourceHeight };
-      const s2 = { x: u0 * sourceWidth, y: v1 * sourceHeight };
-      const s3 = { x: u1 * sourceWidth, y: v1 * sourceHeight };
-      const d0 = destinationPoint(u0, v0, width, height);
-      const d1 = destinationPoint(u1, v0, width, height);
-      const d2 = destinationPoint(u0, v1, width, height);
-      const d3 = destinationPoint(u1, v1, width, height);
-      drawTriangle(context, inkCanvas, [s0, s1, s2], [d0, d1, d2]);
-      drawTriangle(context, inkCanvas, [s1, s3, s2], [d1, d3, d2]);
-    }
-  }
-  context.restore();
-}
-
-function blendColor(far, near, progress) {
-  const parse = value => value.match(/[\da-f]{2}/gi).map(channel => Number.parseInt(channel, 16));
-  const a = parse(far);
-  const b = parse(near);
-  const amount = Math.max(0, Math.min(1, progress));
-  return `rgb(${a.map((channel, index) => Math.round(channel + (b[index] - channel) * amount)).join(" ")})`;
-}
-
 function drawRibbon() {
   const { context, width, height } = resizeCanvas(ribbonCanvas, 258);
-  context.clearRect(0, 0, width, height);
-  const atmosphere = context.createRadialGradient(width * .52, height * .52, 4, width * .52, height * .52, width * .53);
-  atmosphere.addColorStop(0, "rgb(73 37 118 / 24%)");
-  atmosphere.addColorStop(1, "rgb(8 8 14 / 0%)");
-  context.fillStyle = atmosphere;
-  context.fillRect(0, 0, width, height);
-  if (!source.complete || !source.naturalWidth) return;
-
-  drawRibbonTexture(context, width, height);
-  const voicePoints = createVoicePoints((x, y) => ribbonPoint(x, y, width, height));
-  [
-    { points: voicePoints[0], far: "#386fbd", near: "#83bdff" },
-    { points: voicePoints[1], far: "#7947ad", near: "#d0afff" },
-  ].forEach(({ points, far, near }) => {
-    context.save();
-    context.beginPath();
-    if (points.length) context.moveTo(points[0].x, points[0].y);
-    for (let index = 0; index < points.length - 1; index += 1) {
-      const start = points[index];
-      const end = points[index + 1];
-      const span = (end.x - start.x) / 3;
-      context.bezierCurveTo(start.x + span, start.y, end.x - span, end.y, end.x, end.y);
-      const gradient = context.createLinearGradient(start.x, start.y, end.x, end.y);
-      gradient.addColorStop(0, blendColor(far, near, (start.depth - .65) / .5));
-      gradient.addColorStop(1, blendColor(far, near, (end.depth - .65) / .5));
-      context.strokeStyle = gradient;
-      context.lineWidth = 2.35;
-      context.lineCap = "round";
-      context.shadowColor = near;
-      context.shadowBlur = 8;
-      context.stroke();
-      context.beginPath();
-      context.moveTo(end.x, end.y);
-    }
-    context.restore();
-
-    for (const point of points) {
-      const color = blendColor(far, near, (point.depth - .65) / .5);
-      context.save();
-      context.beginPath();
-      context.arc(point.x, point.y, point.radius, 0, Math.PI * 2);
-      context.fillStyle = color;
-      context.shadowColor = color;
-      context.shadowBlur = 10;
-      context.fill();
-      context.restore();
-    }
-  });
+  drawScoreRibbon(context, width, height, study);
 }
 
 function prepareInk() {
