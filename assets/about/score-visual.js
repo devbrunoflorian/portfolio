@@ -21,7 +21,7 @@ const LEAD_MASK_SELECTORS = {
   opening: ".hero-copy .section-kicker, .hero-copy h1, .hero-intro, .hero-actions, .hero-movements",
   code: ".chapter-copy .section-kicker, .chapter-copy h2, .chapter-copy > p:last-child, .code-stack",
   music: ".music-heading .section-kicker, .music-heading h2, .music-intro, .score-caption-top, .score-legend li, .score-guide, .music-tools summary, .music-tools button, .music-tools input, .music-tools p, .music-explore summary, .music-explore button, .music-instrument p, .music-instrument button",
-  art: ".chapter-copy .section-kicker, .chapter-copy h2, .chapter-copy > p:last-child, .poem, .poem-caption, .rhythm-keys",
+  art: null,
   games: ".chapter-copy .section-kicker, .chapter-copy h2, .chapter-copy > p:last-child, .games-experiment",
   closing: "h2, .closing-links, .back-to-top",
 };
@@ -184,6 +184,19 @@ function geometryFor(host) {
     staffBottomY: STAFF_BOTTOM,
     halfStepY: STAFF_LINE_GAP / 2,
   };
+}
+
+export function scoreStageOffset(anchor, scale) {
+  if (!anchor) return 0;
+  const geometry = geometryFor(anchor);
+  const bounds = anchor.getBoundingClientRect();
+  const fitScale = Math.min(window.innerWidth / geometry.width, window.innerHeight / geometry.height);
+  const fitTop = (window.innerHeight - geometry.height * fitScale) / 2;
+  const staffCenterY = (STAFF_TOP + STAFF_BOTTOM) / 2;
+  const staffY = fitTop + staffCenterY * fitScale;
+  const transformedStaffY = window.innerHeight / 2 + (staffY - window.innerHeight / 2) * scale;
+  const targetY = bounds.top + bounds.height / 2;
+  return clamp(targetY - transformedStaffY, -window.innerHeight * .28, window.innerHeight * .28);
 }
 
 function svgElement(name, className = "") {

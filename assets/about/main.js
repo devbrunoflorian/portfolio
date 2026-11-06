@@ -1,20 +1,28 @@
 import { score } from "./score.js?v=a1c14c40";
 import { createJourneyAudio, playbackPositionForDisplay } from "./audio.js";
 import { mountExperiments } from "./experiments.js";
-import { createScoreVisual } from "./score-visual.js";
+import { createScoreVisual, scoreStageOffset } from "./score-visual.js";
 
 const root = document.querySelector(".about-main");
 const chapters = [...root.querySelectorAll("[data-movement]")];
 const scoreThread = root.querySelector("[data-score-thread]");
 const scoreLeads = root.querySelector("[data-score-leads]");
 const scoreCameraStops = [
-  { x: .015, y: .015, scale: 1.08, opacity: .13, lead: .38, rotate: 0 },
-  { x: .03, y: .005, scale: 1.02, opacity: .035, lead: .24, rotate: 0 },
-  { x: 0, y: .14, scale: 1.16, opacity: .24, lead: .94, rotate: 0 },
-  { x: -.035, y: -.015, scale: .98, opacity: .1, lead: .48, rotate: 0 },
-  { x: -.05, y: .025, scale: .9, opacity: .06, lead: .3, rotate: 0 },
-  { x: -.06, y: .045, scale: .92, opacity: .05, lead: .2, rotate: 0 },
+  { x: -.09, y: 0, scale: 1.08, opacity: .17, lead: .05, rotate: 0 },
+  { x: .075, y: 0, scale: .94, opacity: .085, lead: .06, rotate: 0 },
+  { x: 0, y: 0, scale: 1, opacity: .38, lead: .86, rotate: 0 },
+  { x: -.065, y: 0, scale: 1.06, opacity: .16, lead: 0, rotate: 0 },
+  { x: .075, y: 0, scale: .93, opacity: .075, lead: .04, rotate: 0 },
+  { x: 0, y: 0, scale: .9, opacity: .06, lead: 0, rotate: 0 },
 ];
+const scoreCameraAnchors = {
+  opening: ".hero-field",
+  code: ".code-stack",
+  music: ".score-stage-spacer",
+  art: ".art-experiment",
+  games: ".games-experiment",
+  closing: ".closing-links",
+};
 let scoreThreadCenters = [];
 let scoreThreadNeedsMeasure = true;
 let scoreThreadLastScrollY = Number.NaN;
@@ -29,6 +37,10 @@ function scoreProgressForScroll() {
 }
 function scoreBeatForScroll() {
   return scoreProgressForScroll() * score.bars * score.beatsPerBar;
+}
+function scoreAnchorFor(chapter) {
+  const selector = scoreCameraAnchors[chapter?.dataset.movement];
+  return selector ? chapter.querySelector(selector) : null;
 }
 const revealSelectors = {
   opening: ".hero-copy .section-kicker, .hero-copy .hero-intro, .hero-copy .hero-actions",
@@ -91,16 +103,19 @@ function updateScoreThread(force = false) {
     lead: cameraValue("lead", index, progress) * visibility,
     rotate: cameraValue("rotate", index, progress),
   };
-  const signature = `${values.x.toFixed(4)}|${values.y.toFixed(4)}|${values.scale.toFixed(4)}|${values.opacity.toFixed(4)}|${values.lead.toFixed(4)}|${values.rotate.toFixed(3)}`;
+  const startOffset = scoreStageOffset(scoreAnchorFor(chapters[index]), values.scale);
+  const endOffset = scoreStageOffset(scoreAnchorFor(chapters[index + 1]), values.scale);
+  const y = values.y * window.innerHeight + startOffset + (endOffset - startOffset) * progress;
+  const signature = `${values.x.toFixed(4)}|${y.toFixed(2)}|${values.scale.toFixed(4)}|${values.opacity.toFixed(4)}|${values.lead.toFixed(4)}|${values.rotate.toFixed(3)}`;
   if (signature === scoreThreadLastStyle) return;
   scoreThreadLastStyle = signature;
   scoreThread.style.setProperty("--thread-x", `${(values.x * 100).toFixed(3)}vw`);
-  scoreThread.style.setProperty("--thread-y", `${(values.y * 100).toFixed(3)}vh`);
+  scoreThread.style.setProperty("--thread-y", `${y.toFixed(2)}px`);
   scoreThread.style.setProperty("--thread-scale", values.scale.toFixed(4));
   scoreThread.style.setProperty("--thread-opacity", values.opacity.toFixed(4));
   scoreThread.style.setProperty("--thread-rotate", `${values.rotate.toFixed(3)}deg`);
   scoreLeads.style.setProperty("--thread-x", `${(values.x * 100).toFixed(3)}vw`);
-  scoreLeads.style.setProperty("--thread-y", `${(values.y * 100).toFixed(3)}vh`);
+  scoreLeads.style.setProperty("--thread-y", `${y.toFixed(2)}px`);
   scoreLeads.style.setProperty("--thread-scale", values.scale.toFixed(4));
   scoreLeads.style.setProperty("--thread-rotate", `${values.rotate.toFixed(3)}deg`);
   scoreLeads.style.setProperty("--lead-opacity", values.lead.toFixed(4));
