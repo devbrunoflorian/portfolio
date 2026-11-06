@@ -190,8 +190,7 @@ function drawPlane() {
   context.fillRect(0, 0, width, height);
   if (!source.complete || !source.naturalWidth) return;
 
-  const pad = 24;
-  const scale = Math.min((width - pad * 2) / (study.x1 - study.x0), (height - 26) / (study.y1 - study.y0));
+  const scale = Math.min(width / (study.x1 - study.x0), (height - 26) / (study.y1 - study.y0));
   const drawWidth = (study.x1 - study.x0) * scale;
   const drawHeight = (study.y1 - study.y0) * scale;
   const left = (width - drawWidth) / 2;

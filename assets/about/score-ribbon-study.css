@@ -81,7 +81,7 @@ body[data-score-ribbon-study="true"] .skip-link {
 
 .score-ribbon-proof__source-row {
   display: grid;
-  grid-template-columns: minmax(300px, .9fr) minmax(0, 1.1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
 }
 
@@ -122,14 +122,14 @@ body[data-score-ribbon-study="true"] .skip-link {
   min-height: 104px;
   place-items: center;
   overflow-x: auto;
-  padding: 10px 15px 15px;
+  padding: 10px;
   background: #f4f1f5;
   scrollbar-color: #9584a8 transparent;
 }
 
 .score-ribbon-proof__source-view img {
   display: block;
-  width: min(100%, 680px);
+  width: min(100%, 720px);
   min-width: 360px;
   height: auto;
 }
@@ -232,8 +232,8 @@ body[data-score-ribbon-study="true"] :is(a, button):focus-visible {
   .score-ribbon-proof__panel-head { padding: 10px 12px 6px; }
   .score-ribbon-proof__panel-head h2 { font-size: 13px; }
   .score-ribbon-proof__panel-head p { font-size: 10px; }
-  .score-ribbon-proof__source-view { min-height: 93px; padding: 9px 12px 12px; }
-  .score-ribbon-proof__source-view img { width: min(100%, 620px); }
+  .score-ribbon-proof__source-view { min-height: 93px; padding: 9px 10px; }
+  .score-ribbon-proof__source-view img { width: 720px; min-width: 720px; max-width: none; }
   .score-ribbon-proof__source-caption { padding-inline: 12px; }
   .score-ribbon-proof__canvas-wrap,
   .score-ribbon-proof__canvas-wrap canvas { min-height: 154px; height: 154px; }
