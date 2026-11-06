@@ -44,7 +44,7 @@
             <div class="hero-field" aria-hidden="true"></div>
             <div class="hero-copy">
               <p class="section-kicker">Linguagens diferentes.<br>A mesma inquietude.</p>
-              <h1 id="about-title">A pessoa<br>por trás do<br><em>trabalho.</em></h1>
+              <h1 id="about-title" class="scroll-fill">A pessoa<br>por trás do<br><em>trabalho.</em></h1>
               <p class="hero-intro">Sou Bruno Florian. Código, música, arte — e uma curiosidade que conecta tudo isso.</p>
               <div class="hero-actions"><button class="sound-toggle hero-listen" type="button" aria-pressed="false" data-sound-toggle data-enhanced hidden><span class="sound-icon" aria-hidden="true">▶</span><span data-sound-label>Ouvir Dissonância</span></button><a class="explore-link" href="#code">Siga a partitura<span aria-hidden="true">↓</span></a></div><p class="hero-audio-note" data-audio-feedback hidden></p>
             </div>
@@ -64,7 +64,7 @@
         <div id="sound-settings" class="dock-panel sound-settings" popover hidden aria-labelledby="settings-title"><h3 id="settings-title">Ajustes do som</h3><label class="volume-control panel-volume"><span>Volume</span><input type="range" min="0" max="100" value="35" step="1" data-volume /></label><button class="motion-toggle" type="button" aria-pressed="false" data-motion-toggle>Pausar movimento</button><div class="music-player-actions"><button class="journey-audio-action" type="button" data-audio-restart>Tocar desde a Intro</button><button class="journey-audio-action" type="button" aria-pressed="true" data-audio-repeat>Repetir a música inteira</button></div><a class="open-mixer" href="#music-mixer" data-open-mixer>Abrir mixer em Music <span aria-hidden="true">↗</span></a></div>
         <p class="sr-only" data-audio-status role="status">O som é opcional.</p>
         <noscript><p class="about-noscript">A história está disponível sem JavaScript. Ative-o para experimentar o som e as interações.</p></noscript>
-        <section class="about-chapter code-chapter" id="code" data-movement="code" aria-labelledby="code-title"><div class="chapter-copy"><p class="section-kicker">Code</p><h2 id="code-title">Dar estrutura<br><em>a uma ideia.</em></h2><p>Transformo ideias de produto em software, entre frontend, backend, dados e IA.</p></div>
+        <section class="about-chapter code-chapter" id="code" data-movement="code" aria-labelledby="code-title"><div class="chapter-copy"><p class="section-kicker">Code</p><h2 id="code-title" class="scroll-fill">Dar estrutura<br><em>a uma ideia.</em></h2><p>Transformo ideias de produto em software, entre frontend, backend, dados e IA.</p></div>
           <div class="code-stack">
             <div class="experiment-label">MINHA STACK / FERRAMENTAS</div>
             <p class="stack-intro">Uma seleção das tecnologias que uso em produtos, plataformas e experimentos.</p>
@@ -73,7 +73,7 @@
           </div>
         </section>
         <section class="about-chapter music-chapter" id="music" data-movement="music" aria-labelledby="music-title">
-          <div class="music-heading"><div class="chapter-copy"><p class="section-kicker">Music</p><h2 id="music-title">Tem coisa que<br>precisa ser <em>sentida.</em></h2></div><p class="music-intro">A música tem uma gravidade própria na minha vida. Dissonância percorre versos, pontes e refrões enquanto esta página muda ao seu redor.</p></div>
+          <div class="music-heading"><div class="chapter-copy"><p class="section-kicker">Music</p><h2 id="music-title" class="scroll-fill">Tem coisa que<br>precisa ser <em>sentida.</em></h2></div><p class="music-intro">A música tem uma gravidade própria na minha vida. Dissonância percorre versos, pontes e refrões enquanto esta página muda ao seu redor.</p></div>
           <figure class="score-figure">
             <div class="score-stage-spacer" data-score-anchor="music" aria-hidden="true"></div>
             <figcaption>
@@ -90,13 +90,13 @@
         </section>
         <section class="about-chapter art-chapter" id="art" data-movement="art" aria-labelledby="art-title">
           <div class="art-experiment" data-rhythm-state="flow"><p class="poem"><span>Entre uma ideia</span><span>e outra,</span><span>o silêncio também cria.</span></p><div class="rhythm-keys" role="group" aria-label="Mudar o ritmo" data-enhanced hidden><button type="button" data-rhythm="flow" aria-pressed="true">Fluxo</button><button type="button" data-rhythm="pause" aria-pressed="false">Pausa</button><button type="button" data-rhythm="intense" aria-pressed="false">Intensidade</button></div></div>
-          <div class="chapter-copy"><p class="section-kicker">Art</p><h2 id="art-title">Entre as palavras,<br><em>outro mundo.</em></h2><p>Poesia, literatura e arte visual dividem este espaço. As mesmas palavras podem respirar de outro jeito quando o ritmo muda.</p></div>
+          <div class="chapter-copy"><p class="section-kicker">Art</p><h2 id="art-title" class="scroll-fill">Entre as palavras,<br><em>outro mundo.</em></h2><p>Poesia, literatura e arte visual dividem este espaço. As mesmas palavras podem respirar de outro jeito quando o ritmo muda.</p></div>
         </section>
         <section class="about-chapter games-chapter" id="games" data-movement="games" aria-labelledby="games-title">
-          <div class="chapter-copy"><p class="section-kicker">Games</p><h2 id="games-title">Jogar também<br>é <em>pensar.</em></h2><p>Jogos e xadrez também têm seu lugar: estratégia, leitura de padrões e novas perspectivas.</p></div>
+          <div class="chapter-copy"><p class="section-kicker">Games</p><h2 id="games-title" class="scroll-fill">Jogar também<br>é <em>pensar.</em></h2><p>Jogos e xadrez também têm seu lugar: estratégia, leitura de padrões e novas perspectivas.</p></div>
           <div class="games-experiment"><div class="games-mark" aria-hidden="true"><svg viewBox="0 0 64 76"><path d="M12 65h42v7H12zM16 65v-8c3-12 22-19 20-32l-7 8-13 3-6-7L26 8l-1-5 12 4c15 7 18 24 12 39l-2 11H20M29 17h1M16 29l7-1"/></svg></div><details class="knight-details"><summary>Resolva um pequeno desafio de caminho do cavalo<span aria-hidden="true">+</span></summary><p>O cavalo anda em L: duas casas em uma direção e uma para o lado.</p><div data-enhanced hidden><div class="knight-puzzle"><div class="knight-meta"><p><span data-knight-challenge-label>Desafio 1/2</span> · <span data-knight-challenge>Chegue em b4 em até dois movimentos.</span></p><button type="button" data-knight-next>Outro desafio</button></div><div class="knight-board" role="group" aria-label="Desafio de caminho do cavalo em um tabuleiro de cinco por cinco" data-knight-board></div><div class="knight-meta"><p role="status" data-knight-status>Cavalo em c3. Escolha uma casa marcada.</p><div class="knight-actions"><button type="button" data-knight-hint aria-expanded="false">Ver dica</button><button type="button" data-knight-reset>Recomeçar</button></div></div><p class="knight-hint" data-knight-hint-copy hidden></p></div></div></details></div>
         </section>
-        <section class="about-closing" id="closing" aria-labelledby="closing-title" data-movement="closing"><h2 id="closing-title">As ideias ficam mais interessantes<br>quando se tornam <em>reais.</em></h2><div class="closing-links"><a href="/pt-br/projetos/">Conheça o trabalho <span aria-hidden="true">↗</span></a><a href="/pt-br/contato/">Vamos conversar <span aria-hidden="true">↗</span></a></div><a class="back-to-top" href="#opening">↑ Voltar ao início</a></section>
+        <section class="about-closing" id="closing" aria-labelledby="closing-title" data-movement="closing"><h2 id="closing-title" class="scroll-fill">As ideias ficam mais interessantes<br>quando se tornam <em>reais.</em></h2><div class="closing-links"><a href="/pt-br/projetos/">Conheça o trabalho <span aria-hidden="true">↗</span></a><a href="/pt-br/contato/">Vamos conversar <span aria-hidden="true">↗</span></a></div><a class="back-to-top" href="#opening">↑ Voltar ao início</a></section>
       </main>
       <footer class="site-footer"><span>© 2026 Bruno Florian</span><nav aria-label="Perfis externos"><a href="https://github.com/devbrunoflorian" target="_blank" rel="noopener noreferrer">GitHub</a><a href="https://github.com/engineering-proof-labs" target="_blank" rel="noopener noreferrer">Engineering Labs</a></nav></footer>
     </div>
