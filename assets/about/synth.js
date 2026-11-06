@@ -6,7 +6,7 @@ const textures = {
   games: { type: "square", attack: .006, release: .05, cutoff: 3200, sustain: .17 },
 };
 
-export function createSynth(context, volume = .35, trackIds = [], trackVolumes = new Map()) {
+export function createSynth(context, volume = .35, trackIds = [], trackVolumes = new Map(), stringsTrackId = null) {
   const master = context.createGain();
   const compressor = context.createDynamicsCompressor();
   compressor.threshold.value = -18;
@@ -20,6 +20,39 @@ export function createSynth(context, volume = .35, trackIds = [], trackVolumes =
     bus.connect(master);
     return [id, bus];
   }));
+  const stringsBus = stringsTrackId === null ? null : trackBuses.get(stringsTrackId);
+  let stringsReverb = null;
+  let stringsReverbSend = null;
+  let stringsReverbReturn = null;
+  if (stringsBus && context.createConvolver && context.createBuffer) {
+    const impulse = context.createBuffer(2, Math.round(context.sampleRate * 2.4), context.sampleRate);
+    let seed = 941;
+    for (let channel = 0; channel < impulse.numberOfChannels; channel += 1) {
+      const samples = impulse.getChannelData(channel);
+      let filteredNoise = 0;
+      let energy = 0;
+      for (let index = 0; index < samples.length; index += 1) {
+        seed = (seed * 1664525 + 1013904223) >>> 0;
+        const noiseSample = seed / 2147483648 - 1;
+        filteredNoise += .42 * (noiseSample - filteredNoise);
+        const seconds = index / context.sampleRate;
+        const tailTime = Math.max(0, seconds - .022);
+        const envelope = seconds < .022 ? 0 : Math.exp(-tailTime / .82) * Math.max(0, 1 - tailTime / 2.4) ** 1.5;
+        samples[index] = filteredNoise * envelope;
+        energy += samples[index] * samples[index];
+      }
+      const scale = energy ? 1 / Math.sqrt(energy) : 1;
+      for (let index = 0; index < samples.length; index += 1) samples[index] *= scale;
+    }
+    stringsReverb = context.createConvolver();
+    stringsReverb.normalize = false;
+    stringsReverb.buffer = impulse;
+    stringsReverbSend = context.createGain();
+    stringsReverbSend.gain.value = .72;
+    stringsReverbReturn = context.createGain();
+    stringsReverbReturn.gain.value = .32;
+    stringsBus.connect(stringsReverbSend).connect(stringsReverb).connect(stringsReverbReturn).connect(master);
+  }
   const voices = new Set();
   const noise = context.createBuffer(1, Math.ceil(context.sampleRate * .25), context.sampleRate);
   const samples = noise.getChannelData(0);
@@ -32,12 +65,13 @@ export function createSynth(context, volume = .35, trackIds = [], trackVolumes =
   function note(midi, time, duration, movement, velocity = 95, voiceType = "guitar", bend = 0, bendRange = 2, bendEvents = [], trackId = null, loopTail = false) {
     if (!Number.isFinite(midi) || midi < 21 || midi > 108) return;
     const isBass = voiceType === "bass";
+    const isStrings = voiceType === "strings";
     const isDrum = voiceType === "percussion";
     const texture = textures[movement] ?? textures.music;
     const start = Math.max(time, context.currentTime);
     const length = isDrum ? Math.min(duration, .16) : Math.max(.01, duration);
-    const attack = isDrum ? .002 : Math.min(texture.attack, length * .65);
-    const release = loopTail ? .05 : isDrum ? .06 : texture.release;
+    const attack = isDrum ? .002 : isStrings ? Math.min(.32, length * .65) : Math.min(texture.attack, length * .65);
+    const release = loopTail ? .05 : isDrum ? .06 : isStrings ? 1.2 : texture.release;
     const peak = (isDrum ? .075 : isBass ? .11 : .06) * velocity / 127;
     const frequency = 440 * 2 ** ((midi - 69) / 12);
     const filter = context.createBiquadFilter();
@@ -54,7 +88,7 @@ export function createSynth(context, volume = .35, trackIds = [], trackVolumes =
       const oscillator = context.createOscillator();
       const overtone = context.createOscillator();
       const overtoneGain = context.createGain();
-      oscillator.type = isBass || voiceType === "vocal" ? "sine" : voiceType === "strings" ? "sawtooth" : texture.type;
+      oscillator.type = isBass || voiceType === "vocal" ? "sine" : isStrings ? "triangle" : texture.type;
       const bentFrequency = value => frequency * 2 ** (value / 8192 * bendRange / 12);
       oscillator.frequency.setValueAtTime(bentFrequency(bend), start);
       overtone.type = "sine";
@@ -63,9 +97,9 @@ export function createSynth(context, volume = .35, trackIds = [], trackVolumes =
         oscillator.frequency.setValueAtTime(bentFrequency(event.value), start + event.offset);
         overtone.frequency.setValueAtTime(bentFrequency(event.value) * (movement === "code" ? 2.002 : 2), start + event.offset);
       }
-      overtoneGain.gain.value = movement === "music" ? .18 : .06;
+      overtoneGain.gain.value = isStrings ? .025 : movement === "music" ? .18 : .06;
       filter.type = "lowpass";
-      filter.frequency.value = isBass ? 500 : voiceType === "strings" ? 1300 : texture.cutoff;
+      filter.frequency.value = isBass ? 500 : isStrings ? 1900 : texture.cutoff;
       oscillator.connect(filter);
       overtone.connect(overtoneGain).connect(filter);
       sources.push(oscillator, overtone);
@@ -73,7 +107,7 @@ export function createSynth(context, volume = .35, trackIds = [], trackVolumes =
     filter.Q.value = .6;
     envelope.gain.setValueAtTime(0, start);
     envelope.gain.linearRampToValueAtTime(peak, start + attack);
-    envelope.gain.exponentialRampToValueAtTime(Math.max(.0001, peak * (isDrum ? .1 : texture.sustain)), start + Math.max(attack + .001, length));
+    envelope.gain.exponentialRampToValueAtTime(Math.max(.0001, peak * (isDrum ? .1 : isStrings ? .62 : texture.sustain)), start + Math.max(attack + .001, length));
     envelope.gain.exponentialRampToValueAtTime(.0001, start + length + release);
     filter.connect(envelope).connect(trackBuses.get(trackId) ?? master);
     let stopped = false;
@@ -108,10 +142,19 @@ export function createSynth(context, volume = .35, trackIds = [], trackVolumes =
     setVolume(value) {
       master.gain.setTargetAtTime(Math.max(0, Math.min(1, value)), context.currentTime, .025);
     },
-    silence() { for (const voice of [...voices]) voice.stop(); },
+    silence() {
+      for (const voice of [...voices]) voice.stop();
+      stringsReverbReturn?.gain.setTargetAtTime(0, context.currentTime, .012);
+    },
+    resume() {
+      stringsReverbReturn?.gain.setTargetAtTime(.32, context.currentTime, .05);
+    },
     dispose() {
       for (const voice of [...voices]) voice.stop();
       for (const bus of trackBuses.values()) bus.disconnect();
+      stringsReverbSend?.disconnect();
+      stringsReverb?.disconnect();
+      stringsReverbReturn?.disconnect();
       master.disconnect(); compressor.disconnect();
     },
   };

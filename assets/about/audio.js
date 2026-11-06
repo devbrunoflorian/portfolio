@@ -16,7 +16,8 @@ function initialTrackVolumes(score) {
   for (const note of score.notes) channelsByTrack.get(note.track)?.add(note.channel);
   return new Map(score.tracks.map(track => {
     if (track.voice === "percussion") return [track.id, 0];
-    if (track.voice === "vocal") return [track.id, 1];
+    if (track.voice === "vocal") return [track.id, track.name.endsWith("II") ? .5 : 1];
+    if (track.voice === "strings") return [track.id, .18];
     const channels = [...(channelsByTrack.get(track.id) ?? [])];
     const levels = channels.map(channel => channelVolumes.get(channel) ?? 1);
     return [track.id, levels.length ? levels.reduce((total, level) => total + level, 0) / levels.length : 1];
@@ -37,6 +38,7 @@ export function createJourneyAudio(score, onState, { Context = globalThis.AudioC
   let lastReport = "";
   const trackIds = new Set(score.tracks.map(track => track.id));
   const trackVolumes = initialTrackVolumes(score);
+  const stringsTrackId = score.tracks.find(track => track.voice === "strings")?.id ?? null;
   const span = score.bars * score.beatsPerBar;
 
   function currentBeat() { return context ? secondsToBeat(score, Math.max(0, context.currentTime - origin)) : resumeBeat; }
@@ -126,7 +128,7 @@ export function createJourneyAudio(score, onState, { Context = globalThis.AudioC
       try {
         if (!context) {
           context = new Context();
-          synth = createSynth(context, volume, [...trackIds], trackVolumes);
+          synth = createSynth(context, volume, [...trackIds], trackVolumes, stringsTrackId);
           context.onstatechange = () => {
             if (state === "playing" && context.state !== "running") pause();
           };
@@ -157,6 +159,7 @@ export function createJourneyAudio(score, onState, { Context = globalThis.AudioC
       resumeBeat = 0;
       if (state !== "playing") { this.start(); return; }
       synth.silence();
+      synth.resume();
       origin = context.currentTime + .06;
       transport = createScoreTransport(score, desiredMovement, 0, repeat);
       schedule();
