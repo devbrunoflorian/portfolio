@@ -247,11 +247,12 @@ body { background: var(--about-bg); color: var(--about-ink); }
 .art-experiment[data-rhythm-state="pause"] .poem span:nth-child(2) { padding-left: 14px; }
 .art-experiment[data-rhythm-state="pause"] .poem span:nth-child(3) { padding-top: 14px; }
 .art-experiment[data-rhythm-state="intense"] .poem { font-style: normal; color: #e6c7ff; }
-.games-chapter { min-height: 590px; padding-block: 90px; }
+.games-chapter { min-height: clamp(330px, 46svh, 430px); padding-block: 52px; }
 .games-chapter .chapter-copy { grid-column: 2; grid-row: 1; }
 .games-experiment { grid-column: 1; grid-row: 1; position: relative; padding: 22px 0; }
-.games-mark { position: relative; padding-bottom: 24px; text-align: center; }
-.games-mark svg { height: 68px; width: 60px; fill: none; stroke: #b29bd2; stroke-width: 1.2; }
+.games-chapter h2 { font-size: clamp(36px, 2rem + .8vw, 48px); }
+.games-mark { position: relative; padding-bottom: 12px; text-align: center; }
+.games-mark svg { height: 48px; width: 42px; fill: none; stroke: #b29bd2; stroke-width: 1.2; }
 
 .knight-details { border-block: 1px solid #514064; }
 .knight-details summary { min-height: 60px; display: flex; justify-content: space-between; align-items: center; gap: 14px; cursor: pointer; font-size: 13px; list-style: none; }
@@ -344,7 +345,11 @@ body { background: var(--about-bg); color: var(--about-ink); }
   .section-kicker { margin-bottom: 20px !important; font-size: 12px; }
   .chapter-copy > p:last-child { margin-top: 23px; line-height: 1.85; }
   .code-chapter .chapter-copy, .games-chapter .chapter-copy { grid-column: auto; grid-row: 1; padding-top: 0; }
-  .code-stack, .games-experiment { grid-column: auto; grid-row: 2; padding-top: 0; }
+  .code-chapter { display: flex; flex-direction: column; gap: 28px; }
+  .code-chapter .chapter-copy { order: -1; }
+  .code-score-anchor { order: 0; width: 100%; height: clamp(180px, 26svh, 220px); }
+  .code-stack { order: 1; }
+  .code-stack, .games-experiment { grid-column: auto; grid-row: auto; padding-top: 0; }
   .code-stack { padding-bottom: 0; }
   .stack-groups, .stack-more-groups, .code-stack .stack-groups, .code-stack .stack-more-groups { gap: 25px; grid-template-columns: 1fr; padding-top: 24px; }
   .stack-intro { font-size: 14px; }
@@ -378,7 +383,8 @@ body { background: var(--about-bg); color: var(--about-ink); }
   .art-score-anchor { margin-top: 0; }
   .poem { font-size: clamp(25px, 1.4rem + 1vw, 34px); }
   .games-experiment { padding-top: 25px; }
-  .games-mark svg { height: 56px; }
+  .games-chapter { gap: 24px; padding-block: 48px; }
+  .games-mark svg { height: 42px; }
   .knight-meta { flex-wrap: wrap; }
   .knight-details summary { font-size: 14px; }
   .knight-meta p { font-size: 12px; }

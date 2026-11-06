@@ -8,12 +8,12 @@ const chapters = [...root.querySelectorAll("[data-movement]")];
 const scoreThread = root.querySelector("[data-score-thread]");
 const scoreLeads = root.querySelector("[data-score-leads-global]");
 const scoreCameraStops = [
-  { x: -.012, y: -.012, scale: .56, opacity: .38, lead: .78, rotate: 0 },
-  { x: .008, y: .018, scale: .54, opacity: .30, lead: .54, rotate: 0 },
+  { x: -.012, y: -.012, scale: .64, opacity: .48, lead: .82, rotate: 0 },
+  { x: .008, y: .018, scale: .62, opacity: .38, lead: .62, rotate: 0 },
   { x: 0, y: .008, scale: .94, opacity: .66, lead: .98, rotate: 0 },
-  { x: -.026, y: .02, scale: .80, opacity: .24, lead: .50, rotate: 0 },
-  { x: .024, y: -.018, scale: .72, opacity: .30, lead: .46, rotate: 0 },
-  { x: 0, y: .04, scale: .62, opacity: .15, lead: .24, rotate: 0 },
+  { x: -.026, y: .02, scale: .80, opacity: .32, lead: .56, rotate: 0 },
+  { x: .024, y: -.018, scale: .72, opacity: .34, lead: .50, rotate: 0 },
+  { x: 0, y: .04, scale: .62, opacity: .18, lead: .28, rotate: 0 },
 ];
 const scoreCameraAnchors = {
   opening: ".hero-field",
@@ -29,7 +29,9 @@ let scoreThreadNeedsMeasure = true;
 let scoreThreadLastScrollY = Number.NaN;
 let scoreThreadLastStyle = "";
 // Each chapter enters on the previous frame, then holds its own composition for reading.
-const cameraTransitionPortion = .18;
+// Let the score keep traveling while each chapter is read; it should not settle
+// after a brief camera move at the top of every section.
+const cameraTransitionPortion = 1;
 function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
 function scoreAnchorFor(chapter) {
   const selector = scoreCameraAnchors[chapter?.dataset.movement];
