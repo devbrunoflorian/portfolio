@@ -128,7 +128,7 @@ body { background: var(--about-bg); color: var(--about-ink); }
 .score-still--music[data-score-ready="true"] .score-score-svg { opacity: 1; }
 .score-staff-line { stroke: #a89cae; stroke-width: .8; opacity: .44; }
 .score-staff-header { opacity: .5; }
-.score-guitar-measure { pointer-events: none; }
+.score-guitar-measure { pointer-events: none; opacity: .48; }
 .score-barline { stroke: #a89cae; stroke-width: .8; opacity: .4; }
 .score-measure-number { fill: #9d8aa8; font: 10px var(--about-mono); }
 .score-cross-bar-tie { fill: none; stroke: #a89cae; stroke-width: 1.4; opacity: .52; }

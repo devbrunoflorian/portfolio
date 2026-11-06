@@ -11,6 +11,7 @@ const STAFF_LINE_GAP = 24;
 const STAFF_BOTTOM = STAFF_TOP + STAFF_LINE_GAP * 4;
 const PIXELS_PER_BEAT = 80;
 const NATURAL_DIATONIC_STEP = [0, 0, 1, 1, 2, 3, 3, 4, 4, 5, 5, 6];
+const REST_GAP_TOLERANCE = 0.12;
 const pendingSvgLoads = new Map();
 const scoreMetadataCache = new WeakMap();
 
@@ -106,28 +107,64 @@ function xForBeat(beat, centerBeat, geometry) {
 export function contourPathForNotes(notes, centerBeat, geometry) {
   const points = contourPoints(notes);
   if (!points.length) return "";
-  const first = points[0];
-  const firstY = contourYForMidi(first.midi, geometry);
-  let path = `M ${xForBeat(first.beat, centerBeat, geometry).toFixed(1)} ${firstY.toFixed(1)}`;
-  for (let index = 0; index < points.length - 1; index += 1) {
-    const current = points[index];
-    const next = points[index + 1];
-    const gapBeats = next.beat - current.beat;
-    const noteEnd = Math.min(current.beat + current.duration, next.beat);
-    const glideBeats = Math.min(.62, gapBeats * .58);
-    const glideStart = Math.max(current.beat, Math.min(noteEnd, next.beat - glideBeats));
-    const currentY = contourYForMidi(current.midi, geometry);
-    const nextY = contourYForMidi(next.midi, geometry);
-    const glideX = xForBeat(glideStart, centerBeat, geometry);
-    const nextX = xForBeat(next.beat, centerBeat, geometry);
-    if (glideStart > current.beat) path += ` L ${glideX.toFixed(1)} ${currentY.toFixed(1)}`;
-    const reach = Math.max(1, (nextX - glideX) * .42);
-    path += ` C ${(glideX + reach).toFixed(1)} ${currentY.toFixed(1)} ${(nextX - reach).toFixed(1)} ${nextY.toFixed(1)} ${nextX.toFixed(1)} ${nextY.toFixed(1)}`;
+  const segments = [];
+  let segment = [points[0]];
+  for (let index = 1; index < points.length; index += 1) {
+    const previous = points[index - 1];
+    const next = points[index];
+    if (next.beat - (previous.beat + previous.duration) > REST_GAP_TOLERANCE) {
+      segments.push(segment);
+      segment = [next];
+    } else {
+      segment.push(next);
+    }
   }
-  const last = points.at(-1);
-  const lastEnd = last.beat + last.duration;
-  if (lastEnd > last.beat) path += ` L ${xForBeat(lastEnd, centerBeat, geometry).toFixed(1)} ${contourYForMidi(last.midi, geometry).toFixed(1)}`;
-  return path;
+  segments.push(segment);
+
+  return segments.map(segmentPoints => {
+    const last = segmentPoints.at(-1);
+    const knots = segmentPoints.map(point => ({
+      x: xForBeat(point.beat, centerBeat, geometry),
+      y: contourYForMidi(point.midi, geometry),
+    }));
+    const lastEnd = last.beat + last.duration;
+    if (lastEnd > last.beat) {
+      knots.push({ x: xForBeat(lastEnd, centerBeat, geometry), y: contourYForMidi(last.midi, geometry) });
+    }
+    if (knots.length === 1) return `M ${knots[0].x.toFixed(1)} ${knots[0].y.toFixed(1)}`;
+
+    const secants = knots.slice(0, -1).map((point, index) =>
+      (knots[index + 1].y - point.y) / (knots[index + 1].x - point.x));
+    const tangents = new Array(knots.length);
+    tangents[0] = secants[0];
+    tangents[tangents.length - 1] = secants.at(-1);
+    for (let index = 1; index < knots.length - 1; index += 1) {
+      const before = secants[index - 1];
+      const after = secants[index];
+      if (before * after <= 0) {
+        tangents[index] = 0;
+        continue;
+      }
+      const beforeWidth = knots[index].x - knots[index - 1].x;
+      const afterWidth = knots[index + 1].x - knots[index].x;
+      const weightBefore = 2 * afterWidth + beforeWidth;
+      const weightAfter = afterWidth + 2 * beforeWidth;
+      tangents[index] = (weightBefore + weightAfter) / (weightBefore / before + weightAfter / after);
+    }
+
+    let path = `M ${knots[0].x.toFixed(1)} ${knots[0].y.toFixed(1)}`;
+    for (let index = 0; index < knots.length - 1; index += 1) {
+      const start = knots[index];
+      const end = knots[index + 1];
+      const width = end.x - start.x;
+      const control1X = start.x + width / 3;
+      const control2X = end.x - width / 3;
+      const control1Y = start.y + tangents[index] * width / 3;
+      const control2Y = end.y - tangents[index + 1] * width / 3;
+      path += ` C ${control1X.toFixed(1)} ${control1Y.toFixed(1)} ${control2X.toFixed(1)} ${control2Y.toFixed(1)} ${end.x.toFixed(1)} ${end.y.toFixed(1)}`;
+    }
+    return path;
+  }).join(" ");
 }
 
 function geometryFor(host) {
@@ -358,7 +395,7 @@ function updateCrossTies(scene, leftBeat, rightBeat, geometry) {
     }
     const x1 = geometry.headerWidth + (tie.fromBeat - leftBeat) * geometry.pixelsPerBeat;
     const x2 = geometry.headerWidth + (tie.toBeat - leftBeat) * geometry.pixelsPerBeat;
-    const y = staffYForMidi(tie.midi, geometry.staffBottomY, geometry.halfStepY);
+    const y = staffYForMidi(tie.midi + WRITTEN_OCTAVE_OFFSET, geometry.staffBottomY, geometry.halfStepY);
     arc.setAttribute("d", `M ${x1.toFixed(1)} ${(y + 2).toFixed(1)} C ${(x1 + 14).toFixed(1)} ${(y + 15).toFixed(1)} ${(x2 - 14).toFixed(1)} ${(y + 15).toFixed(1)} ${x2.toFixed(1)} ${(y + 2).toFixed(1)}`);
   });
   for (const [id, arc] of scene.tiePaths) {
