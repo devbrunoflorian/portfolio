@@ -1,12 +1,11 @@
-/* Diagnostic renderer: the notation SVGs stay at their source geometry. */
+/* Static diagnostic sheet. It isolates notation placement from playback and motion. */
 body[data-score-grid-study="true"] .about-score-thread,
 body[data-score-grid-study="true"] .about-score-leads[data-score-leads-global] {
   display: none !important;
 }
 
 body[data-score-grid-study="true"] .score-stage-spacer {
-  display: grid;
-  place-items: center;
+  display: block;
   inline-size: 100%;
   block-size: auto;
   min-block-size: 0;
@@ -18,7 +17,7 @@ body[data-score-grid-study="true"] .score-stage-spacer {
 
 body[data-score-grid-study="true"] .score-grid-window {
   display: grid;
-  place-items: center;
+  justify-items: center;
   inline-size: 100%;
   min-inline-size: 0;
   color: #aca3b5;
@@ -36,12 +35,19 @@ body[data-score-grid-study="true"] .score-grid-sheet {
   inset-block-start: 0;
   inset-inline-start: 0;
   display: grid;
-  grid-template-columns: 150px repeat(var(--bar-count), 320px);
-  inline-size: var(--score-sheet-width);
-  block-size: 252px;
+  grid-auto-rows: 252px;
+  row-gap: 18px;
+  inline-size: var(--score-row-width);
   transform: scale(var(--score-scale));
   transform-origin: top left;
   isolation: isolate;
+}
+
+body[data-score-grid-study="true"] .score-grid-system {
+  display: grid;
+  grid-template-columns: 150px repeat(var(--bars-per-system), 320px);
+  inline-size: var(--score-row-width);
+  block-size: 252px;
 }
 
 body[data-score-grid-study="true"] .score-grid-header {
@@ -52,13 +58,16 @@ body[data-score-grid-study="true"] .score-grid-header {
   opacity: .84;
 }
 
-body[data-score-grid-study="true"] .score-grid-bar {
+body[data-score-grid-study="true"] .score-grid-bar,
+body[data-score-grid-study="true"] .score-grid-blank {
   position: relative;
-  display: grid;
-  grid-template-columns: repeat(96, minmax(0, 1fr));
-  grid-template-rows: repeat(21, 12px);
   inline-size: 320px;
   block-size: 252px;
+}
+
+body[data-score-grid-study="true"] .score-grid-bar {
+  display: grid;
+  grid-template-columns: repeat(96, minmax(0, 1fr));
   overflow: visible;
   isolation: isolate;
 }
@@ -153,14 +162,24 @@ body[data-score-grid-study="true"] .score-grid-measure-number::after {
   content: "";
 }
 
-body[data-score-grid-study="true"] .score-grid-probe {
+body[data-score-grid-study="true"] .score-grid-probe-host {
   position: absolute;
   inset-block-start: 0;
   inset-inline-start: -10000px;
-  inline-size: 320px;
-  block-size: 372px;
+  inline-size: 0;
+  block-size: 0;
+  overflow: hidden;
   visibility: hidden;
   pointer-events: none;
+}
+
+body[data-score-grid-study="true"] .score-grid-probe {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: 0;
+  inline-size: 320px;
+  block-size: 372px;
+  overflow: visible;
 }
 
 @media (max-width: 700px) {

@@ -1,17 +1,18 @@
 import { scoreGridStudy } from "./score-grid-study-data.js";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
+const SYSTEM_GAP = 18;
 const root = document.querySelector(".about-main");
 const stage = root?.querySelector('.score-stage-spacer[data-score-anchor="music"]');
 const excerptLabel = root?.querySelector("[data-score-excerpt]");
 const pageController = new AbortController();
 let resizeObserver;
-let currentBarCount = 0;
+let currentBarsPerSystem = 0;
 
 document.body.dataset.scoreGridStudy = "true";
 
 function addStudyStylesheet() {
-  if (document.querySelector('link[data-score-grid-study-style]')) return;
+  if (document.querySelector("link[data-score-grid-study-style]")) return;
   const link = document.createElement("link");
   link.rel = "stylesheet";
   link.href = new URL("./score-grid-study.css", import.meta.url);
@@ -50,8 +51,12 @@ function writtenPitchY(midi) {
   return scoreGridStudy.staffBottom - (diatonic - e4) * scoreGridStudy.staffLineGap / 2;
 }
 
-function getSymbol(document, id) {
-  const symbol = document.getElementById(id);
+function systemStartForBar(barNumber) {
+  return Math.floor((barNumber - 1) / 3) * 3 + 1;
+}
+
+function getSymbol(sourceDocument, id) {
+  const symbol = sourceDocument.getElementById(id);
   if (!symbol) throw new Error(`Símbolo SVG ausente: ${id}`);
   return symbol;
 }
@@ -101,10 +106,10 @@ function createBeatGuides() {
 }
 
 function getMeasureRoot(symbol) {
-  return symbol.querySelector("g");
+  return symbol.firstElementChild;
 }
 
-function createEngravingLayer(sourceMeasure) {
+function createEngravingLayer(sourceMeasure, events, barNumber) {
   const layer = svgElement("svg", {
     class: "score-grid-engraving",
     viewBox: `0 ${scoreGridStudy.cropTop} ${scoreGridStudy.barWidth} ${scoreGridStudy.cropHeight}`,
@@ -114,7 +119,19 @@ function createEngravingLayer(sourceMeasure) {
     focusable: "false",
   });
   const engraving = getMeasureRoot(sourceMeasure).cloneNode(true);
-  engraving.querySelectorAll(".vf-stavenote, .vf-stave, rect[opacity='0']").forEach(node => node.remove());
+  const eventGlyphs = [...engraving.querySelectorAll(".vf-stavenote")];
+  if (eventGlyphs.length !== events.length) {
+    throw new Error(`O compasso ${barNumber} tem ${events.length} eventos, mas a pauta tem ${eventGlyphs.length} glifos.`);
+  }
+  eventGlyphs.forEach((glyph, index) => {
+    glyph.querySelectorAll("rect[opacity='0']").forEach(rect => rect.remove());
+    if (!events[index].rest) glyph.remove();
+    else {
+      glyph.dataset.scoreEventId = `bar-${barNumber}-event-${String(index + 1).padStart(2, "0")}`;
+      glyph.dataset.scoreEventType = "rest";
+    }
+  });
+  engraving.querySelectorAll("rect[opacity='0']").forEach(rect => rect.remove());
   stripIds(engraving);
   tint(engraving, "#9f96a8");
   engraving.setAttribute("opacity", ".82");
@@ -122,7 +139,15 @@ function createEngravingLayer(sourceMeasure) {
   return layer;
 }
 
-function probeNoteBounds(sourceNotes, sheet) {
+function centersFor(notehead) {
+  const bounds = notehead.getBBox();
+  return { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 };
+}
+
+function probeNoteBounds(sourceNotes, events, host, barNumber) {
+  if (sourceNotes.length !== events.length) {
+    throw new Error(`O compasso ${barNumber} tem ${events.length} eventos, mas a pauta tem ${sourceNotes.length} glifos.`);
+  }
   const probe = svgElement("svg", {
     class: "score-grid-probe",
     viewBox: `0 0 ${scoreGridStudy.barWidth} 372`,
@@ -130,44 +155,61 @@ function probeNoteBounds(sourceNotes, sheet) {
     height: 372,
     "aria-hidden": "true",
   });
-  const clones = sourceNotes.map(note => {
-    const clone = note.cloneNode(true);
+  const clones = sourceNotes.map((sourceNote, index) => {
+    const event = events[index];
+    const sourceHeads = [...sourceNote.querySelectorAll(".vf-notehead")];
+    if (event.rest) {
+      if (event.notes.length) throw new Error(`O compasso ${barNumber} marca uma pausa com pitches.`);
+      return null;
+    }
+    if (sourceHeads.length !== event.notes.length) {
+      throw new Error(`O compasso ${barNumber}, evento ${index + 1}: ${event.notes.length} notas e ${sourceHeads.length} cabeças na pauta.`);
+    }
+    const clone = sourceNote.cloneNode(true);
+    clone.querySelectorAll("rect[opacity='0']").forEach(rect => rect.remove());
     stripIds(clone);
     probe.append(clone);
     return clone;
   });
-  sheet.append(probe);
-  const boxes = clones.map(note => {
-    const box = note.getBBox();
-    if (!(box.width > 0 && box.height > 0)) throw new Error("Não foi possível medir o glifo musical.");
-    const head = note.querySelector(".vf-notehead")?.getBBox();
-    return {
-      x: box.x,
-      y: box.y,
-      width: box.width,
-      height: box.height,
-      headCenterY: head ? head.y + head.height / 2 : null,
-    };
+  host.append(probe);
+
+  const templates = clones.map((note, index) => {
+    if (!note) return null;
+    const bounds = note.getBBox();
+    if (!(bounds.width > 0 && bounds.height > 0)) throw new Error(`Glifo vazio no compasso ${barNumber}, evento ${index + 1}.`);
+    const heads = [...note.querySelectorAll(".vf-notehead")]
+      .map((element, domIndex) => ({ element, domIndex, ...centersFor(element) }))
+      .sort((a, b) => a.y - b.y || a.x - b.x);
+    const expectedNotes = [...events[index].notes]
+      .sort((a, b) => b.writtenMidi - a.writtenMidi || a.soundingMidi - b.soundingMidi);
+    for (let headIndex = 0; headIndex < heads.length; headIndex += 1) {
+      const error = heads[headIndex].y - writtenPitchY(expectedNotes[headIndex].writtenMidi);
+      // Bravura's filled head outline has a bounding-box center about 0.5px above its musical anchor.
+      if (Math.abs(error) > .75) {
+        throw new Error(`Altura divergente no compasso ${barNumber}, evento ${index + 1}, cabeça ${headIndex + 1}: ${error.toFixed(2)}px.`);
+      }
+    }
+    return { box: bounds, heads, headOrder: heads.map(head => head.domIndex), sourceNote: note };
   });
   probe.remove();
-  return { boxes, clones };
+  return templates;
 }
 
-function createNoteIcon(template, event, bar, eventIndex) {
-  const { box, sourceNote } = template;
+function createNoteIcon(template, event, bar, patternId, eventIndex) {
+  const { box, heads, sourceNote } = template;
   const timeCell = scoreGridStudy.barWidth / (scoreGridStudy.beatsPerBar * scoreGridStudy.subdivisionsPerBeat);
-  const barX = event.beatTick / scoreGridStudy.subdivisionsPerBeat * scoreGridStudy.pixelsPerBeat;
-  // One beat tick is one of the 96 CSS columns in this 4/4 measure.
-  const gridColumn = Math.round(event.beatTick) + 1;
-  const gridCellX = (gridColumn - 1) * timeCell;
-  const pitchY = writtenPitchY(event.pitch);
-  const localPitchY = pitchY - scoreGridStudy.cropTop;
-  const gridRow = Math.floor(localPitchY / 12) + 1;
+  const gridX = event.beatTick * timeCell;
+  const anchorHead = heads[0];
+  const anchorNote = [...event.notes].sort((a, b) => b.writtenMidi - a.writtenMidi || a.soundingMidi - b.soundingMidi)[0];
+  const pitchY = writtenPitchY(anchorNote.writtenMidi);
+  const gridRow = Math.floor((pitchY - scoreGridStudy.cropTop) / 12) + 1;
   const gridRowY = (gridRow - 1) * 12;
   const padded = 1;
-  const viewBox = `${box.x - padded} ${box.y - padded} ${box.width + padded * 2} ${box.height + padded * 2}`;
-  const spanColumns = Math.max(1, Math.ceil((box.x + box.width - gridCellX) / timeCell));
-  const spanRows = Math.max(1, Math.ceil((box.y + box.height - scoreGridStudy.cropTop - gridRowY) / 12));
+  const viewBoxX = box.x - padded;
+  const viewBoxY = box.y - padded;
+  const viewBox = `${viewBoxX} ${viewBoxY} ${box.width + padded * 2} ${box.height + padded * 2}`;
+  const spanColumns = Math.max(1, Math.ceil((box.width + padded * 2) / timeCell));
+  const spanRows = Math.max(1, Math.ceil((box.height + padded * 2) / 12));
 
   const icon = svgElement("svg", {
     class: "score-grid-note",
@@ -177,37 +219,50 @@ function createNoteIcon(template, event, bar, eventIndex) {
     "aria-hidden": "true",
     focusable: "false",
   });
-  icon.dataset.scoreNoteId = `bar-${bar.number}-note-${String(eventIndex + 1).padStart(2, "0")}`;
+  const eventId = `bar-${bar.number}-event-${String(eventIndex + 1).padStart(2, "0")}`;
+  icon.dataset.scoreEventId = eventId;
+  icon.dataset.scoreEventType = "note";
   icon.dataset.beatTick = String(event.beatTick);
-  icon.dataset.pitch = String(event.pitch);
-  icon.dataset.patternNoteId = `${bar.pattern}-note-${String(eventIndex + 1).padStart(2, "0")}`;
-  icon.style.gridColumn = `${gridColumn} / span ${spanColumns}`;
+  icon.dataset.durationTicks = String(event.durationTicks);
+  icon.dataset.patternNoteId = `${patternId}-event-${String(eventIndex + 1).padStart(2, "0")}`;
+  icon.style.gridColumn = `${event.beatTick + 1} / span ${spanColumns}`;
   icon.style.gridRow = `${gridRow} / span ${spanRows}`;
   icon.style.setProperty("--note-width", `${box.width + padded * 2}px`);
   icon.style.setProperty("--note-height", `${box.height + padded * 2}px`);
-  icon.style.setProperty("--note-offset-x", `${box.x - barX - padded}px`);
+  icon.style.setProperty("--note-offset-x", `${viewBoxX - gridX}px`);
   icon.style.setProperty("--note-offset-y", `${box.y - scoreGridStudy.cropTop - gridRowY - padded}px`);
 
   const glyph = sourceNote.cloneNode(true);
   stripIds(glyph);
   tint(glyph, "#cec5d7");
+  const glyphHeadsInSourceOrder = [...glyph.querySelectorAll(".vf-notehead")];
+  const glyphHeads = template.headOrder.map(index => glyphHeadsInSourceOrder[index]);
+  const expectedNotes = [...event.notes]
+    .sort((a, b) => b.writtenMidi - a.writtenMidi || a.soundingMidi - b.soundingMidi);
+  glyphHeads.forEach((head, index) => {
+    const noteId = `${eventId}-head-${String(index + 1).padStart(2, "0")}`;
+    head.setAttribute("data-score-notehead-id", noteId);
+    head.setAttribute("data-pattern-notehead-id", `${icon.dataset.patternNoteId}-head-${String(index + 1).padStart(2, "0")}`);
+    head.setAttribute("data-written-midi", String(expectedNotes[index].writtenMidi));
+    head.setAttribute("data-beat-tick", String(event.beatTick));
+  });
   icon.append(glyph);
 
-  const engravingError = box.headCenterY == null ? null : box.headCenterY - pitchY;
-  if (engravingError != null && Math.abs(engravingError) > .55) {
-    icon.dataset.pitchCheck = `off-${engravingError.toFixed(2)}`;
-  }
+  icon.dataset.pitchCheck = "passed";
+  icon.dataset.pitch = String(anchorNote.writtenMidi);
+  icon.dataset.anchorX = anchorHead.x.toFixed(3);
+  icon.dataset.anchorY = anchorHead.y.toFixed(3);
   return icon;
 }
 
-function createBar(sourceMeasure, bar, pattern, noteTemplates) {
+function createBar(sourceMeasure, bar, pattern, patternId, templates) {
   const measure = document.createElement("div");
   measure.className = "score-grid-bar";
   measure.dataset.barNumber = String(bar.number);
   measure.dataset.pattern = bar.pattern;
   measure.setAttribute("aria-hidden", "true");
   measure.style.gridTemplateRows = `repeat(${scoreGridStudy.cropHeight / 12}, 12px)`;
-  measure.append(createStaffLines(), createBeatGuides(), createEngravingLayer(sourceMeasure));
+  measure.append(createStaffLines(), createBeatGuides(), createEngravingLayer(sourceMeasure, pattern.events, bar.number));
 
   const number = document.createElement("span");
   number.className = "score-grid-measure-number";
@@ -215,12 +270,18 @@ function createBar(sourceMeasure, bar, pattern, noteTemplates) {
   measure.append(number);
 
   pattern.events.forEach((event, index) => {
-    measure.append(createNoteIcon(noteTemplates[index], event, bar, index));
+    if (event.rest) return;
+    measure.append(createNoteIcon(templates[index], event, bar, patternId, index));
   });
   return measure;
 }
 
-function createStudyFrame(stage, headerDocument, scoreDocument) {
+function barsPerSystemForViewport() {
+  return window.matchMedia("(max-width: 700px)").matches ? 1
+    : window.matchMedia("(max-width: 900px)").matches ? 2 : 3;
+}
+
+function createStudyFrame(stage, headerDocument, scoreDocuments, patterns) {
   const viewport = document.createElement("div");
   viewport.className = "score-grid-window";
   viewport.setAttribute("role", "img");
@@ -234,68 +295,81 @@ function createStudyFrame(stage, headerDocument, scoreDocument) {
   viewport.append(fit);
   stage.replaceChildren(viewport);
 
-  const patterns = new Map();
-  for (const bar of scoreGridStudy.bars) {
-    if (patterns.has(bar.pattern)) continue;
-    const pattern = scoreGridStudy.patterns[bar.pattern];
-    const source = getSymbol(scoreDocument, `bar-${String(pattern.sourceBar).padStart(3, "0")}`);
-    const sourceNotes = [...getMeasureRoot(source).querySelectorAll(".vf-stavenote")];
-    if (sourceNotes.length !== pattern.events.length) {
-      throw new Error(`O padrão tem ${pattern.events.length} eventos, mas a gravação tem ${sourceNotes.length} glifos.`);
-    }
-    const { boxes, clones } = probeNoteBounds(sourceNotes, sheet);
-    patterns.set(bar.pattern, { source, pattern, noteTemplates: boxes.map((box, index) => ({ box, sourceNote: clones[index] })) });
-  }
-
-  let visibleBars = [];
+  let systems = 0;
+  let currentSheetWidth = 0;
   const updateScale = () => {
     const width = stage.clientWidth;
-    const sheetWidth = 150 + visibleBars.length * scoreGridStudy.barWidth;
-    const scale = Math.min(1.08, width / sheetWidth);
-    fit.style.setProperty("--score-fit-width", `${sheetWidth * scale}px`);
-    fit.style.setProperty("--score-fit-height", `${scoreGridStudy.cropHeight * scale}px`);
+    const scale = Math.min(1.08, width / currentSheetWidth);
+    fit.style.setProperty("--score-fit-width", `${currentSheetWidth * scale}px`);
+    const sheetHeight = systems * scoreGridStudy.cropHeight + Math.max(0, systems - 1) * SYSTEM_GAP;
+    fit.style.setProperty("--score-fit-height", `${sheetHeight * scale}px`);
     sheet.style.setProperty("--score-scale", String(scale));
   };
+
   const renderBars = () => {
-    const visibleLimit = window.matchMedia("(max-width: 700px)").matches ? 1
-      : window.matchMedia("(max-width: 900px)").matches ? 2 : 3;
-    visibleBars = scoreGridStudy.bars.slice(0, visibleLimit);
-    currentBarCount = visibleBars.length;
-    sheet.style.setProperty("--bar-count", String(visibleBars.length));
-    sheet.style.setProperty("--score-sheet-width", `${150 + visibleBars.length * scoreGridStudy.barWidth}px`);
-    sheet.replaceChildren(createHeader(headerDocument));
-    for (const bar of visibleBars) {
-      const entry = patterns.get(bar.pattern);
-      sheet.append(createBar(entry.source, bar, entry.pattern, entry.noteTemplates));
+    const barsPerSystem = barsPerSystemForViewport();
+    currentBarsPerSystem = barsPerSystem;
+    currentSheetWidth = 150 + barsPerSystem * scoreGridStudy.barWidth;
+    const rows = [];
+    for (let index = 0; index < scoreGridStudy.bars.length; index += barsPerSystem) {
+      rows.push(scoreGridStudy.bars.slice(index, index + barsPerSystem));
+    }
+    systems = rows.length;
+    sheet.style.setProperty("--score-row-width", `${currentSheetWidth}px`);
+    sheet.style.setProperty("--bars-per-system", String(barsPerSystem));
+    sheet.replaceChildren();
+
+    for (const rowBars of rows) {
+      const row = document.createElement("div");
+      row.className = "score-grid-system";
+      row.dataset.firstBar = String(rowBars[0].number);
+      row.dataset.lastBar = String(rowBars.at(-1).number);
+      row.append(createHeader(headerDocument));
+      for (const bar of rowBars) {
+        const patternId = bar.pattern;
+        const entry = patterns.get(patternId);
+        row.append(createBar(entry.source, bar, entry.pattern, patternId, entry.templates));
+      }
+      for (let empty = rowBars.length; empty < barsPerSystem; empty += 1) {
+        const spacer = document.createElement("div");
+        spacer.className = "score-grid-blank";
+        spacer.setAttribute("aria-hidden", "true");
+        row.append(spacer);
+      }
+      sheet.append(row);
     }
 
     const isPortuguese = document.documentElement.lang.toLowerCase().startsWith("pt");
-    const firstBar = visibleBars[0]?.number ?? scoreGridStudy.bars[0].number;
-    const lastBar = visibleBars.at(-1)?.number ?? firstBar;
     if (excerptLabel) excerptLabel.textContent = isPortuguese
-      ? `Estudo da grade · compassos ${firstBar}–${lastBar}`
-      : `Grid study · bars ${firstBar}–${lastBar}`;
+      ? `Partitura completa · 106 compassos · 26 padrões`
+      : `Complete score · 106 bars · 26 patterns`;
     viewport.setAttribute("aria-label", isPortuguese
-      ? `Partitura de guitarra, compassos ${firstBar} a ${lastBar}`
-      : `Guitar score, bars ${firstBar} through ${lastBar}`);
+      ? "Partitura completa de guitarra, 106 compassos, com 26 padrões reutilizados"
+      : "Complete guitar score, 106 bars, using 26 repeated patterns");
+    updateScale();
   };
+
   renderBars();
-  updateScale();
   resizeObserver = new ResizeObserver(updateScale);
   resizeObserver.observe(stage);
-  return { viewport, rerender: () => {
-    const limit = window.matchMedia("(max-width: 700px)").matches ? 1
-      : window.matchMedia("(max-width: 900px)").matches ? 2 : 3;
-    if (limit !== currentBarCount) renderBars();
-    updateScale();
+  return { rerender: () => {
+    if (barsPerSystemForViewport() !== currentBarsPerSystem) renderBars();
+    else updateScale();
   } };
 }
 
-async function loadSvg(url) {
+async function loadSvg(url, { expectedSystemStart } = {}) {
   const response = await fetch(url, { signal: pageController.signal });
   if (!response.ok) throw new Error(`Falha ao abrir a pauta (${response.status}).`);
   const source = new DOMParser().parseFromString(await response.text(), "image/svg+xml");
   if (source.querySelector("parsererror")) throw new Error("Não foi possível interpretar o SVG da pauta.");
+  if (expectedSystemStart != null) {
+    const metadata = source.querySelector("metadata");
+    const details = metadata ? JSON.parse(metadata.textContent) : {};
+    if (details.firstBar !== expectedSystemStart || details.lastBar < expectedSystemStart || details.lastBar > expectedSystemStart + 2) {
+      throw new Error(`A pauta ${url.pathname} não contém o sistema esperado.`);
+    }
+  }
   return source;
 }
 
@@ -303,11 +377,29 @@ async function initialize() {
   if (!stage) return;
   addStudyStylesheet();
   try {
-    const [headerDocument, scoreDocument] = await Promise.all([
+    const systemStarts = [...new Set(Object.values(scoreGridStudy.patterns).map(pattern => systemStartForBar(pattern.sourceBar)))];
+    const [headerDocument, ...systemDocuments] = await Promise.all([
       loadSvg(new URL("./guitar-score/notation-header.svg", import.meta.url)),
-      loadSvg(new URL("./guitar-score/system-016.svg", import.meta.url)),
+      ...systemStarts.map(start => loadSvg(new URL(`./guitar-score/system-${String(start).padStart(3, "0")}.svg`, import.meta.url), {
+        expectedSystemStart: start,
+      })),
     ]);
-    const frame = createStudyFrame(stage, headerDocument, scoreDocument);
+    const documentsByStart = new Map(systemStarts.map((start, index) => [start, systemDocuments[index]]));
+    const probeHost = document.createElement("div");
+    probeHost.className = "score-grid-probe-host";
+    stage.append(probeHost);
+
+    const patterns = new Map();
+    for (const [patternId, pattern] of Object.entries(scoreGridStudy.patterns)) {
+      const sourceDocument = documentsByStart.get(systemStartForBar(pattern.sourceBar));
+      const source = getSymbol(sourceDocument, `bar-${String(pattern.sourceBar).padStart(3, "0")}`);
+      const sourceNotes = [...getMeasureRoot(source).querySelectorAll(".vf-stavenote")];
+      const templates = probeNoteBounds(sourceNotes, pattern.events, probeHost, pattern.sourceBar);
+      patterns.set(patternId, { source, pattern, templates });
+    }
+    probeHost.remove();
+
+    const frame = createStudyFrame(stage, headerDocument, documentsByStart, patterns);
     window.addEventListener("resize", frame.rerender, { passive: true, signal: pageController.signal });
   } catch (error) {
     if (error.name === "AbortError") return;
