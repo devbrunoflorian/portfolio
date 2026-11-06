@@ -32,7 +32,7 @@ let scoreThreadLastStyle = "";
 // Each chapter enters on the previous frame, then holds its own composition for reading.
 // Let the score keep traveling while each chapter is read; it should not settle
 // after a brief camera move at the top of every section.
-const cameraTransitionPortion = 1;
+const cameraTransitionPortion = .18;
 function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
 function scoreAnchorFor(chapter) {
   const selector = scoreCameraAnchors[chapter?.dataset.movement];
@@ -116,19 +116,6 @@ function updateScoreThread(force = false) {
     const endScale = mobileScoreScale[chapters[Math.min(chapters.length - 1, index + 1)].dataset.movement];
     values.scale = startScale + (endScale - startScale) * progress;
   }
-  const anchorVisibility = chapter => {
-    const anchor = scoreAnchorFor(chapter);
-    if (!anchor) return 1;
-    const bounds = anchor.getBoundingClientRect();
-    const entry = clamp((bounds.bottom + 48) / 96, 0, 1);
-    const exit = clamp((window.innerHeight - bounds.top + 48) / 96, 0, 1);
-    return Math.min(entry, exit);
-  };
-  const startExposure = anchorVisibility(chapters[index]);
-  const endExposure = anchorVisibility(chapters[Math.min(chapters.length - 1, index + 1)]);
-  const frameExposure = startExposure + (endExposure - startExposure) * progress;
-  values.opacity *= frameExposure;
-  values.lead *= frameExposure;
   const startOffset = scoreStageOffsets(scoreAnchorFor(chapters[index]), values.scale);
   const endOffset = scoreStageOffsets(scoreAnchorFor(chapters[index + 1]), values.scale);
   const x = values.x * window.innerWidth + startOffset.x + (endOffset.x - startOffset.x) * progress;
