@@ -37,11 +37,15 @@ test("full composition reaches its ending before repeating the Intro", () => {
   assert.equal(score.bpm, 102);
   assert.equal(score.beatsPerBar, 4);
   assert.equal(score.bars, 106);
-  assert.equal(score.notes.length, 2926);
+  assert.equal(score.notes.length, 1471);
   assert.equal(score.tracks.filter(track => track.notes > 0).length, 4);
+  assert.deepEqual(score.tracks.map(track => track.name), ["Melody I", "Melody II", "Guitar I", "Strings"]);
   assert.deepEqual(score.tracks.map(track => track.voice), ["vocal", "vocal", "guitar", "strings"]);
   assert.ok(score.notes.every(note => note.voice !== "bass" && note.voice !== "percussion"));
+  assert.deepEqual(score.tracks.map(track => track.notes), [203, 196, 1004, 68]);
   assert.deepEqual(score.sections.map(section => section.name), ["Intro", "Verso I", "Ponte I", "Refrão I", "Verso II", "Ponte II", "Refrão II", "Pós Refrão"]);
+  assert.equal(score.sectionSource, "prior export markers; Melody events unchanged");
+  assert.equal(score.sourceSha256, "a1c14c40d3219d125eb4c1f8667cc372a2c938e96e8b13b42b66d9e8698c9da3");
   assert.match(score.sourceSha256, /^[a-f0-9]{64}$/);
   assert.ok(original);
   assert.deepEqual({ midi: repeated.midi, time: repeated.time }, { midi: original.midi, time: score.durationSeconds });
@@ -49,9 +53,10 @@ test("full composition reaches its ending before repeating the Intro", () => {
   assert.ok(score.notes.some(note => Math.abs(note.beat + note.duration - endBeat) < 1e-6));
 });
 
-test("tempo map preserves the final rallentando and its inverse", () => {
-  assert.ok(Math.abs(score.durationSeconds - 249.95142925) < 1e-6);
-  assert.ok(score.tempoMap.some(change => change.beat === 411 && change.tempo === 618556));
+test("final export keeps its constant tempo and invertible beat map", () => {
+  assert.ok(Math.abs(score.durationSeconds - 249.41164) < 1e-6);
+  assert.equal(score.tempoMap.length, 1);
+  assert.deepEqual(score.tempoMap[0], { tick: 0, beat: 0, seconds: 0, tempo: 588235 });
   for (const beat of [0, 32, 128, 256, 400, 411, 423.5, 424]) {
     assert.ok(Math.abs(secondsToBeat(score, beatToSeconds(score, beat)) - beat) < 1e-6);
   }

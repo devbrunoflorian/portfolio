@@ -16,6 +16,7 @@ function initialTrackVolumes(score) {
   for (const note of score.notes) channelsByTrack.get(note.track)?.add(note.channel);
   return new Map(score.tracks.map(track => {
     if (track.voice === "percussion") return [track.id, 0];
+    if (track.voice === "vocal") return [track.id, 1];
     const channels = [...(channelsByTrack.get(track.id) ?? [])];
     const levels = channels.map(channel => channelVolumes.get(channel) ?? 1);
     return [track.id, levels.length ? levels.reduce((total, level) => total + level, 0) / levels.length : 1];

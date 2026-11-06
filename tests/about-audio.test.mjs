@@ -92,8 +92,8 @@ test("voice tracks start ahead of guitar and strings, and their buses follow mix
     assert.equal(buses.length, score.tracks.length);
     assert.equal(buses[0].gain.value, 1);
     assert.equal(buses[1].gain.value, 1);
-    assert.equal(buses[2].gain.value, 24 / 127);
-    assert.equal(buses[3].gain.value, 72 / 127);
+    assert.equal(buses[2].gain.value, 72 / 127);
+    assert.equal(buses[3].gain.value, 48 / 127);
     assert.equal(audio.setTrackVolume(guitar.id, .4), true);
     assert.equal(audio.getTrackVolume(guitar.id), .4);
     assert.equal(buses[2].gain.value, .4);
