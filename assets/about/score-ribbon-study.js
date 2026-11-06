@@ -66,9 +66,7 @@ proof.innerHTML = `
           <h2 id="score-ribbon-source-title">${words.sourceTitle}</h2>
           <p>${words.sourceMeta}</p>
         </div>
-        <div class="score-ribbon-proof__source-view">
-          <img alt="" decoding="async" />
-        </div>
+        <div class="score-ribbon-proof__source-view"><canvas data-view="source" aria-hidden="true"></canvas></div>
         <p class="score-ribbon-proof__source-caption">${words.sourceCaption}</p>
       </section>
       <section class="score-ribbon-proof__panel" aria-labelledby="score-ribbon-plane-title">
@@ -103,13 +101,14 @@ proof.innerHTML = `
   </div>`;
 document.body.append(proof);
 
-const sourceImage = proof.querySelector(".score-ribbon-proof__source-view img");
-sourceImage.src = new URL("./guitar-score/score-ribbon-row-030-033.png", import.meta.url).href;
+const sourceCanvas = proof.querySelector('[data-view="source"]');
 const planeCanvas = proof.querySelector('[data-view="plane"]');
 const ribbonCanvas = proof.querySelector('[data-view="ribbon"]');
 const inkCanvas = document.createElement("canvas");
 const inkContext = inkCanvas.getContext("2d", { alpha: true });
-const source = sourceImage;
+const source = new Image();
+source.decoding = "async";
+source.src = new URL("./guitar-score/score-ribbon-row-030-033.png", import.meta.url).href;
 
 function staffYForMidi(midi) {
   const naturalStep = [0, 0, 1, 1, 2, 3, 3, 4, 4, 5, 5, 6];
@@ -138,6 +137,22 @@ function createVoicePoints(transform) {
     .filter(event => event.track === track)
     .sort((left, right) => left.beat - right.beat)
     .map(event => transform(event.x, staffYForMidi(event.writtenMidi), event)));
+}
+
+function drawSource() {
+  const mobileMinimum = window.matchMedia("(max-width: 700px)").matches ? 720 : 0;
+  const width = Math.max(sourceCanvas.parentElement.clientWidth - 20, mobileMinimum, 1);
+  const height = width * (study.y1 - study.y0) / (study.x1 - study.x0);
+  const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+  sourceCanvas.width = Math.round(width * pixelRatio);
+  sourceCanvas.height = Math.round(height * pixelRatio);
+  sourceCanvas.style.width = `${width}px`;
+  sourceCanvas.style.height = `${height}px`;
+  const context = sourceCanvas.getContext("2d");
+  context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+  context.fillStyle = "#f4f1f5";
+  context.fillRect(0, 0, width, height);
+  context.drawImage(source, 0, 0, width, height);
 }
 
 function traceCurve(context, points, color, width, glow = 0) {
@@ -360,6 +375,7 @@ function prepareInk() {
 let resizeObserver;
 function drawAll() {
   if (!source.complete || !source.naturalWidth) return;
+  drawSource();
   drawPlane();
   drawRibbon();
 }

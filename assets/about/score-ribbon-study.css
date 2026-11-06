@@ -127,7 +127,7 @@ body[data-score-ribbon-study="true"] .skip-link {
   scrollbar-color: #9584a8 transparent;
 }
 
-.score-ribbon-proof__source-view img {
+.score-ribbon-proof__source-view canvas {
   display: block;
   width: min(100%, 720px);
   min-width: 360px;
@@ -233,7 +233,7 @@ body[data-score-ribbon-study="true"] :is(a, button):focus-visible {
   .score-ribbon-proof__panel-head h2 { font-size: 13px; }
   .score-ribbon-proof__panel-head p { font-size: 10px; }
   .score-ribbon-proof__source-view { min-height: 93px; padding: 9px 10px; }
-  .score-ribbon-proof__source-view img { width: 720px; min-width: 720px; max-width: none; }
+  .score-ribbon-proof__source-view canvas { width: 720px; min-width: 720px; max-width: none; }
   .score-ribbon-proof__source-caption { padding-inline: 12px; }
   .score-ribbon-proof__canvas-wrap,
   .score-ribbon-proof__canvas-wrap canvas { min-height: 154px; height: 154px; }
