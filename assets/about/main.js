@@ -6,14 +6,15 @@ import { createScoreVisual, scoreStageOffset } from "./score-visual.js";
 const root = document.querySelector(".about-main");
 const chapters = [...root.querySelectorAll("[data-movement]")];
 const scoreThread = root.querySelector("[data-score-thread]");
-const scoreLeads = root.querySelector("[data-score-leads]");
+const scoreLeads = root.querySelector("[data-score-leads-global]");
+const musicScoreStage = root.querySelector('[data-score-scene="music"]');
 const scoreCameraStops = [
-  { x: -.09, y: 0, scale: 1.08, opacity: .17, lead: .05, rotate: 0 },
-  { x: .075, y: 0, scale: .94, opacity: .085, lead: .06, rotate: 0 },
-  { x: 0, y: 0, scale: 1, opacity: .38, lead: .86, rotate: 0 },
-  { x: -.065, y: 0, scale: 1.06, opacity: .16, lead: 0, rotate: 0 },
-  { x: .075, y: 0, scale: .93, opacity: .075, lead: .04, rotate: 0 },
-  { x: 0, y: 0, scale: .9, opacity: .06, lead: 0, rotate: 0 },
+  { x: -.18, y: 0, scale: 1.1, opacity: .28, lead: .48, rotate: 0 },
+  { x: -.07, y: 0, scale: .94, opacity: .16, lead: .24, rotate: 0 },
+  { x: 0, y: 0, scale: 1.06, opacity: .18, lead: .16, rotate: 0 },
+  { x: .045, y: 0, scale: 1, opacity: .22, lead: .38, rotate: 0 },
+  { x: .015, y: 0, scale: .93, opacity: .16, lead: .22, rotate: 0 },
+  { x: 0, y: 0, scale: .86, opacity: .09, lead: .08, rotate: 0 },
 ];
 const scoreCameraAnchors = {
   opening: ".hero-field",
@@ -95,12 +96,17 @@ function updateScoreThread(force = false) {
   const enter = clamp((window.innerHeight - mainBounds.top) / (window.innerHeight * .42), 0, 1);
   const leave = clamp(mainBounds.bottom / (window.innerHeight * .42), 0, 1);
   const visibility = Math.min(enter, leave);
+  const stageBounds = musicScoreStage?.getBoundingClientRect();
+  const stageOverlap = stageBounds
+    ? clamp((Math.min(window.innerHeight, stageBounds.bottom) - Math.max(0, stageBounds.top)) / Math.max(1, stageBounds.height), 0, 1)
+    : 0;
+  const globalSceneWeight = 1 - stageOverlap * .96;
   const values = {
     x: cameraValue("x", index, progress),
     y: cameraValue("y", index, progress),
     scale: cameraValue("scale", index, progress),
-    opacity: cameraValue("opacity", index, progress) * visibility,
-    lead: cameraValue("lead", index, progress) * visibility,
+    opacity: cameraValue("opacity", index, progress) * visibility * globalSceneWeight,
+    lead: cameraValue("lead", index, progress) * visibility * globalSceneWeight,
     rotate: cameraValue("rotate", index, progress),
   };
   const startOffset = scoreStageOffset(scoreAnchorFor(chapters[index]), values.scale);
@@ -321,6 +327,8 @@ function paintScenes() {
     const activeChapter = chapters.find(item => item.dataset.movement === chapter) ?? chapters[0];
     const chapterBounds = activeChapter.getBoundingClientRect();
     const progress = Math.max(0, Math.min(1, (innerHeight - chapterBounds.top) / (innerHeight + chapterBounds.height)));
+    // With audio off, the score still travels through the page with the scroll.
+    // Playback, when active, supplies its own beat to the renderer.
     const scrollBeat = motionPaused || reduceMotion.matches ? frozenScrollBeat ?? scoreBeatForScroll() : scoreBeatForScroll();
     const result = visual.update({ chapter, progress, scrollBeat, motionEnabled: !motionPaused && !reduceMotion.matches, reducedMotion: reduceMotion.matches, playbackSnapshot: snapshot, layoutRevision: scoreLayoutRevision });
     if (chapter === "music" && result && !result.frozen) {

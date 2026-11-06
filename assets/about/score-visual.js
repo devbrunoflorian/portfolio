@@ -17,14 +17,14 @@ const REST_GAP_TOLERANCE = 0.55;
 const pendingSvgLoads = new Map();
 const scoreMetadataCache = new WeakMap();
 let nextSceneId = 1;
-const LEAD_MASK_SELECTORS = {
-  opening: ".hero-copy .section-kicker, .hero-copy h1, .hero-intro, .hero-actions, .hero-movements",
-  code: ".chapter-copy .section-kicker, .chapter-copy h2, .chapter-copy > p:last-child, .code-stack",
-  music: ".music-heading .section-kicker, .music-heading h2, .music-intro, .score-caption-top, .score-legend li, .score-guide, .music-tools summary, .music-tools button, .music-tools input, .music-tools p, .music-explore summary, .music-explore button, .music-instrument p, .music-instrument button",
-  art: null,
-  games: ".chapter-copy .section-kicker, .chapter-copy h2, .chapter-copy > p:last-child, .games-experiment",
-  closing: "h2, .closing-links, .back-to-top",
-};
+const MASKED_COPY_SELECTOR = [
+  ".hero-copy", ".hero-movements",
+  ".code-chapter .chapter-copy", ".code-stack",
+  ".music-heading .chapter-copy", ".music-intro", ".score-figure figcaption", ".music-tools", ".music-explore",
+  ".art-experiment", ".art-chapter .chapter-copy",
+  ".games-chapter .chapter-copy", ".games-experiment",
+  ".about-closing",
+].join(",");
 
 function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
 
@@ -355,9 +355,17 @@ function makeScene(host, leadsHost) {
   const leadsMaskBase = svgElement("rect");
   leadsMaskBase.setAttribute("fill", "white");
   leadsMask.append(leadsMaskBase);
-  const leadsMaskHoles = svgElement("g", "score-lead-mask-holes");
+  const leadsMaskFeather = svgElement("filter");
+  leadsMaskFeather.id = `${id}-mask-feather`;
+  leadsMaskFeather.setAttribute("filterUnits", "userSpaceOnUse");
+  const leadsMaskBlur = svgElement("feGaussianBlur");
+  leadsMaskBlur.setAttribute("stdDeviation", "4");
+  leadsMaskFeather.append(leadsMaskBlur);
+  const leadsMaskHoles = svgElement("path", "score-lead-mask-holes");
+  leadsMaskHoles.setAttribute("fill", "black");
+  leadsMaskHoles.setAttribute("filter", `url(#${leadsMaskFeather.id})`);
   leadsMask.append(leadsMaskHoles);
-  leadsDefs.append(leadsClip, leadsMask);
+  leadsDefs.append(leadsClip, leadsMaskFeather, leadsMask);
   leadsSvg.append(leadsDefs);
   leadsHost.append(leadsSvg);
 
@@ -399,22 +407,35 @@ function textRects(element) {
   return rects.length ? rects : [...element.getClientRects()];
 }
 
+function roundedRectPath(x, y, width, height, radius) {
+  const r = Math.min(radius, width / 2, height / 2);
+  return [
+    `M ${(x + r).toFixed(1)} ${y.toFixed(1)}`,
+    `H ${(x + width - r).toFixed(1)}`,
+    `Q ${(x + width).toFixed(1)} ${y.toFixed(1)} ${(x + width).toFixed(1)} ${(y + r).toFixed(1)}`,
+    `V ${(y + height - r).toFixed(1)}`,
+    `Q ${(x + width).toFixed(1)} ${(y + height).toFixed(1)} ${(x + width - r).toFixed(1)} ${(y + height).toFixed(1)}`,
+    `H ${(x + r).toFixed(1)}`,
+    `Q ${x.toFixed(1)} ${(y + height).toFixed(1)} ${x.toFixed(1)} ${(y + height - r).toFixed(1)}`,
+    `V ${(y + r).toFixed(1)}`,
+    `Q ${x.toFixed(1)} ${y.toFixed(1)} ${(x + r).toFixed(1)} ${y.toFixed(1)} Z`,
+  ].join(" ");
+}
+
 function updateLeadMask(scene, root, chapter, layoutRevision) {
-  const selector = LEAD_MASK_SELECTORS[chapter];
-  scene.leadsHost.dataset.active = selector ? chapter : "false";
-  if (!selector || !scene.geometry) return;
-  const key = `${chapter}|${Math.round(window.scrollY)}|${window.innerWidth}|${window.innerHeight}|${layoutRevision}|${scene.geometry.viewBox}`;
+  scene.leadsHost.dataset.active = chapter || "opening";
+  if (!scene.geometry) return;
+  const key = `${Math.round(window.scrollY / 2)}|${window.innerWidth}|${window.innerHeight}|${layoutRevision}|${scene.geometry.viewBox}`;
   if (key === scene.maskKey) return;
-  scene.maskKey = key;
 
   const geometry = scene.geometry;
-  const svgRect = scene.leadsSvg.getBoundingClientRect();
-  const matrix = new DOMMatrix(getComputedStyle(scene.leadsSvg).transform);
-  const cameraScale = Math.max(.001, Math.hypot(matrix.a, matrix.b));
-  const fitScale = Math.min(window.innerWidth / geometry.width, window.innerHeight / geometry.height);
-  const fitLeft = (window.innerWidth - geometry.width * fitScale) / 2;
-  const fitTop = (window.innerHeight - geometry.height * fitScale) / 2;
-  const toViewBox = (position, origin, fitOffset) => ((position - origin) / cameraScale - fitOffset) / fitScale;
+  const screenMatrix = scene.leadsSvg.getScreenCTM();
+  if (!screenMatrix) return;
+  scene.maskKey = key;
+  const toSvg = screenMatrix.inverse();
+  const scale = Math.max(.001, Math.hypot(screenMatrix.a, screenMatrix.b));
+  const padding = 12 / scale;
+  const radius = 8 / scale;
 
   scene.leadsMaskBase.setAttribute("x", "0");
   scene.leadsMaskBase.setAttribute("y", "0");
@@ -424,30 +445,25 @@ function updateLeadMask(scene, root, chapter, layoutRevision) {
   scene.leadsClipRect.setAttribute("y", "0");
   scene.leadsClipRect.setAttribute("width", String(geometry.width - geometry.headerWidth));
   scene.leadsClipRect.setAttribute("height", String(geometry.height));
-  scene.leadsMaskHoles.replaceChildren();
-
-  const section = root.querySelector(`[data-movement="${chapter}"]`);
-  for (const element of section?.querySelectorAll(selector) ?? []) {
+  const holes = [];
+  for (const element of root.querySelectorAll(MASKED_COPY_SELECTOR)) {
     if (!element.getClientRects().length) continue;
     for (const rect of textRects(element)) {
       if (rect.width < 1 || rect.height < 1 || rect.right < 0 || rect.left > innerWidth || rect.bottom < 0 || rect.top > innerHeight) continue;
-      const paddingX = 14 / Math.max(.001, fitScale * cameraScale);
-      const paddingY = 14 / Math.max(.001, fitScale * cameraScale);
-      const left = Math.max(geometry.headerWidth, toViewBox(rect.left, svgRect.left, fitLeft) - paddingX);
-      const top = Math.max(0, toViewBox(rect.top, svgRect.top, fitTop) - paddingY);
-      const right = Math.min(geometry.width, toViewBox(rect.right, svgRect.left, fitLeft) + paddingX);
-      const bottom = Math.min(geometry.height, toViewBox(rect.bottom, svgRect.top, fitTop) + paddingY);
+      const points = [
+        new DOMPoint(rect.left, rect.top), new DOMPoint(rect.right, rect.top),
+        new DOMPoint(rect.right, rect.bottom), new DOMPoint(rect.left, rect.bottom),
+      ].map(point => point.matrixTransform(toSvg));
+      const left = Math.max(0, Math.min(...points.map(point => point.x)) - padding);
+      const top = Math.max(0, Math.min(...points.map(point => point.y)) - padding);
+      const right = Math.min(geometry.width, Math.max(...points.map(point => point.x)) + padding);
+      const bottom = Math.min(geometry.height, Math.max(...points.map(point => point.y)) + padding);
       if (right <= left || bottom <= top) continue;
-      const hole = svgElement("rect", "score-lead-mask-hole");
-      hole.setAttribute("x", left.toFixed(1));
-      hole.setAttribute("y", top.toFixed(1));
-      hole.setAttribute("width", (right - left).toFixed(1));
-      hole.setAttribute("height", (bottom - top).toFixed(1));
-      hole.setAttribute("rx", String(6 / Math.max(.001, fitScale * cameraScale)));
-      hole.setAttribute("fill", "black");
-      scene.leadsMaskHoles.append(hole);
+      holes.push(roundedRectPath(left, top, right - left, bottom - top, radius));
     }
   }
+  const holesPath = holes.join(" ");
+  scene.leadsMaskHoles.setAttribute("d", holesPath);
 }
 
 function updateBarMarks(scene, score, leftBeat, geometry) {
@@ -609,6 +625,11 @@ function updateScene(scene, score, centerBeat, scrollBeat, motionEnabled, reduce
     scene.leadsMask.setAttribute("y", "0");
     scene.leadsMask.setAttribute("width", String(geometry.width));
     scene.leadsMask.setAttribute("height", String(HEIGHT));
+    const feather = scene.leadsSvg.querySelector(`#${scene.id}-mask-feather`);
+    feather?.setAttribute("x", "-24");
+    feather?.setAttribute("y", "-24");
+    feather?.setAttribute("width", String(geometry.width + 48));
+    feather?.setAttribute("height", String(HEIGHT + 48));
     scene.leadsClipRect.setAttribute("x", String(geometry.headerWidth));
     scene.leadsClipRect.setAttribute("y", "0");
     scene.leadsClipRect.setAttribute("width", String(geometry.width - geometry.headerWidth));
@@ -655,8 +676,11 @@ function updateScene(scene, score, centerBeat, scrollBeat, motionEnabled, reduce
 
 export function createScoreVisual(root, score, onReady = () => {}) {
   const hosts = [...root.querySelectorAll("[data-score-scene]")];
-  const leadsHost = root.querySelector("[data-score-leads]");
-  const scenes = hosts.map(host => makeScene(host, leadsHost));
+  const globalLeadsHost = root.querySelector("[data-score-leads-global]");
+  const scenes = hosts.map(host => {
+    const leadsHost = host.querySelector("[data-score-leads]") ?? globalLeadsHost;
+    return makeScene(host, leadsHost);
+  });
 
   function update({ chapter = "music", scrollBeat = PREVIEW_BEAT, motionEnabled = true, reducedMotion = false, playbackSnapshot = null, layoutRevision = 0 } = {}) {
     const beat = ["playing", "paused", "finished"].includes(playbackSnapshot?.state)
