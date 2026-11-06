@@ -9,8 +9,8 @@ const scoreThread = root.querySelector("[data-score-thread]");
 const scoreLeads = root.querySelector("[data-score-leads-global]");
 const scoreCameraStops = [
   { x: -.035, y: -.015, scale: 1.08, opacity: .36, lead: .46, rotate: 0 },
-  { x: .015, y: .045, scale: .88, opacity: .055, lead: .09, rotate: 0 },
-  { x: 0, y: 0, scale: 1.22, opacity: .68, lead: .98, rotate: 0 },
+  { x: .015, y: .30, scale: .82, opacity: .018, lead: .03, rotate: 0 },
+  { x: 0, y: 0, scale: 1, opacity: .68, lead: .98, rotate: 0 },
   { x: -.035, y: .025, scale: 1.04, opacity: .14, lead: .24, rotate: 0 },
   { x: .035, y: -.035, scale: .90, opacity: .23, lead: .32, rotate: 0 },
   { x: 0, y: .055, scale: .78, opacity: .09, lead: .14, rotate: 0 },
@@ -23,10 +23,12 @@ const scoreCameraAnchors = {
   games: ".games-experiment",
   closing: ".closing-links",
 };
-let scoreThreadCenters = [];
+let scoreChapterBounds = [];
 let scoreThreadNeedsMeasure = true;
 let scoreThreadLastScrollY = Number.NaN;
 let scoreThreadLastStyle = "";
+// Each chapter enters on the previous frame, then holds its own composition for reading.
+const cameraTransitionPortion = .18;
 function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
 function scoreAnchorFor(chapter) {
   const selector = scoreCameraAnchors[chapter?.dataset.movement];
@@ -67,20 +69,32 @@ function updateScoreThread(force = false) {
   if (!scoreThread || motionPaused || reduceMotion.matches) return;
   const scrollY = window.scrollY;
   if (!force && !scoreThreadNeedsMeasure && scrollY === scoreThreadLastScrollY) return;
-  if (force || scoreThreadNeedsMeasure || scoreThreadCenters.length !== chapters.length) {
-    scoreThreadCenters = chapters.map(chapter => {
+  if (force || scoreThreadNeedsMeasure || scoreChapterBounds.length !== chapters.length) {
+    scoreChapterBounds = chapters.map(chapter => {
       const bounds = chapter.getBoundingClientRect();
-      return bounds.top + scrollY + bounds.height / 2;
+      return { top: bounds.top + scrollY, bottom: bounds.bottom + scrollY, height: bounds.height };
     });
     scoreThreadNeedsMeasure = false;
   }
   scoreThreadLastScrollY = scrollY;
   const storyPoint = scrollY + window.innerHeight * .52;
-  let index = 0;
-  while (index < scoreThreadCenters.length - 2 && storyPoint > scoreThreadCenters[index + 1]) index += 1;
-  const start = scoreThreadCenters[index] ?? 0;
-  const end = scoreThreadCenters[index + 1] ?? start + 1;
-  const progress = clamp((storyPoint - start) / Math.max(1, end - start), 0, 1);
+  let chapterIndex = scoreChapterBounds.findIndex(bounds => storyPoint >= bounds.top && storyPoint < bounds.bottom);
+  if (chapterIndex < 0) {
+    chapterIndex = scoreChapterBounds.findIndex(bounds => storyPoint < bounds.top);
+    chapterIndex = chapterIndex < 0 ? scoreChapterBounds.length - 1 : Math.max(0, chapterIndex - 1);
+  }
+  const chapterBounds = scoreChapterBounds[chapterIndex];
+  const chapterProgress = clamp((storyPoint - chapterBounds.top) / Math.max(1, chapterBounds.height), 0, 1);
+  let index = chapterIndex;
+  let progress = 0;
+  if (chapterIndex > 0 && chapterProgress < cameraTransitionPortion) {
+    index = chapterIndex - 1;
+    progress = chapterProgress / cameraTransitionPortion;
+  } else if (chapterIndex === scoreCameraStops.length - 1) {
+    index = chapterIndex - 1;
+    progress = 1;
+  }
+  progress = progress * progress * (3 - 2 * progress);
   const mainBounds = root.getBoundingClientRect();
   const enter = clamp((window.innerHeight - mainBounds.top) / (window.innerHeight * .42), 0, 1);
   const leave = clamp(mainBounds.bottom / (window.innerHeight * .42), 0, 1);

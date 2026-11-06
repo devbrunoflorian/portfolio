@@ -184,9 +184,9 @@ export function scoreStageOffsets(anchor, scale) {
   const fitScale = Math.min(window.innerWidth / geometry.width, window.innerHeight / geometry.height);
   const fitTop = (window.innerHeight - geometry.height * fitScale) / 2;
   const fitLeft = (window.innerWidth - geometry.width * fitScale) / 2;
-  const staffCenterX = geometry.headerWidth + (geometry.width - geometry.headerWidth) / 2;
+  const notationCenterX = geometry.width / 2;
   const staffCenterY = (STAFF_TOP + STAFF_BOTTOM) / 2;
-  const staffX = fitLeft + staffCenterX * fitScale;
+  const staffX = fitLeft + notationCenterX * fitScale;
   const staffY = fitTop + staffCenterY * fitScale;
   const transformedStaffX = window.innerWidth / 2 + (staffX - window.innerWidth / 2) * scale;
   const transformedStaffY = window.innerHeight / 2 + (staffY - window.innerHeight / 2) * scale;
