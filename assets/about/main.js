@@ -301,13 +301,13 @@ function paintScenes() {
     const scrollBeat = motionPaused || reduceMotion.matches ? frozenScrollBeat ?? scoreBeatForScroll() : scoreBeatForScroll();
     const result = visual.update({ chapter, progress, scrollBeat, motionEnabled: !motionPaused && !reduceMotion.matches, reducedMotion: reduceMotion.matches, playbackSnapshot: snapshot });
     if (chapter === "music" && result && !result.frozen) {
-      const excerpt = root.querySelector("[data-score-excerpt]");
-      if (excerpt && result.bars.length) {
+      const excerptElement = root.querySelector("[data-score-excerpt]");
+      if (excerptElement && result.bars.length) {
         const first = result.bars[0];
         const last = result.bars.at(-1);
-        const excerpt = first === last ? `${labels.bar} ${first}` : `${labels.bars} ${first}–${last}`;
-        const label = snapshot?.state === "off" ? `${labels.preview} · ${excerpt}` : excerpt;
-        if (excerpt.textContent !== label) excerpt.textContent = label;
+        const excerptText = first === last ? `${labels.bar} ${first}` : `${labels.bars} ${first}–${last}`;
+        const label = snapshot?.state === "off" ? `${labels.preview} · ${excerptText}` : excerptText;
+        if (excerptElement.textContent !== label) excerptElement.textContent = label;
       }
     }
   }
