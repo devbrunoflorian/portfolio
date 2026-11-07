@@ -1,4 +1,11 @@
 export const SCORE_BACKGROUND = '#060609';
+// Camera distance / viewport width, independent of device pixel ratio.
+export const DEPTH_BANDS = { near: 1.35, far: 2.3, farOpacity: .32, farBrightness: .72, farSaturation: .2 };
+export function depthAppearance(depth, viewportWidth) {
+  const t=Math.max(0,Math.min(1,(-depth/viewportWidth-DEPTH_BANDS.near)/(DEPTH_BANDS.far-DEPTH_BANDS.near)));
+  const ease=t*t*(3-2*t);
+  return {opacity:1+(DEPTH_BANDS.farOpacity-1)*ease,brightness:1+(DEPTH_BANDS.farBrightness-1)*ease,saturation:1+(DEPTH_BANDS.farSaturation-1)*ease};
+}
 
 /** Depth is negative camera distance: the larger value is closer. No surface ink is painted. */
 export function rasterDepth(buffer, width, height, triangle, scale = 1, originX = 0, originY = 0, owners = null) {
@@ -28,7 +35,7 @@ export function polygonBounds(points, padding = 2) {
 }
 
 /** Canvas paints each beam once. Coverage is depth-tested afterwards, not drawn as strips. */
-export function paintDepthQueue(context, queue, surfaces, cssWidth, cssHeight) {
+export function paintDepthQueue(context, queue, surfaces, cssWidth, cssHeight, fade = false) {
   const width = context.canvas.width, height = context.canvas.height;
   const scale = width / cssWidth;
   const depth = new Float32Array(width * height).fill(-Infinity);
@@ -46,20 +53,25 @@ export function paintDepthQueue(context, queue, surfaces, cssWidth, cssHeight) {
     item.paint();
     const pixels = context.getImageData(x0, y0, x1 - x0, y1 - y0);
     const localDepth = item.depthTriangles ? new Float32Array(pixels.width * pixels.height).fill(-Infinity) : null;
-    if (localDepth) for (const triangle of item.depthTriangles) rasterDepth(localDepth, pixels.width, pixels.height, triangle, scale, x0, y0);
+    const localOwners = item.kind==='staff-line'?new Float32Array(pixels.width*pixels.height).fill(-1):null;
+    if (localDepth) for (const triangle of item.depthTriangles) rasterDepth(localDepth, pixels.width, pixels.height, triangle, scale, x0, y0,localOwners);
     for (let y = 0; y < pixels.height; y++) for (let x = 0; x < pixels.width; x++) {
       const local = y * pixels.width + x, from = local * 4;
-      const alpha = pixels.data[from + 3] / 255;
+      let alpha = pixels.data[from + 3] / 255;
       if (!alpha) continue;
       const index = (y0 + y) * width + x0 + x;
-      const z = localDepth && Number.isFinite(localDepth[local]) ? localDepth[local] + 1
+      const fallback=localDepth&&!Number.isFinite(localDepth[local])&&item.sampleAt?item.sampleAt((x0+x+.5)/scale,(y0+y+.5)/scale):null;
+      const z = localDepth && Number.isFinite(localDepth[local]) ? localDepth[local] + 1 : fallback?fallback.depth+1
         : item.depthAt ? item.depthAt((x0+x+.5)/scale,(y0+y+.5)/scale) : item.depth;
-      const ownSurface=item.range&&owners[index]>=item.range[0]&&owners[index]<=item.range[1];
+      const ownSurface=localOwners?Math.abs((fallback?.u??localOwners[local])-owners[index])<.01:item.range&&owners[index]>=item.range[0]&&owners[index]<=item.range[1];
       if ((!ownSurface&&z < depth[index] - 1)||z<inkDepth[index]-1) continue;
+      const appearance = fade ? depthAppearance(item.kind==='notation-group'?item.depth:z,cssWidth) : {opacity:1,brightness:1,saturation:1};
+      alpha *= appearance.opacity;
+      const luminance = pixels.data[from]*.2126+pixels.data[from+1]*.7152+pixels.data[from+2]*.0722;
       const to = index * 4;
       for (let channel = 0; channel < 3; channel++) output.data[to + channel] =
-        pixels.data[from + channel] * alpha + output.data[to + channel] * (1 - alpha);
-      if (alpha > .5) inkDepth[index] = Math.max(inkDepth[index], z);
+        (luminance+(pixels.data[from+channel]-luminance)*appearance.saturation)*appearance.brightness*alpha + output.data[to + channel] * (1 - alpha);
+      if (pixels.data[from+3] > 127) inkDepth[index] = Math.max(inkDepth[index], z);
     }
     context.clearRect(bounds.x0, bounds.y0, bounds.x1 - bounds.x0, bounds.y1 - bounds.y0);
   }

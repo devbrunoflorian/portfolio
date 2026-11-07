@@ -198,7 +198,7 @@ export function enqueueCompoundGroups(queue, context, groups, study, project, de
         }
         for (const line of shape.ledgers) stroke(line.points, line.width * line.points[0].scale);
         for (const head of shape.heads) {
-          context.fillStyle = head.noteId === marker ? '#ffdc83' : '#a7caff';
+          context.fillStyle = head.noteId === marker ? '#ffdc83' : '#cfc2e2';
           fill(head.contours);
         }
       } });

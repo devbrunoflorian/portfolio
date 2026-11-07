@@ -4,8 +4,9 @@ import { createProjector } from './score-ribbon-geometry.js?v=travel-1';
 import { createTravelProjector } from './score-travel-geometry.js?v=compound-2';
 import { noteHeadStemPairs, projectHeadStem } from './score-head-stems.js';
 import { buildEngraving, enqueueRest, projectedRest } from './score-engraving.js?v=compound-1';
-import { buildCompoundGroups, enqueueCompoundGroups } from './score-compound-groups.js?v=compound-2';
-import { paintDepthQueue, polygonBounds, SCORE_BACKGROUND } from './score-occlusion.js';
+import { buildCompoundGroups, enqueueCompoundGroups } from './score-compound-groups.js?v=depth-1';
+import { paintDepthQueue, polygonBounds, SCORE_BACKGROUND, DEPTH_BANDS } from './score-occlusion.js?v=depth-3';
+import { enqueueStaffLine, HALO_HALF_WIDTH } from './score-depth-cues.js?v=depth-2';
 import { mountFrontComparison } from './score-front-comparison.js';
 
 const gate = new URLSearchParams(location.search).get('score-gate');
@@ -135,13 +136,13 @@ for(const p of points){
 }
 const frames=[];
 let comparison;
-function addFrame(container,pose,label,details){
+function addFrame(container,pose,label,details,variant='B'){
   const figure=document.createElement('figure');
   const caption=document.createElement('figcaption');
   caption.textContent=label;
   const canvas=document.createElement('canvas');
   canvas.setAttribute('aria-label',label+' · '+markerId);
-  figure.append(caption,canvas);container.append(figure);frames.push({canvas,pose,details});
+  figure.append(caption,canvas);container.append(figure);frames.push({canvas,pose,details,variant});
 }
 (engravingStudy?[1,.13,.4]:glyphStudy?[1,.13]:[0,.35,.6,1]).forEach((p,i)=>addFrame(page.querySelector('.fold-gate > .fold-gate-poses'),p,
   `${Math.round(p*100)}% · ${(glyphStudy?['Music frontal','Passagem próxima','Passagem intermediária']:['Entrada pela borda','Retorno','Passagem próxima','Music frontal'])[i]}`));
@@ -152,19 +153,20 @@ for(let i=0;!glyphStudy&&i<12;i++){
 if(engravingStudy){
   const alternatives=document.createElement('section');
   alternatives.className='notation-alternatives';
-  alternatives.innerHTML='<h2>Completa × simplificada · mesma câmera</h2><p>As duas versões preservam os mesmos grupos e âncoras. A simplificação omite colchetes, cifras e acidentes; não muda o trajeto.</p>';
+  alternatives.innerHTML='<h2>A × B · clareza por profundidade</h2><p>Mesma câmera: A sem novas pistas; B com recorte e esmaecimento. C (desfoque) aguarda sua aprovação de B. As cinco linhas são contornos contínuos em ambas.</p>';
   for(const pose of [.13,.4]){
     const row=document.createElement('div');row.className='fold-gate-poses';alternatives.append(row);
-    addFrame(row,pose,`${Math.round(pose*100)}% · Completa`,true);
-    addFrame(row,pose,`${Math.round(pose*100)}% · Simplificada`,false);
+    addFrame(row,pose,`${Math.round(pose*100)}% · A sem pistas`,true,'A');
+    addFrame(row,pose,`${Math.round(pose*100)}% · B recorte e esmaecer`,true,'B');
   }
   page.querySelector('.fold-gate > .fold-gate-poses').after(alternatives);
 }
-function renderFrame(canvas,pose,details=showDetails){
+function renderFrame(canvas,pose,details=showDetails,variant='B'){
   const width=canvas.clientWidth,height=width/1.8;
   canvas.width=Math.round(width*2);canvas.height=Math.round(height*2);
   const ctx=canvas.getContext('2d');ctx.scale(2,2);
-  const project=(traveling?createTravelProjector:createProjector)(width,height,score,pose,view,...(engravingStudy?[.42]:[]));
+  const project=(traveling?createTravelProjector:createProjector)(width,height,score,pose,view);
+  const depthEnabled=engravingStudy&&pose<.85&&variant==='B';
   const queue=[];
   const surfaces=[];
   const divisions=280;
@@ -179,7 +181,8 @@ function renderFrame(canvas,pose,details=showDetails){
   for(let i=0;i<divisions;i++){
     const x0=view.x0+(view.x1-view.x0)*i/divisions;
     const x1=view.x0+(view.x1-view.x0)*(i+1)/divisions;
-    const a=project(x0,-8.6),b=project(x1,-8.6),c=project(x1,.6),d=project(x0,.6);
+    const top=depthEnabled?-4-HALO_HALF_WIDTH:-8.6,bottom=depthEnabled?-4+HALO_HALF_WIDTH:.6;
+    const a=project(x0,top),b=project(x1,top),c=project(x1,bottom),d=project(x0,bottom);
     const depth=project((x0+x1)/2,-4).depth;
     surfaces.push([a,b,c,d]);
     // The engraving study uses a depth-only surface; older gates retain their reference rendering.
@@ -187,12 +190,13 @@ function renderFrame(canvas,pose,details=showDetails){
       ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.lineTo(c.x,c.y);ctx.lineTo(d.x,d.y);ctx.closePath();
       ctx.fillStyle='#08080e';ctx.fill();
     }});
-    for(const y of score.staffLines){
+    if(!engravingStudy)for(const y of score.staffLines){
       const p=project(x0,y),q=project(x1,y);
       const shade=Math.max(.3,Math.min(1,(p.perspective-.4)/.9));
       stroke(p,q,engravingStudy?'#cfc2e2':`rgb(${Math.round(110+shade*110)} ${Math.round(107+shade*100)} ${Math.round(137+shade*102)})`,engravingStudy?engraving.staffWidth*p.scale:Math.max(.65,p.perspective*1.2),.15);
     }
   }
+  if(engravingStudy)for(const y of score.staffLines)enqueueStaffLine(queue,ctx,project,view,y,engraving.staffWidth);
   const edges=engravingStudy?engraving.barlines.filter(line=>pose>=.85||line.x>view.x0+.01).map(line=>line.x)
     :[score.bars[30].xStart,...score.bars.slice(30,33).map(b=>b.xEnd)];
   for(const x of edges)for(let y=-8;y<0;y+=.25){
@@ -225,7 +229,11 @@ function renderFrame(canvas,pose,details=showDetails){
     enqueueRest(queue,ctx,engraving.rest,project);
   }
   if(engravingStudy){
-    paintDepthQueue(ctx,queue,surfaces,width,height);
+    paintDepthQueue(ctx,queue,surfaces,width,height,depthEnabled);
+    canvas.dataset.variant=variant;
+    canvas.dataset.depthEnabled=String(depthEnabled);
+    canvas.dataset.depthBands=JSON.stringify(DEPTH_BANDS);
+    canvas.dataset.staffPaths=String(queue.filter(item=>item.kind==='staff-line').length);
     const rest=projectedRest(engraving.rest,project);
     canvas.dataset.rest=JSON.stringify({bar:32,width:rest.width,height:rest.height,x:rest.anchor.x,y:rest.anchor.y});
     canvas.dataset.groups=JSON.stringify(queue.filter(item=>item.kind==='notation-group').map(item=>item.id));
@@ -239,7 +247,7 @@ function renderFrame(canvas,pose,details=showDetails){
   canvas.dataset.marker=JSON.stringify(project(marked.x,marked.y));
 }
 function draw(){
-  for(const frame of frames)renderFrame(frame.canvas,frame.pose,frame.details??showDetails);
+  for(const frame of frames)renderFrame(frame.canvas,frame.pose,frame.details??showDetails,frame.variant);
   comparison?.draw();
   if(liveCanvas){
     const pose=Number(poseSlider.value)/1000;
