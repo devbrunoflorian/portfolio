@@ -11,6 +11,7 @@ import {applyFocusLayers,clearFocusLayers,filterSupport} from './score-focus-lay
 import { enqueueStaffLine, HALO_HALF_WIDTH } from './score-depth-cues.js?v=profile-2';
 import { mountFrontComparison } from './score-front-comparison.js';
 import {mountDrawProfile} from './score-draw-profile.js?v=3';
+import {mountBackendComparison} from './score-backend-comparison.js';
 const optimization=Number(new URLSearchParams(location.search).get('score-optimization')??0);
 
 const gate = new URLSearchParams(location.search).get('score-gate');
@@ -326,4 +327,5 @@ if(engravingStudy){
   const sourceSystem=scoreRibbonData.systems.find(system=>system.bars.some(bar=>bar.number===31));
   comparison=mountFrontComparison(page,frames[0].canvas,score,sourceSystem,view);
   mountDrawProfile(page,frames[1].canvas,renderFrame);
+  mountBackendComparison(page,{score,view,points,groups,engraving},renderFrame);
 }
