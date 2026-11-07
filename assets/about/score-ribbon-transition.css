@@ -1,0 +1,56 @@
+body[data-score-ribbon-transition="true"] .about-score-thread :is(.score-scene-fallback, .score-score-svg),
+body[data-score-ribbon-transition="true"] .about-score-leads[data-score-leads-global],
+body[data-score-ribbon-transition="true"] .score-figure :is(.score-scene-fallback, .score-score-svg, .about-score-leads) {
+  visibility: hidden;
+}
+
+body[data-score-ribbon-transition="true"] .score-ribbon-transition__canvas {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  transform: translate3d(var(--thread-x, 28vw), var(--thread-y, 1.5vh), 0) scale(var(--thread-scale, .94)) rotate(var(--thread-rotate, 0deg));
+  transform-origin: center;
+  opacity: var(--thread-opacity, .34);
+  will-change: transform, opacity;
+}
+
+body[data-score-ribbon-transition="true"] .code-score-anchor {
+  isolation: isolate;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(90deg, #000 0%, #000 86%, transparent 100%);
+  mask-image: linear-gradient(90deg, #000 0%, #000 86%, transparent 100%);
+}
+
+body[data-score-ribbon-transition="true"] .code-score-anchor::after {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  inset: 5% -3% 5% 0;
+  pointer-events: none;
+  opacity: .58;
+  background-image:
+    linear-gradient(rgb(87 139 255 / 11%) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(87 139 255 / 11%) 1px, transparent 1px),
+    radial-gradient(circle at 72% 27%, rgb(74 153 255 / 44%) 0 1px, transparent 2px),
+    radial-gradient(circle at 54% 72%, rgb(190 119 255 / 34%) 0 1px, transparent 2px);
+  background-size: 28px 28px, 28px 28px, 100% 100%, 100% 100%;
+  -webkit-mask-image: radial-gradient(ellipse at 58% 50%, #000 0%, rgb(0 0 0 / 60%) 44%, transparent 83%);
+  mask-image: radial-gradient(ellipse at 58% 50%, #000 0%, rgb(0 0 0 / 60%) 44%, transparent 83%);
+}
+
+body[data-score-ribbon-transition="true"] .code-stack {
+  isolation: isolate;
+}
+
+body[data-score-ribbon-transition="true"] .code-stack::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: -72px -16px 0;
+  pointer-events: none;
+  background: linear-gradient(180deg, transparent, #060609f0 96px, #060609 180px);
+}

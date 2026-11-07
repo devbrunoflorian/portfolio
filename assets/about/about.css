@@ -83,6 +83,8 @@ body { background: var(--about-bg); color: var(--about-ink); }
 .about-score-thread .score-guitar-measure { opacity: .82; }
 .about-score-leads .score-voice-glow { opacity: .1; stroke-width: 9; }
 .about-score-leads .score-voice-trace { opacity: .98; stroke-width: 2.2; }
+body[data-score-ribbon-transition="true"] .about-score-thread :is(.score-scene-fallback, .score-score-svg), body[data-score-ribbon-transition="true"] .about-score-leads[data-score-leads-global] { visibility: hidden; }
+body[data-score-ribbon-transition="true"] .score-figure :is(.score-scene-fallback, .score-score-svg, .about-score-leads) { visibility: hidden; }
 .journey-bar { position: fixed; z-index: 35; bottom: max(16px, env(safe-area-inset-bottom)); left: var(--about-gutter); right: var(--about-gutter); width: auto; max-width: 1100px; margin-inline: auto; display: flex; align-items: center; gap: 20px; min-height: 56px; padding: 6px 16px; background: linear-gradient(180deg, #0c0b10e8, #08080cf5); border: 0; border-top: 1px solid #3c2e49; border-radius: 0; box-shadow: none; backdrop-filter: blur(14px); }
 .journey-nav { display: flex; align-items: center; gap: 23px; margin-right: auto; }
 .journey-nav a { display: flex; align-items: center; min-height: 44px; color: #b1a5bf; font-size: 13px; text-decoration: none; }

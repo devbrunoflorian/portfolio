@@ -8,6 +8,8 @@ const query = new URLSearchParams(window.location.search);
 const scoreGridStudyMode = query.get("score-grid") === "study";
 const scoreRibbonStudyMode = query.get("score-ribbon") === "study";
 const scoreRibbonStoryboardMode = query.get("score-ribbon") === "storyboard";
+const scoreRibbonTransitionMode = query.get("score-ribbon") === "transition";
+if (scoreRibbonTransitionMode) document.body.dataset.scoreRibbonTransition = "true";
 const chapters = [...root.querySelectorAll("[data-movement]")];
 const scoreThread = root.querySelector("[data-score-thread]");
 const scoreLeads = root.querySelector("[data-score-leads-global]");
@@ -35,7 +37,7 @@ let scoreThreadLastStyle = "";
 // Each chapter enters on the previous frame, then holds its own composition for reading.
 // Let the score keep traveling while each chapter is read; it should not settle
 // after a brief camera move at the top of every section.
-const cameraTransitionPortion = .18;
+const cameraTransitionPortion = scoreRibbonTransitionMode ? .42 : .18;
 function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
 function scoreAnchorFor(chapter) {
   const selector = scoreCameraAnchors[chapter?.dataset.movement];
@@ -122,7 +124,13 @@ function updateScoreThread(force = false) {
   const startOffset = scoreStageOffsets(scoreAnchorFor(chapters[index]), values.scale);
   const endOffset = scoreStageOffsets(scoreAnchorFor(chapters[index + 1]), values.scale);
   const x = values.x * window.innerWidth + startOffset.x + (endOffset.x - startOffset.x) * progress;
-  const y = values.y * window.innerHeight + startOffset.y + (endOffset.y - startOffset.y) * progress;
+  // Route the visual below Music's copy during the handoff, then let it settle on the real score stage.
+  const verticalArc = scoreRibbonTransitionMode
+    && chapters[index]?.dataset.movement === "code"
+    && chapters[index + 1]?.dataset.movement === "music"
+    ? Math.sin(Math.PI * progress) * Math.min(window.innerHeight * .16, window.innerWidth <= 700 ? 80 : 132)
+    : 0;
+  const y = values.y * window.innerHeight + startOffset.y + (endOffset.y - startOffset.y) * progress + verticalArc;
   const signature = `${x.toFixed(2)}|${y.toFixed(2)}|${values.scale.toFixed(4)}|${values.opacity.toFixed(4)}|${values.lead.toFixed(4)}|${values.rotate.toFixed(3)}`;
   if (signature === scoreThreadLastStyle) return;
   scoreThreadLastStyle = signature;
@@ -333,7 +341,7 @@ function paintScenes() {
   const snapshot = audio.snapshot?.() ?? null;
   const mainBounds = root.getBoundingClientRect();
   const visible = mainBounds.bottom >= 0 && mainBounds.top <= innerHeight;
-  if (visible && !scoreRibbonStoryboardMode) {
+  if (visible && !scoreRibbonStoryboardMode && !scoreRibbonTransitionMode) {
     const chapter = root.dataset.activeMovement ?? "opening";
     // Silence uses the page's reading position as a visual-only score cursor.
     // Playback remains authoritative whenever audio is active.
@@ -452,5 +460,9 @@ if (scoreRibbonStudyMode) {
 }
 
 if (scoreRibbonStoryboardMode) {
-  import("./score-ribbon-storyboard.js");
+  import("./score-ribbon-storyboard.js?v=code-frame-1");
+}
+
+if (scoreRibbonTransitionMode) {
+  import("./score-ribbon-transition.js?v=code-music-2");
 }

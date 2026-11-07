@@ -2,20 +2,23 @@ import { scoreRibbonStudy } from "./score-ribbon-study-data.js";
 import { drawScoreRibbon } from "./score-ribbon-renderer.js?v=mobile-frame-2";
 
 const root = document.querySelector(".about-main");
-const stage = root?.querySelector(".score-stage-spacer");
-if (!root || !stage) throw new Error("The About Music score stage is missing.");
+const query = new URLSearchParams(window.location.search);
+const frame = query.get("score-frame") === "code" ? "code" : "music";
+const stageSelector = frame === "code" ? ".code-score-anchor" : ".score-stage-spacer";
+const stage = root?.querySelector(stageSelector);
+if (!root || !stage) throw new Error(`The About ${frame} score stage is missing.`);
 
-document.body.dataset.scoreRibbonStoryboard = "music";
+document.body.dataset.scoreRibbonStoryboard = frame;
 const stylesheet = document.createElement("link");
 stylesheet.rel = "stylesheet";
-stylesheet.href = new URL("./score-ribbon-storyboard.css", import.meta.url);
+stylesheet.href = new URL("./score-ribbon-storyboard.css?code-frame-1", import.meta.url);
 stylesheet.dataset.scoreRibbonStoryboardStyle = "";
 document.head.append(stylesheet);
 
 const canvas = document.createElement("canvas");
 canvas.className = "score-ribbon-storyboard__canvas";
 canvas.setAttribute("aria-hidden", "true");
-canvas.dataset.scoreRibbonFrame = "music";
+canvas.dataset.scoreRibbonFrame = frame;
 stage.append(canvas);
 
 const excerpt = root.querySelector("[data-score-excerpt]");
@@ -27,10 +30,16 @@ const locale = document.documentElement.lang.toLowerCase().startsWith("en") ? "e
 
 // PDF-coordinate right edge of the bar-30 line; keep the full measure in the mobile window.
 const mobileBarlineX = 202.2188;
-const narrowCrop = {
+const codeDesktopBarlineX = 383.8;
+const mobileCrop = {
   ...scoreRibbonStudy,
   x1: mobileBarlineX,
   voices: scoreRibbonStudy.voices.filter(event => event.x <= mobileBarlineX),
+};
+const codeDesktopCrop = {
+  ...scoreRibbonStudy,
+  x1: codeDesktopBarlineX,
+  voices: scoreRibbonStudy.voices.filter(event => event.x <= codeDesktopBarlineX),
 };
 let resizeObserver;
 let lastWidth = 0;
@@ -51,8 +60,8 @@ function render() {
   const context = canvas.getContext("2d", { alpha: true });
   context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
   const isNarrow = window.matchMedia("(max-width: 700px)").matches;
-  const crop = isNarrow ? narrowCrop : scoreRibbonStudy;
-  if (excerpt) excerpt.textContent = (isNarrow ? excerptLabels.narrow : excerptLabels.wide)[locale];
+  const crop = isNarrow ? mobileCrop : frame === "code" ? codeDesktopCrop : scoreRibbonStudy;
+  if (excerpt && frame === "music") excerpt.textContent = (isNarrow ? excerptLabels.narrow : excerptLabels.wide)[locale];
   drawScoreRibbon(context, width, height, crop);
 }
 
