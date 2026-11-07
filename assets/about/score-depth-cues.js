@@ -1,4 +1,5 @@
 import { polygonBounds, quadTriangles } from './score-occlusion.js';
+import {indexSegments} from './score-segment-index.js';
 export const HALO_HALF_WIDTH=6.5;
 
 export function staffInk(project, view, y, thickness, divisions = 280) {
@@ -12,11 +13,13 @@ export function staffInk(project, view, y, thickness, divisions = 280) {
     depthTriangles: upper.slice(1).flatMap((p, i) => quadTriangles([upper[i], p, lower[i + 1], lower[i]])) };
 }
 
-export function enqueueStaffLine(queue, context, project, view, y, thickness) {
+export function enqueueStaffLine(queue, context, project, view, y, thickness, indexed=false) {
   const { points, depthTriangles } = staffInk(project, view, y, thickness);
   const center=Array.from({length:281},(_,i)=>project(view.x0+(view.x1-view.x0)*i/280,y));
+  const lookup=indexed?indexSegments(center):null;
   queue.push({ kind: 'staff-line', bounds: polygonBounds(points), depthTriangles, range: [0, 1],
     sampleAt(x,y){
+      if(lookup)return lookup(x,y);
       let best=Infinity,result;
       for(let i=0;i<center.length-1;i++){
         const a=center[i],b=center[i+1],dx=b.x-a.x,dy=b.y-a.y;

@@ -3,6 +3,13 @@ import { polygonBounds, quadTriangles } from './score-occlusion.js';
 const mix = (a, b, t) => a + (b - a) * t;
 const uv = (u, v) => ({ u, v });
 const projectPoint = (point, project) => project(point.u, point.v);
+const glyphPathCache=new WeakMap();
+function reusableGlyph(study,glyph){
+  let paths=glyphPathCache.get(study);
+  if(!paths){paths=new Map();glyphPathCache.set(study,paths);}
+  if(!paths.has(glyph))paths.set(glyph,new Path2D(study.pdfGlyphPaths[glyph]));
+  return paths.get(glyph);
+}
 
 /** Absolute PDF glyph outlines; tessellation stays in font coordinates before placement on the ribbon. */
 export function glyphContours(path) {
@@ -168,39 +175,44 @@ export function projectCompoundGroup(group, project) {
     depthTriangles: maskTop.slice(1).flatMap((p, i) => quadTriangles([maskTop[i], p, maskBottom[i + 1], maskBottom[i]])) };
 }
 
-export function enqueueCompoundGroups(queue, context, groups, study, project, details = true) {
+export function enqueueCompoundGroups(queue, context, groups, study, project, details = true, profile = null, cachedGlyphs = false) {
   const ink = '#cfc2e2', marker = 'guitar-33-4-1';
+  const timed=(name,operation)=>profile?profile.measure(name,operation):operation();
   const path = (points, close) => {
     points.forEach((p, i) => i ? context.lineTo(p.x, p.y) : context.moveTo(p.x, p.y));
     if (close) context.closePath();
   };
-  const fill = contours => { context.beginPath(); contours.forEach(points => path(points, true)); context.fill(); };
-  const stroke = (points, width) => { context.beginPath(); path(points, false); context.lineWidth = width; context.stroke(); };
+  const fill = contours => { timed('pathAssembly',()=>{context.beginPath(); contours.forEach(points => path(points, true));}); context.fill(); };
+  const stroke = (points, width) => { timed('pathAssembly',()=>{context.beginPath(); path(points, false);}); context.lineWidth = width; context.stroke(); };
   for (const group of groups) {
     const shape = projectCompoundGroup(group, project);
     const all = [...shape.beam, ...shape.stems.flatMap(s => s.points), ...shape.brackets.flat(), ...shape.heads.flatMap(h => h.contours.flat()), ...shape.accidents.flat(2), ...shape.ledgers.flatMap(l => l.points)];
     if (shape.number) all.push(shape.number);
+    const bounds=polygonBounds(all, Math.max(4, shape.center.scale * 5));
+    if(cachedGlyphs&&(bounds.x1<0||bounds.y1<0||bounds.x0>context.canvas.width/2||bounds.y0>context.canvas.height/2))continue;
     queue.push({ kind: 'notation-group', id: group.id, range: [Math.min(...all.map(p=>p.u))-.003, Math.max(...all.map(p=>p.u))+.003],
       protectedHeads:shape.heads.map(head=>({bounds:polygonBounds(head.contours.flat(),1),depth:project(head.anchor.u,head.anchor.v).depth,marker:head.noteId===marker})),
-      depth: shape.center.depth, depthTriangles: shape.depthTriangles, bounds: polygonBounds(all, Math.max(4, shape.center.scale * 5)), paint() {
+      depth: shape.center.depth, depthTriangles: shape.depthTriangles, bounds, paint() {
         context.fillStyle = context.strokeStyle = ink;
         if (shape.beam.length) fill([shape.beam]);
         for (const stem of shape.stems) stroke(stem.points, stem.width * stem.points[0].scale);
         if (details) {
           for (const points of shape.brackets) stroke(points, group.bracket.width * points[0].scale);
           if (shape.number) {
+            const end=profile?.start('glyphs');
             const number = group.number, anchor = shape.number;
             context.save(); context.translate(anchor.x, anchor.y);
             context.scale(number.glyph.scaleX * anchor.scale, number.glyph.scaleY * anchor.scale);
             context.translate(-number.centerX, -number.centerY);
-            context.fill(new Path2D(study.pdfGlyphPaths[number.glyph.glyph])); context.restore();
+            context.fill(cachedGlyphs?reusableGlyph(study,number.glyph.glyph):new Path2D(study.pdfGlyphPaths[number.glyph.glyph])); context.restore();
+            end?.();
           }
-          shape.accidents.forEach(fill);
+          timed('glyphs',()=>shape.accidents.forEach(fill));
         }
         for (const line of shape.ledgers) stroke(line.points, line.width * line.points[0].scale);
         for (const head of shape.heads) {
           context.fillStyle = head.noteId === marker ? '#ffdc83' : '#cfc2e2';
-          fill(head.contours);
+          timed('glyphs',()=>fill(head.contours));
         }
       } });
   }

@@ -9,8 +9,10 @@ function curve(t){
   const b=[(1-u)**3/6,(3*u**3-6*u*u+4)/6,(-3*u**3+3*u*u+3*u+1)/6,u**3/6];
   return [0,1,2].map(axis=>b.reduce((sum,w,j)=>sum+w*controls[i+j][axis],0));
 }
-export function createTravelProjector(width,height,study,progress,view=study,minimumDistance=.2){
-  const p=Math.max(0,Math.min(1,progress));
+const worldCache=new Map();
+function ribbonSamples(width,height,cache){
+  const key=`${width}:${height}`;
+  if(cache&&worldCache.has(key))return worldCache.get(key);
   const samples=Array.from({length:1201},(_,i)=>({position:curve(i/1200).map((v,axis)=>v*(axis===1?height:width)),distance:0}));
   let normal=[0,1,0],last=norm(sub(samples[1].position,samples[0].position));
   for(let i=0;i<samples.length;i++){
@@ -24,12 +26,20 @@ export function createTravelProjector(width,height,study,progress,view=study,min
     const upright=norm([0,1,0].map((v,j)=>v-tangent[j]*tangent[1]));
     s.normal=norm(normal.map((v,j)=>v*(1-ease)+upright[j]*ease));last=tangent;
   }
-  const length=samples.at(-1).distance;
+  const positions=new Float64Array(samples.length*3),normals=new Float64Array(samples.length*3),distances=new Float64Array(samples.length);
+  samples.forEach((s,i)=>{positions.set(s.position,i*3);normals.set(s.normal,i*3);distances[i]=s.distance;});
+  const world={samples,positions,normals,distances,length:samples.at(-1).distance};
+  if(worldCache.size>=8)worldCache.delete(worldCache.keys().next().value);
+  if(cache)worldCache.set(key,world);return world;
+}
+export function createTravelProjector(width,height,study,progress,view=study,minimumDistance=.2,cache=true){
+  const p=Math.max(0,Math.min(1,progress));
+  const {samples,positions,normals,distances,length}=ribbonSamples(width,height,cache);
   function at(distance){
     let lo=0,hi=1200;
-    while(hi-lo>1){const m=(lo+hi)>>1;if(samples[m].distance<distance)lo=m;else hi=m;}
-    const a=samples[lo],b=samples[hi],t=(distance-a.distance)/(b.distance-a.distance);
-    return {position:a.position.map((v,i)=>v+(b.position[i]-v)*t),normal:norm(a.normal.map((v,i)=>v+(b.normal[i]-v)*t))};
+    while(hi-lo>1){const m=(lo+hi)>>1;if(distances[m]<distance)lo=m;else hi=m;}
+    const t=(distance-distances[lo])/(distances[hi]-distances[lo]);
+    return {position:[0,1,2].map(i=>positions[lo*3+i]+(positions[hi*3+i]-positions[lo*3+i])*t),normal:norm([0,1,2].map(i=>normals[lo*3+i]+(normals[hi*3+i]-normals[lo*3+i])*t))};
   }
   const start=p*.65*length,span=(.6-.35*p)*length;
   const visible=Array.from({length:101},(_,i)=>at(start+span*i/100).position);

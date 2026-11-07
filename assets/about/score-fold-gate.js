@@ -1,15 +1,17 @@
 import { scoreRibbonData } from './score-ribbon-data.js';
 import { scoreRibbonTimeline as score } from './score-ribbon-timeline.js';
 import { createProjector } from './score-ribbon-geometry.js?v=travel-1';
-import { createTravelProjector } from './score-travel-geometry.js?v=compound-2';
+import { createTravelProjector } from './score-travel-geometry.js?v=profile-2';
 import { noteHeadStemPairs, projectHeadStem } from './score-head-stems.js';
 import { buildEngraving, enqueueRest, projectedRest } from './score-engraving.js?v=compound-1';
-import { buildCompoundGroups, enqueueCompoundGroups } from './score-compound-groups.js?v=focus-1';
-import { paintDepthQueue, polygonBounds, SCORE_BACKGROUND, DEPTH_BANDS } from './score-occlusion.js?v=focus-1';
+import { buildCompoundGroups, enqueueCompoundGroups } from './score-compound-groups.js?v=profile-3';
+import { paintDepthQueue, polygonBounds, SCORE_BACKGROUND, DEPTH_BANDS } from './score-occlusion.js?v=profile-1';
 import {readingFocus,FOCUS_RADII} from './score-focus-profile.js';
-import {applyFocusLayers,clearFocusLayers,filterSupport} from './score-focus-layers.js?v=2';
-import { enqueueStaffLine, HALO_HALF_WIDTH } from './score-depth-cues.js?v=depth-2';
+import {applyFocusLayers,clearFocusLayers,filterSupport} from './score-focus-layers.js?v=profile-1';
+import { enqueueStaffLine, HALO_HALF_WIDTH } from './score-depth-cues.js?v=profile-2';
 import { mountFrontComparison } from './score-front-comparison.js';
+import {mountDrawProfile} from './score-draw-profile.js?v=3';
+const optimization=Number(new URLSearchParams(location.search).get('score-optimization')??0);
 
 const gate = new URLSearchParams(location.search).get('score-gate');
 const engravingStudy = gate === '3b';
@@ -197,12 +199,18 @@ if(engravingStudy){
   });
   page.querySelector('.fold-gate > .fold-gate-poses').after(alternatives);
 }
-function renderFrame(canvas,pose,details=showDetails,variant='B',backend='auto',crop=false){
+function renderFrame(canvas,pose,details=showDetails,variant='B',backend='auto',crop=false,profile=null,optimizationLevel=optimization){
+  let finish=profile?.start('setup');
   const started=performance.now();clearFocusLayers(canvas);
   const width=canvas.clientWidth,height=width/1.8;
-  canvas.width=Math.round(width*2);canvas.height=Math.round(height*2);
-  const ctx=canvas.getContext('2d');ctx.scale(2,2);
-  const project=(traveling?createTravelProjector:createProjector)(width,height,score,pose,view);
+  if(optimizationLevel<3||canvas.width!==Math.round(width*2)||canvas.height!==Math.round(height*2)){
+    canvas.width=Math.round(width*2);canvas.height=Math.round(height*2);
+  }
+  const ctx=canvas.getContext('2d');ctx.setTransform(2,0,0,2,0,0);
+  finish?.();finish=profile?.start('geometry');
+  let project=traveling?createTravelProjector(width,height,score,pose,view,.2,optimizationLevel>=1):createProjector(width,height,score,pose,view);
+  finish?.();if(profile)project=profile.projector(project);
+  finish=profile?.start('pathAssembly');
   const depthEnabled=engravingStudy&&pose<.85&&variant!=='A';
   const focus=readingFocus(project,view,width,height,points.find(note=>note.id===markerId),pose);
   const queue=[];
@@ -234,7 +242,7 @@ function renderFrame(canvas,pose,details=showDetails,variant='B',backend='auto',
       stroke(p,q,engravingStudy?'#cfc2e2':`rgb(${Math.round(110+shade*110)} ${Math.round(107+shade*100)} ${Math.round(137+shade*102)})`,engravingStudy?engraving.staffWidth*p.scale:Math.max(.65,p.perspective*1.2),.15);
     }
   }
-  if(engravingStudy)for(const y of score.staffLines)enqueueStaffLine(queue,ctx,project,view,y,engraving.staffWidth);
+  if(engravingStudy)for(const y of score.staffLines)enqueueStaffLine(queue,ctx,project,view,y,engraving.staffWidth,optimizationLevel>=2);
   const edges=engravingStudy?engraving.barlines.filter(line=>pose>=.85||line.x>view.x0+.01).map(line=>line.x)
     :[score.bars[30].xStart,...score.bars.slice(30,33).map(b=>b.xEnd)];
   for(const x of edges)for(let y=-8;y<0;y+=.25){
@@ -263,13 +271,14 @@ function renderFrame(canvas,pose,details=showDetails,variant='B',backend='auto',
     }});
   }
   if(engravingStudy&&page.querySelector('input').checked){
-    enqueueCompoundGroups(queue,ctx,groups,score,project,details);
+    enqueueCompoundGroups(queue,ctx,groups,score,project,details,profile,optimizationLevel>=3);
     enqueueRest(queue,ctx,engraving.rest,project);
   }
+  finish?.();
   if(engravingStudy){
     const focusEnabled=variant==='C'&&focus.blur;
-    const snapshot=paintDepthQueue(ctx,queue,surfaces,width,height,{fade:depthEnabled&&focus.fade,focusDistance:focus.distance,captureFocus:focusEnabled});
-    canvas.dataset.focusBackend=focusEnabled?applyFocusLayers(canvas,snapshot,width,focus.distance,backend):'none';
+    const snapshot=paintDepthQueue(ctx,queue,surfaces,width,height,{fade:depthEnabled&&focus.fade,focusDistance:focus.distance,captureFocus:focusEnabled,profile});
+    canvas.dataset.focusBackend=focusEnabled?applyFocusLayers(canvas,snapshot,width,focus.distance,backend,profile):'none';
     canvas.dataset.filterSupport=JSON.stringify(filterSupport());
     canvas.dataset.focusDistance=String(focus.distance);
     canvas.dataset.fadeEnabled=String(depthEnabled&&focus.fade);
@@ -298,6 +307,7 @@ function renderFrame(canvas,pose,details=showDetails,variant='B',backend='auto',
     canvas.dataset.crop=JSON.stringify({x,y,width:cropWidth,height:cropHeight});
   }
   canvas.dataset.drawMs=(performance.now()-started).toFixed(1);
+  canvas.dataset.optimization=String(optimizationLevel);
 }
 function draw(){
   for(const frame of frames)renderFrame(frame.canvas,frame.pose,frame.details??showDetails,frame.variant,focusBackend,frame.crop);
@@ -315,4 +325,5 @@ draw();
 if(engravingStudy){
   const sourceSystem=scoreRibbonData.systems.find(system=>system.bars.some(bar=>bar.number===31));
   comparison=mountFrontComparison(page,frames[0].canvas,score,sourceSystem,view);
+  mountDrawProfile(page,frames[1].canvas,renderFrame);
 }

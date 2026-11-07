@@ -15,11 +15,12 @@ export function clearFocusLayers(canvas){
 }
 
 /** Split already depth-tested coverage, retaining one compound object in the scene queue. */
-export function applyFocusLayers(canvas,snapshot,cssWidth,focusDistance,backend='auto'){
+export function applyFocusLayers(canvas,snapshot,cssWidth,focusDistance,backend='auto',profile=null){
+  let end=profile?.start('focusLayers');
   clearFocusLayers(canvas);
   const capabilities=filterSupport();
   const selected=backend==='css'?'css':capabilities.canvasFilter?'canvas':'css';
-  if(selected==='css'&&(!capabilities.cssFilter||!capabilities.cssAdd))return 'unsupported';
+  if(selected==='css'&&(!capabilities.cssFilter||!capabilities.cssAdd)){end?.();return 'unsupported';}
   const {image,coverage,depth,sharp}=snapshot;
   const layers=FOCUS_RADII.map(()=>{
     const layer=document.createElement('canvas');layer.width=canvas.width;layer.height=canvas.height;
@@ -37,13 +38,16 @@ export function applyFocusLayers(canvas,snapshot,cssWidth,focusDistance,backend=
     }
   }
   layers.forEach(layer=>layer.context.putImageData(layer.image,0,0));
+  end?.();end=profile?.start('composition');
   const ctx=canvas.getContext('2d');ctx.save();ctx.resetTransform();
   ctx.clearRect(0,0,canvas.width,canvas.height);
   if(selected==='canvas'){
     ctx.globalCompositeOperation='lighter';
     for(let i=layers.length-1;i>=0;i--){
       ctx.filter=`blur(${FOCUS_RADII[i]*canvas.width/cssWidth}px)`;
+      const finish=profile?.start(FOCUS_RADII[i]?'blurSubmit':'composition');
       ctx.drawImage(layers[i].canvas,0,0);
+      finish?.();
     }
     ctx.filter='none';ctx.globalCompositeOperation='destination-over';
     ctx.fillStyle='#060609';ctx.fillRect(0,0,canvas.width,canvas.height);
@@ -57,5 +61,5 @@ export function applyFocusLayers(canvas,snapshot,cssWidth,focusDistance,backend=
       parent.append(layer);
     }
   }
-  ctx.restore();return selected;
+  ctx.restore();end?.();return selected;
 }

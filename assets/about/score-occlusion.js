@@ -32,7 +32,8 @@ export function polygonBounds(points, padding = 2) {
 /** Canvas paints each beam once. Coverage is depth-tested afterwards, not drawn as strips. */
 export function paintDepthQueue(context, queue, surfaces, cssWidth, cssHeight, options = {}) {
   if(typeof options==='boolean')options={fade:options};
-  const {fade=false,focusDistance=0,captureFocus=false}=options;
+  const {fade=false,focusDistance=0,captureFocus=false,profile=null}=options;
+  let finish=profile?.start('maskRaster');
   const width = context.canvas.width, height = context.canvas.height;
   const scale = width / cssWidth;
   const depth = new Float32Array(width * height).fill(-Infinity);
@@ -42,19 +43,37 @@ export function paintDepthQueue(context, queue, surfaces, cssWidth, cssHeight, o
   const sharp=captureFocus?new Uint8Array(width*height):null;
   const visibleDepth=captureFocus?new Float32Array(width*height).fill(-Infinity):null;
   for (const surface of surfaces) for (const triangle of quadTriangles(surface)) rasterDepth(depth, width, height, triangle, scale, 0, 0, owners);
+  finish?.();finish=profile?.start('composition');
   const output = context.createImageData(width, height);
   for (let i = 0; i < output.data.length; i += 4) {output.data[i]=6;output.data[i+1]=6;output.data[i+2]=9;output.data[i+3]=255;}
   context.clearRect(0, 0, cssWidth, cssHeight);
+  finish?.();
   for (const item of queue.sort((a, b) => a.depth - b.depth)) {
     const bounds = item.bounds ?? { x0: 0, y0: 0, x1: cssWidth, y1: cssHeight };
     const x0 = Math.max(0, Math.floor(bounds.x0 * scale)), y0 = Math.max(0, Math.floor(bounds.y0 * scale));
     const x1 = Math.min(width, Math.ceil(bounds.x1 * scale)), y1 = Math.min(height, Math.ceil(bounds.y1 * scale));
     if (x1 <= x0 || y1 <= y0) continue;
-    item.paint();
+    finish=profile?.start('pathDraw');item.paint();finish?.();
+    finish=profile?.start('maskReadback');
     const pixels = context.getImageData(x0, y0, x1 - x0, y1 - y0);
+    finish?.();finish=profile?.start('maskRaster');
     const localDepth = item.depthTriangles ? new Float32Array(pixels.width * pixels.height).fill(-Infinity) : null;
     const localOwners = item.kind==='staff-line'?new Float32Array(pixels.width*pixels.height).fill(-1):null;
     if (localDepth) for (const triangle of item.depthTriangles) rasterDepth(localDepth, pixels.width, pixels.height, triangle, scale, x0, y0,localOwners);
+    finish?.();
+    const accepted=profile?[]:null;
+    function shade(index,from,z,protectedInk){
+      let alpha=pixels.data[from+3]/255;
+      const appearance = fade&&!protectedInk ? depthAppearance(z,cssWidth,focusDistance) : {opacity:1,brightness:1,saturation:1};
+      alpha *= appearance.opacity;
+      const luminance = pixels.data[from]*.2126+pixels.data[from+1]*.7152+pixels.data[from+2]*.0722;
+      const to = index * 4;
+      for (let channel = 0; channel < 3; channel++) output.data[to + channel] =
+        (luminance+(pixels.data[from+channel]-luminance)*appearance.saturation)*appearance.brightness*alpha + output.data[to + channel] * (1 - alpha);
+      if (pixels.data[from+3] > 127) inkDepth[index] = Math.max(inkDepth[index], z);
+      if(captureFocus){coverage[index]=alpha+coverage[index]*(1-alpha);visibleDepth[index]=z;if(protectedInk)sharp[index]=1;}
+    }
+    finish=profile?.start('maskVisibility');
     for (let y = 0; y < pixels.height; y++) for (let x = 0; x < pixels.width; x++) {
       const local = y * pixels.width + x, from = local * 4;
       let alpha = pixels.data[from + 3] / 255;
@@ -67,17 +86,13 @@ export function paintDepthQueue(context, queue, surfaces, cssWidth, cssHeight, o
       if ((!ownSurface&&z < depth[index] - 1)||z<inkDepth[index]-1) continue;
       const px=(x0+x+.5)/scale,py=(y0+y+.5)/scale;
       const protectedInk=item.protectedHeads?.some(head=>(head.marker||-head.depth/cssWidth<=focusDistance+.001)&&px>=head.bounds.x0&&px<=head.bounds.x1&&py>=head.bounds.y0&&py<=head.bounds.y1);
-      const appearance = fade&&!protectedInk ? depthAppearance(z,cssWidth,focusDistance) : {opacity:1,brightness:1,saturation:1};
-      alpha *= appearance.opacity;
-      const luminance = pixels.data[from]*.2126+pixels.data[from+1]*.7152+pixels.data[from+2]*.0722;
-      const to = index * 4;
-      for (let channel = 0; channel < 3; channel++) output.data[to + channel] =
-        (luminance+(pixels.data[from+channel]-luminance)*appearance.saturation)*appearance.brightness*alpha + output.data[to + channel] * (1 - alpha);
-      if (pixels.data[from+3] > 127) inkDepth[index] = Math.max(inkDepth[index], z);
-      if(captureFocus){coverage[index]=alpha+coverage[index]*(1-alpha);visibleDepth[index]=z;if(protectedInk)sharp[index]=1;}
+      if(accepted)accepted.push(index,from,z,protectedInk?1:0);
+      else shade(index,from,z,protectedInk);
     }
+    finish?.();
+    if(accepted){finish=profile.start('pixelFadeComposite');for(let i=0;i<accepted.length;i+=4)shade(accepted[i],accepted[i+1],accepted[i+2],accepted[i+3]);finish();}
     context.clearRect(bounds.x0, bounds.y0, bounds.x1 - bounds.x0, bounds.y1 - bounds.y0);
   }
-  context.putImageData(output, 0, 0);
+  finish=profile?.start('composition');context.putImageData(output, 0, 0);finish?.();
   return captureFocus?{image:output,coverage,sharp,depth:visibleDepth}:null;
 }
