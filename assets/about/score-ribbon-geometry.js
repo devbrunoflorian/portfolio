@@ -21,9 +21,10 @@ function loopPoint(t) {
 }
 
 /** Arc distance is measured in world units, before perspective. No mutable pose history. */
-export function createProjector(width, height, study, progress = 1, view = study) {
+export function createProjector(width, height, study, progress = 1, view = study, traveling = false) {
   const pose = clamp(progress ?? 1);
-  const fold = Math.sin(Math.PI * pose) ** 1.3;
+  const tail = clamp((1 - pose) / .25);
+  const fold = Math.sin(Math.PI * pose) ** 1.3 * (traveling ? tail * tail * (3 - 2 * tail) : 1);
   const rangeX = view.x1 - view.x0;
   const inset = width * .03;
   const unitScale = Math.min((width - inset * 2) / rangeX, (height - 76) / (study.y1 - study.y0));
@@ -58,6 +59,14 @@ export function createProjector(width, height, study, progress = 1, view = study
     previousTangent = tangent;
   });
   const totalLength = samples.at(-1).distance;
+  const journey = Math.sin(Math.PI * pose) ** 2;
+  const cameraPosition = traveling ? [width * .22 * Math.sin(pose * Math.PI * 2) * journey,
+    -height * .18 * journey, width * (1.45 - .3 * journey)] : [0, 0, width * 1.45];
+  const cameraTarget = traveling ? [width * .16 * Math.sin(Math.PI * pose) * journey,
+    height * .38 * journey, width * .12 * journey] : [0,0,0];
+  const forward = normalize(subtract(cameraTarget,cameraPosition));
+  const right = normalize(cross(forward,[0,1,0]));
+  const up = normalize(cross(right,forward));
   const project = (x, y) => {
     const u = (x - view.x0) / rangeX;
     const distance = clamp(u) * totalLength;
@@ -74,11 +83,18 @@ export function createProjector(width, height, study, progress = 1, view = study
     const transverse = normalize(a.normal.map((v, i) => mix(v, b.normal[i], t)));
     const offset = (y - middle) * unitScale;
     const point = position.map((v, i) => v + transverse[i] * offset);
-    const perspective = width * 1.45 / (width * 1.45 - point[2]);
-    return { x: width * .5 + point[0] * perspective, y: height * .5 + point[1] * perspective,
-      depth: point[2], perspective, scale: unitScale * perspective, u };
+    const relative = subtract(point,cameraPosition);
+    const distanceToCamera = dot(relative,forward);
+    const perspective = width * 1.45 / distanceToCamera;
+    return { x: width * .5 + dot(relative,right) * perspective, y: height * .5 + dot(relative,up) * perspective,
+      depth: -distanceToCamera, perspective, scale: unitScale * perspective, u };
   };
   project.samples = samples;
   project.arcLength = totalLength;
+  project.camera = { position: cameraPosition, target: cameraTarget, forward };
   return project;
+}
+
+export function createTravelProjector(width,height,study,progress,view=study) {
+  return createProjector(width,height,study,progress,view,true);
 }

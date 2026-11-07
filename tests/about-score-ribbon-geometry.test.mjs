@@ -1,8 +1,35 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createProjector } from "../assets/about/score-ribbon-geometry.js";
+import { createProjector, createTravelProjector } from "../assets/about/score-ribbon-geometry.js";
 
 const study = { x0: 0, x1: 160, y0: -18, y1: 12, staffLines: [-8, -6, -4, -2, 0] };
+
+test('travel moves the observer and its look direction and retraces the same pose', () => {
+  const a=createTravelProjector(1280,800,study,.25);
+  const b=createTravelProjector(1280,800,study,.65);
+  assert.ok(Math.hypot(...a.camera.position.map((v,i)=>v-b.camera.position[i]))>100);
+  assert.ok(Math.hypot(...a.camera.forward.map((v,i)=>v-b.camera.forward[i]))>.1);
+  const down=createTravelProjector(1280,800,study,.5)(125,-2);
+  const up=createTravelProjector(1280,800,study,1-.5)(125,-2);
+  assert.deepEqual(down,up);
+});
+
+test('travel has bounded discrete curvature and tangent turn around the 90 percent arrival', () => {
+  for(let progress=.875;progress<=.950001;progress+=.0025){
+    const samples=createTravelProjector(1280,800,study,progress).samples;
+    for(let i=1;i<samples.length-1;i++){
+      const v=samples[i].position.map((x,j)=>x-samples[i-1].position[j]);
+      const w=samples[i+1].position.map((x,j)=>x-samples[i].position[j]);
+      const l=Math.hypot(...v),r=Math.hypot(...w);
+      assert.ok(l>0 && r>0,'No collapsed tangent');
+      const cross=[v[1]*w[2]-v[2]*w[1],v[2]*w[0]-v[0]*w[2],v[0]*w[1]-v[1]*w[0]];
+      const curvature=2*Math.hypot(...cross)/(l*r*(l+r));
+      const turn=Math.acos(Math.max(-1,Math.min(1,v.reduce((sum,x,j)=>sum+x*w[j],0)/(l*r))));
+      assert.ok(curvature<.05,'Curvature exceeds the inspected arrival bound');
+      assert.ok(turn<.07,'Visible tangent kink');
+    }
+  }
+});
 
 test('entry crosses the left border and Music occupies 94 percent of the frame', () => {
   const entry = createProjector(1280, 800, study, 0);

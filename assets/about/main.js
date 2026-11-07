@@ -5,7 +5,7 @@ import { createScoreVisual, scoreStageOffsets } from "./score-visual.js";
 
 const root = document.querySelector(".about-main");
 const query = new URLSearchParams(window.location.search);
-if (query.get('score-gate') === '2a') import('./score-fold-gate.js');
+if (['2a','2b'].includes(query.get('score-gate'))) import('./score-fold-gate.js?v=travel-1');
 const scoreGridStudyMode = query.get("score-grid") === "study";
 const scoreRibbonStudyMode = query.get("score-ribbon") === "study";
 const scoreRibbonStoryboardMode = query.get("score-ribbon") === "storyboard";

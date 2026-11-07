@@ -1,6 +1,8 @@
 import { scoreRibbonData } from './score-ribbon-data.js';
 import { scoreRibbonTimeline as score } from './score-ribbon-timeline.js';
-import { createProjector } from './score-ribbon-geometry.js?v=gate-depth-2';
+import { createProjector, createTravelProjector } from './score-ribbon-geometry.js?v=travel-1';
+
+const traveling = new URLSearchParams(location.search).get('score-gate') === '2b';
 
 document.querySelector('.about-main').hidden = true;
 const page = document.createElement('main');
@@ -32,6 +34,7 @@ style.textContent = `
 @media(max-width:700px){.fold-gate-poses,.fold-gate-film{grid-template-columns:1fr}.fold-gate{padding:0 16px}}
 `;
 document.head.append(style);
+style.textContent += '.travel-panel{margin:24px 0}.travel-panel canvas{width:100%;aspect-ratio:1.8;display:block;background:#08080e;border:1px solid #383044}.travel-controls{display:flex;gap:16px;align-items:center;flex-wrap:wrap}.travel-controls input{width:min(400px,50vw)}.travel-controls button{padding:10px 18px;background:#30203e;border:1px solid #8562ac;color:#eee}.travel-scroll{height:160vh}.travel-sticky{position:sticky;top:74px;background:#060609;padding:10px 0}.travel-sticky canvas{max-height:65vh;object-fit:contain}';
 const view = { x0: score.bars[30].xStart, x1: score.bars[32].xEnd };
 const steps = [0,0,1,1,2,3,3,4,4,5,5,6];
 const glyphs = new Map(score.pdfGlyphs.filter(g => g.noteId).map(g => [g.noteId,g]));
@@ -41,6 +44,50 @@ const points = heads.map(head=>({
   y:-((Math.floor(head.writtenMidi/12)-1)*7+steps[head.writtenMidi%12]-30),
 }));
 const markerId = 'guitar-33-4-1';
+let liveCanvas, poseSlider, liveLabel, pairDown, pairUp, animationFrame = 0;
+let direction = 1, lastTime = 0;
+let manualPose = false;
+if(traveling){
+  page.querySelector('h1').textContent='Fita musical · câmera em viagem';
+  const panel=document.createElement('section');
+  panel.className='travel-panel';
+  panel.innerHTML='<div class="travel-scroll"><div class="travel-sticky"><div class="travel-controls"><button type="button" data-play>Reproduzir ida e volta</button><label>Posição <input aria-label="Posição da câmera" type="range" min="0" max="1000" value="0"></label><output>↓ 0.0%</output></div><p>31 · 32 vazio · 33 — nota dourada guitar-33-4-1</p><canvas aria-label="Passagem contínua com câmera viajando"></canvas></div></div><h2>Mesma posição, sentidos opostos</h2><div class="fold-gate-poses" data-pair><figure><figcaption data-down>↓ 0%</figcaption><canvas></canvas></figure><figure><figcaption data-up>↑ 0%</figcaption><canvas></canvas></figure></div>';
+  page.querySelector('.fold-gate-poses').before(panel);
+  liveCanvas=panel.querySelector('.travel-sticky canvas');
+  poseSlider=panel.querySelector('input');liveLabel=panel.querySelector('output');
+  pairDown=panel.querySelector('[data-pair] figure:first-child canvas');
+  pairUp=panel.querySelector('[data-pair] figure:last-child canvas');
+  function live(){
+    const p=Number(poseSlider.value)/1000;
+    renderFrame(liveCanvas,p);renderFrame(pairDown,p);renderFrame(pairUp,1-(1-p));
+    liveLabel.value=(direction===1?'↓ ':'↑ ')+(p*100).toFixed(1)+'%';
+    panel.querySelector('[data-down]').textContent='↓ '+(p*100).toFixed(1)+'% · '+markerId;
+    panel.querySelector('[data-up]').textContent='↑ '+(p*100).toFixed(1)+'% · '+markerId;
+  }
+  function stop(){cancelAnimationFrame(animationFrame);animationFrame=0;panel.querySelector('[data-play]').textContent='Reproduzir ida e volta';}
+  function tick(now){
+    let next=Number(poseSlider.value)+direction*(lastTime?Math.min(50,now-lastTime):0)/8;
+    lastTime=now;if(next>=1000){next=1000;direction=-1;}else if(next<=0){next=0;direction=1;}
+    poseSlider.value=String(next);live();animationFrame=requestAnimationFrame(tick);
+  }
+  panel.querySelector('[data-play]').addEventListener('click',()=>{
+    if(animationFrame){stop();return;}lastTime=0;panel.querySelector('[data-play]').textContent='Pausar';animationFrame=requestAnimationFrame(tick);
+  });
+  poseSlider.addEventListener('input',()=>{manualPose=true;stop();live();});
+  const followScroll=document.createElement('button');
+  followScroll.type='button';followScroll.textContent='Seguir scroll';
+  panel.querySelector('.travel-controls').append(followScroll);
+  followScroll.addEventListener('click',()=>{stop();manualPose=false;});
+  addEventListener('scroll',()=>{
+    if(animationFrame||manualPose)return;
+    const bounds=panel.querySelector('.travel-scroll').getBoundingClientRect();
+    if(bounds.top>90||bounds.bottom<innerHeight*.5)return;
+    const next=Math.max(0,Math.min(1000,(80-bounds.top)/Math.max(1,bounds.height-innerHeight*.7)*1000));
+    direction=next>=Number(poseSlider.value)?1:-1;poseSlider.value=String(next);live();
+  },{passive:true});
+  addEventListener('pagehide',stop,{once:true});
+  requestAnimationFrame(live);
+}
 const empty32 = points.filter(point=>point.bar===32).length;
 if(empty32!==0 || points.some(p=>!Number.isInteger(p.y))) throw new Error('Invalid source grid.');
 page.querySelector('[data-gate-check]').textContent = `${points.length} pontos reais · compasso 32: ${empty32} ataques · mesma projeção em todos os quadros.`;
@@ -61,7 +108,7 @@ function addFrame(container,pose,label){
   canvas.setAttribute('aria-label',label+' · '+markerId);
   figure.append(caption,canvas);container.append(figure);frames.push({canvas,pose});
 }
-[0,.35,.6,1].forEach((p,i)=>addFrame(page.querySelector('.fold-gate-poses'),p,
+[0,.35,.6,1].forEach((p,i)=>addFrame(page.querySelector('.fold-gate > .fold-gate-poses'),p,
   `${Math.round(p*100)}% · ${['Entrada pela borda','Retorno','Passagem próxima','Music frontal'][i]}`));
 for(let i=0;i<12;i++){
   addFrame(page.querySelector('.fold-gate-film'),i/11,`↓ ${(i/11*100).toFixed(1)}% · ${markerId}`);
@@ -71,7 +118,7 @@ function renderFrame(canvas,pose){
   const width=canvas.clientWidth,height=width/1.8;
   canvas.width=Math.round(width*2);canvas.height=Math.round(height*2);
   const ctx=canvas.getContext('2d');ctx.scale(2,2);
-  const project=createProjector(width,height,score,pose,view);
+  const project=(traveling?createTravelProjector:createProjector)(width,height,score,pose,view);
   const queue=[];
   const divisions=280;
   function stroke(a,b,color,thickness,depthBias=0){
@@ -100,10 +147,6 @@ function renderFrame(canvas,pose){
   for(const x of edges)for(let y=-8;y<0;y+=.25){
     const a=project(x,y),b=project(x,y+.25);stroke(a,b,'#d5c6e8',Math.max(.75,a.perspective*1.4),.2);
   }
-  for(const bar of score.bars.slice(30,33)){
-    const p=project((bar.xStart+bar.xEnd)/2,-10);
-    queue.push({depth:p.depth+.3,paint(){ctx.font='12px system-ui';ctx.fillStyle='#c6afd9';ctx.fillText(bar.number===32?'32 · vazio':String(bar.number),p.x,p.y);}});
-  }
   if(page.querySelector('input').checked)for(const note of points){
     const p=project(note.x,note.y);
     for(let y=2;y<=note.y;y+=2)stroke(project(note.x-1.6,y),project(note.x+1.6,y),'#b8accb',Math.max(.8,p.perspective),.25);
@@ -116,10 +159,19 @@ function renderFrame(canvas,pose){
   }
   queue.sort((a,b)=>a.depth-b.depth).forEach(item=>item.paint());
   canvas.dataset.pose=String(pose);
+  canvas.dataset.camera=JSON.stringify(project.camera);
+  const marked = points.find(note=>note.id===markerId);
+  canvas.dataset.marker=JSON.stringify(project(marked.x,marked.y));
 }
-function draw(){for(const frame of frames)renderFrame(frame.canvas,frame.pose);}
+function draw(){
+  for(const frame of frames)renderFrame(frame.canvas,frame.pose);
+  if(liveCanvas){
+    const pose=Number(poseSlider.value)/1000;
+    renderFrame(liveCanvas,pose);renderFrame(pairDown,pose);renderFrame(pairUp,1-(1-pose));
+  }
+}
 const observer=new ResizeObserver(draw);
-observer.observe(page.querySelector('.fold-gate-poses'));
+observer.observe(page.querySelector('.fold-gate > .fold-gate-poses'));
 page.querySelector('input').addEventListener('change',draw);
 addEventListener('pagehide',()=>observer.disconnect(),{once:true});
 draw();
