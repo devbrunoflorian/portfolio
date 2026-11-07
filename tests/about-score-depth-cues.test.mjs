@@ -4,21 +4,44 @@ import {depthAppearance,DEPTH_BANDS} from '../assets/about/score-occlusion.js';
 import {enqueueStaffLine,HALO_HALF_WIDTH,staffInk} from '../assets/about/score-depth-cues.js';
 import {createTravelProjector} from '../assets/about/score-travel-geometry.js';
 import {scoreRibbonTimeline as score} from '../assets/about/score-ribbon-timeline.js';
+import {readingFocus,focusWeights} from '../assets/about/score-focus-profile.js';
 const view={x0:score.bars[30].xStart,x1:score.bars[32].xEnd};
 
 test('near/far bands are independent of viewport scale and decrease all three cues monotonically',()=>{
-  assert.deepEqual(depthAppearance(-DEPTH_BANDS.near*1000,1000),{opacity:1,brightness:1,saturation:1});
-  const far=depthAppearance(-DEPTH_BANDS.far*1000,1000);
+  const focus=2;
+  assert.deepEqual(depthAppearance(-focus*1000,1000,focus),{opacity:1,brightness:1,saturation:1});
+  const far=depthAppearance(-(focus+DEPTH_BANDS.farOffset)*1000,1000,focus);
   assert.ok(Math.abs(far.opacity-.32)<1e-10);
   assert.ok(Math.abs(far.brightness-.72)<1e-10);
   assert.ok(Math.abs(far.saturation-.2)<1e-10);
   let previous={opacity:1,brightness:1,saturation:1};
   for(let i=0;i<=30;i++){
-    const distance=1.35+i/30;
-    const current=depthAppearance(-distance*1000,1000);
-    assert.deepEqual(current,depthAppearance(-distance*500,500));
+    const distance=focus+i/30;
+    const current=depthAppearance(-distance*1000,1000,focus);
+    assert.deepEqual(current,depthAppearance(-distance*500,500,focus));
     for(const property of ['opacity','brightness','saturation'])assert.ok(current[property]<=previous[property]+1e-10);
     previous=current;
+  }
+});
+
+test('reading plane includes the visible gold note; 40% and frontal never fade and frontal never blurs',()=>{
+  const marker={x:score.pdfGlyphs.find(g=>g.noteId==='guitar-33-4-1').x,y:-2};
+  for(const pose of [.13,.4,1]){
+    const project=createTravelProjector(1280,711,score,pose,view);
+    const focus=readingFocus(project,view,1280,711,marker,pose);
+    assert.ok(focus.distance>=-project(marker.x,marker.y).depth/1280-1e-6);
+    if(pose>=.4)assert.equal(focus.fade,false);
+    if(pose===1)assert.equal(focus.blur,false);
+  }
+});
+
+test('focus band weights preserve coverage and always protect foreground heads and gold',()=>{
+  for(let offset=-1;offset<1;offset+=.013){
+    const weights=focusWeights(-(2+offset)*1000,1000,2);
+    assert.ok(weights.every(w=>w>=0&&w<=1));
+    assert.ok(Math.abs(weights.reduce((a,b)=>a+b,0)-1)<1e-12);
+    assert.deepEqual(focusWeights(-(2+offset)*1000,1000,2,true),[1,0,0,0]);
+    if(offset<=.05)assert.deepEqual(weights,[1,0,0,0]);
   }
 });
 

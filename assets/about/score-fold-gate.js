@@ -4,8 +4,10 @@ import { createProjector } from './score-ribbon-geometry.js?v=travel-1';
 import { createTravelProjector } from './score-travel-geometry.js?v=compound-2';
 import { noteHeadStemPairs, projectHeadStem } from './score-head-stems.js';
 import { buildEngraving, enqueueRest, projectedRest } from './score-engraving.js?v=compound-1';
-import { buildCompoundGroups, enqueueCompoundGroups } from './score-compound-groups.js?v=depth-1';
-import { paintDepthQueue, polygonBounds, SCORE_BACKGROUND, DEPTH_BANDS } from './score-occlusion.js?v=depth-3';
+import { buildCompoundGroups, enqueueCompoundGroups } from './score-compound-groups.js?v=focus-1';
+import { paintDepthQueue, polygonBounds, SCORE_BACKGROUND, DEPTH_BANDS } from './score-occlusion.js?v=focus-1';
+import {readingFocus,FOCUS_RADII} from './score-focus-profile.js';
+import {applyFocusLayers,clearFocusLayers,filterSupport} from './score-focus-layers.js?v=2';
 import { enqueueStaffLine, HALO_HALF_WIDTH } from './score-depth-cues.js?v=depth-2';
 import { mountFrontComparison } from './score-front-comparison.js';
 
@@ -58,6 +60,7 @@ const headStems = glyphStudy ? noteHeadStemPairs(score,points) : [];
 const engraving = engravingStudy ? buildEngraving(score,points,view) : null;
 const groups = engravingStudy ? buildCompoundGroups(engraving,score) : [];
 let showDetails = new URLSearchParams(location.search).get('notation') !== 'compact';
+let focusBackend='auto';
 if(glyphStudy){
   page.querySelector('h1').textContent='Cabeças e hastes · frente e proximidade';
   page.querySelector('label').lastChild.textContent=' Mostrar cabeças e hastes';
@@ -69,7 +72,7 @@ if(engravingStudy){
   page.classList.add('engraving-gate');
   page.querySelector('h1').textContent='Gravura musical · frente e proximidade';
   page.querySelector('label').lastChild.textContent=' Mostrar notação';
-  page.querySelector('h1 + p').textContent='Guitarra, compassos 31–33. Seis beams de tercina, seis cifras e colchetes; D♯5 no compasso 31. O compasso 32 segue a decisão atual: pausa de compasso inteiro. Sem vozes, mouse ou blur.';
+  page.querySelector('h1 + p').textContent='Guitarra, compassos 31–33. B: recorte e esmaecimento atrás do plano de leitura. C: o mesmo B com foco por profundidade. Sem vozes, mouse ou áudio.';
   style.textContent += '.engraving-gate > .fold-gate-poses{grid-template-columns:1fr}.engraving-gate figure,.engraving-gate canvas{background:#060609}';
   const detailLabel=document.createElement('label');
   detailLabel.innerHTML='<input type="checkbox" data-details> Tercinas completas (desmarque para comparar a versão simplificada)';
@@ -136,13 +139,13 @@ for(const p of points){
 }
 const frames=[];
 let comparison;
-function addFrame(container,pose,label,details,variant='B'){
+function addFrame(container,pose,label,details,variant='B',crop=false){
   const figure=document.createElement('figure');
   const caption=document.createElement('figcaption');
   caption.textContent=label;
   const canvas=document.createElement('canvas');
   canvas.setAttribute('aria-label',label+' · '+markerId);
-  figure.append(caption,canvas);container.append(figure);frames.push({canvas,pose,details,variant});
+  figure.append(caption,canvas);container.append(figure);frames.push({canvas,pose,details,variant,crop});
 }
 (engravingStudy?[1,.13,.4]:glyphStudy?[1,.13]:[0,.35,.6,1]).forEach((p,i)=>addFrame(page.querySelector('.fold-gate > .fold-gate-poses'),p,
   `${Math.round(p*100)}% · ${(glyphStudy?['Music frontal','Passagem próxima','Passagem intermediária']:['Entrada pela borda','Retorno','Passagem próxima','Music frontal'])[i]}`));
@@ -153,20 +156,55 @@ for(let i=0;!glyphStudy&&i<12;i++){
 if(engravingStudy){
   const alternatives=document.createElement('section');
   alternatives.className='notation-alternatives';
-  alternatives.innerHTML='<h2>A × B · clareza por profundidade</h2><p>Mesma câmera: A sem novas pistas; B com recorte e esmaecimento. C (desfoque) aguarda sua aprovação de B. As cinco linhas são contornos contínuos em ambas.</p>';
+  alternatives.innerHTML='<h2>B corrigido × C · foco relativo</h2><p>Frente e nota dourada protegidas. Em 40% e 100%, sem esmaecimento; a frontal também não recebe blur. C usa faixas de 0 / 0,8 / 1,6 / 2,8 px, apenas atrás do plano de leitura.</p>';
+  const fallback=document.createElement('label');fallback.innerHTML='<input type="checkbox"> Testar C com canvases separados e blur CSS';
+  fallback.querySelector('input').addEventListener('change',event=>{
+    focusBackend=event.target.checked?'css':'auto';
+    for(const frame of frames.filter(frame=>frame.variant==='C'))renderFrame(frame.canvas,frame.pose,true,'C',focusBackend);
+  });alternatives.append(fallback);
   for(const pose of [.13,.4]){
     const row=document.createElement('div');row.className='fold-gate-poses';alternatives.append(row);
-    addFrame(row,pose,`${Math.round(pose*100)}% · A sem pistas`,true,'A');
-    addFrame(row,pose,`${Math.round(pose*100)}% · B recorte e esmaecer`,true,'B');
+    row.dataset.comparison=String(pose);
+    addFrame(row,pose,`${Math.round(pose*100)}% · B corrigido`,true,'B');
+    addFrame(row,pose,`${Math.round(pose*100)}% · C foco por profundidade`,true,'C');
   }
+  const crossing=document.createElement('div');crossing.className='fold-gate-poses';crossing.dataset.crossing='true';
+  alternatives.append(crossing);
+  addFrame(crossing,.13,'13% · A cruzamento ampliado',true,'A',true);
+  addFrame(crossing,.13,'13% · B cruzamento ampliado',true,'B',true);
+  const strip=document.createElement('section');strip.dataset.strip='true';
+  strip.innerHTML='<h2>Passagem próxima · 12 quadros de 0% a 50%</h2><div class="focus-strip"></div>';
+  alternatives.append(strip);
+  style.textContent+='.focus-strip{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}.focus-strip figcaption{font-size:12px;padding:6px}.focus-benchmark{white-space:pre-wrap;font:13px/1.4 monospace}.focus-measure{padding:12px 18px;background:#30203e;color:#eee;border:1px solid #8562ac}';
+  for(let i=0;i<12;i++)addFrame(strip.querySelector('div'),i*.5/11,`${(i*50/11).toFixed(1)}% · mesma nota dourada`,true,'B');
+  const measure=document.createElement('button');measure.className='focus-measure';measure.textContent='Medir B / C / fallback CSS';
+  const report=document.createElement('pre');report.className='focus-benchmark';report.dataset.benchmark='true';
+  alternatives.append(measure,report);
+  measure.addEventListener('click',async()=>{
+    measure.disabled=true;const results=[];const canvas=frames[1].canvas;
+    for(const pose of [.13,.4])for(const [variant,backend] of [['B','auto'],['C','auto'],['C','css']]){
+      const samples=[];
+      for(let i=0;i<3;i++){
+        await new Promise(requestAnimationFrame);const start=performance.now();
+        renderFrame(canvas,pose,true,variant,backend);
+        const cpu=performance.now()-start;await new Promise(requestAnimationFrame);
+        samples.push({cpuMs:+cpu.toFixed(1),rafMs:+(performance.now()-start).toFixed(1)});
+      }
+      results.push({pose,variant,requested:backend,actual:canvas.dataset.focusBackend,width:canvas.clientWidth,height:canvas.clientHeight,samples});
+    }
+    report.textContent=JSON.stringify({support:filterSupport(),devicePixelRatio,bufferScale:2,results},null,2);
+    renderFrame(canvas,.13,true,'B');measure.disabled=false;
+  });
   page.querySelector('.fold-gate > .fold-gate-poses').after(alternatives);
 }
-function renderFrame(canvas,pose,details=showDetails,variant='B'){
+function renderFrame(canvas,pose,details=showDetails,variant='B',backend='auto',crop=false){
+  const started=performance.now();clearFocusLayers(canvas);
   const width=canvas.clientWidth,height=width/1.8;
   canvas.width=Math.round(width*2);canvas.height=Math.round(height*2);
   const ctx=canvas.getContext('2d');ctx.scale(2,2);
   const project=(traveling?createTravelProjector:createProjector)(width,height,score,pose,view);
-  const depthEnabled=engravingStudy&&pose<.85&&variant==='B';
+  const depthEnabled=engravingStudy&&pose<.85&&variant!=='A';
+  const focus=readingFocus(project,view,width,height,points.find(note=>note.id===markerId),pose);
   const queue=[];
   const surfaces=[];
   const divisions=280;
@@ -229,7 +267,13 @@ function renderFrame(canvas,pose,details=showDetails,variant='B'){
     enqueueRest(queue,ctx,engraving.rest,project);
   }
   if(engravingStudy){
-    paintDepthQueue(ctx,queue,surfaces,width,height,depthEnabled);
+    const focusEnabled=variant==='C'&&focus.blur;
+    const snapshot=paintDepthQueue(ctx,queue,surfaces,width,height,{fade:depthEnabled&&focus.fade,focusDistance:focus.distance,captureFocus:focusEnabled});
+    canvas.dataset.focusBackend=focusEnabled?applyFocusLayers(canvas,snapshot,width,focus.distance,backend):'none';
+    canvas.dataset.filterSupport=JSON.stringify(filterSupport());
+    canvas.dataset.focusDistance=String(focus.distance);
+    canvas.dataset.fadeEnabled=String(depthEnabled&&focus.fade);
+    canvas.dataset.blurEnabled=String(focusEnabled);
     canvas.dataset.variant=variant;
     canvas.dataset.depthEnabled=String(depthEnabled);
     canvas.dataset.depthBands=JSON.stringify(DEPTH_BANDS);
@@ -245,9 +289,18 @@ function renderFrame(canvas,pose,details=showDetails,variant='B'){
   canvas.dataset.camera=JSON.stringify(project.camera);
   const marked = points.find(note=>note.id===markerId);
   canvas.dataset.marker=JSON.stringify(project(marked.x,marked.y));
+  if(crop){
+    const copy=document.createElement('canvas');copy.width=canvas.width;copy.height=canvas.height;copy.getContext('2d').drawImage(canvas,0,0);
+    const anchor=project(marked.x,-4),cropWidth=width*.42,cropHeight=height*.42;
+    const x=Math.max(0,Math.min(width-cropWidth,anchor.x-cropWidth*.5));
+    const y=Math.max(0,Math.min(height-cropHeight,anchor.y-cropHeight*.5));
+    ctx.save();ctx.resetTransform();ctx.drawImage(copy,x*2,y*2,cropWidth*2,cropHeight*2,0,0,canvas.width,canvas.height);ctx.restore();
+    canvas.dataset.crop=JSON.stringify({x,y,width:cropWidth,height:cropHeight});
+  }
+  canvas.dataset.drawMs=(performance.now()-started).toFixed(1);
 }
 function draw(){
-  for(const frame of frames)renderFrame(frame.canvas,frame.pose,frame.details??showDetails,frame.variant);
+  for(const frame of frames)renderFrame(frame.canvas,frame.pose,frame.details??showDetails,frame.variant,focusBackend,frame.crop);
   comparison?.draw();
   if(liveCanvas){
     const pose=Number(poseSlider.value)/1000;

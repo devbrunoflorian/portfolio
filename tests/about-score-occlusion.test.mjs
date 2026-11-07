@@ -25,3 +25,18 @@ test('a depth-only surface produces exactly the background and hides distant ink
   paintDepthQueue(context,[{depth:-5,paint(){current=[255,0,0,255];}}],[surface],4,4);
   assert.deepEqual([...result.data.slice(0,4)],[255,0,0,255]);
 });
+
+test('one compound item fades by local pixel depth; gold and foreground heads retain full ink',()=>{
+  let result;
+  const context={canvas:{width:4,height:1},createImageData(w,h){return{width:w,height:h,data:new Uint8ClampedArray(w*h*4)};},clearRect(){},
+    getImageData(x,y,w,h){const image=this.createImageData(w,h);for(let i=0;i<image.data.length;i+=4)image.data.set([200,180,220,255],i);return image;},putImageData(image){result=image;}};
+  const item={depth:-100,depthAt(x){return x<1?-8:-12;},paint(){},protectedHeads:[
+    {bounds:{x0:0,y0:0,x1:1,y1:1},depth:-8,marker:false},
+    {bounds:{x0:3,y0:0,x1:4,y1:1},depth:-12,marker:true}
+  ]};
+  paintDepthQueue(context,[item],[],4,1,{fade:true,focusDistance:2});
+  const pixel=x=>[...result.data.slice(x*4,x*4+4)];
+  assert.deepEqual(pixel(0),[200,180,220,255]);
+  assert.ok(pixel(1)[0]<100);
+  assert.deepEqual(pixel(3),[200,180,220,255]);
+});

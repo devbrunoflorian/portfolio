@@ -1,11 +1,6 @@
 export const SCORE_BACKGROUND = '#060609';
-// Camera distance / viewport width, independent of device pixel ratio.
-export const DEPTH_BANDS = { near: 1.35, far: 2.3, farOpacity: .32, farBrightness: .72, farSaturation: .2 };
-export function depthAppearance(depth, viewportWidth) {
-  const t=Math.max(0,Math.min(1,(-depth/viewportWidth-DEPTH_BANDS.near)/(DEPTH_BANDS.far-DEPTH_BANDS.near)));
-  const ease=t*t*(3-2*t);
-  return {opacity:1+(DEPTH_BANDS.farOpacity-1)*ease,brightness:1+(DEPTH_BANDS.farBrightness-1)*ease,saturation:1+(DEPTH_BANDS.farSaturation-1)*ease};
-}
+import {depthAppearance} from './score-focus-profile.js';
+export {depthAppearance,DEPTH_BANDS} from './score-focus-profile.js';
 
 /** Depth is negative camera distance: the larger value is closer. No surface ink is painted. */
 export function rasterDepth(buffer, width, height, triangle, scale = 1, originX = 0, originY = 0, owners = null) {
@@ -35,12 +30,17 @@ export function polygonBounds(points, padding = 2) {
 }
 
 /** Canvas paints each beam once. Coverage is depth-tested afterwards, not drawn as strips. */
-export function paintDepthQueue(context, queue, surfaces, cssWidth, cssHeight, fade = false) {
+export function paintDepthQueue(context, queue, surfaces, cssWidth, cssHeight, options = {}) {
+  if(typeof options==='boolean')options={fade:options};
+  const {fade=false,focusDistance=0,captureFocus=false}=options;
   const width = context.canvas.width, height = context.canvas.height;
   const scale = width / cssWidth;
   const depth = new Float32Array(width * height).fill(-Infinity);
   const owners = new Float32Array(width * height).fill(-1);
   const inkDepth = new Float32Array(width * height).fill(-Infinity);
+  const coverage=captureFocus?new Float32Array(width*height):null;
+  const sharp=captureFocus?new Uint8Array(width*height):null;
+  const visibleDepth=captureFocus?new Float32Array(width*height).fill(-Infinity):null;
   for (const surface of surfaces) for (const triangle of quadTriangles(surface)) rasterDepth(depth, width, height, triangle, scale, 0, 0, owners);
   const output = context.createImageData(width, height);
   for (let i = 0; i < output.data.length; i += 4) {output.data[i]=6;output.data[i+1]=6;output.data[i+2]=9;output.data[i+3]=255;}
@@ -65,15 +65,19 @@ export function paintDepthQueue(context, queue, surfaces, cssWidth, cssHeight, f
         : item.depthAt ? item.depthAt((x0+x+.5)/scale,(y0+y+.5)/scale) : item.depth;
       const ownSurface=localOwners?Math.abs((fallback?.u??localOwners[local])-owners[index])<.01:item.range&&owners[index]>=item.range[0]&&owners[index]<=item.range[1];
       if ((!ownSurface&&z < depth[index] - 1)||z<inkDepth[index]-1) continue;
-      const appearance = fade ? depthAppearance(item.kind==='notation-group'?item.depth:z,cssWidth) : {opacity:1,brightness:1,saturation:1};
+      const px=(x0+x+.5)/scale,py=(y0+y+.5)/scale;
+      const protectedInk=item.protectedHeads?.some(head=>(head.marker||-head.depth/cssWidth<=focusDistance+.001)&&px>=head.bounds.x0&&px<=head.bounds.x1&&py>=head.bounds.y0&&py<=head.bounds.y1);
+      const appearance = fade&&!protectedInk ? depthAppearance(z,cssWidth,focusDistance) : {opacity:1,brightness:1,saturation:1};
       alpha *= appearance.opacity;
       const luminance = pixels.data[from]*.2126+pixels.data[from+1]*.7152+pixels.data[from+2]*.0722;
       const to = index * 4;
       for (let channel = 0; channel < 3; channel++) output.data[to + channel] =
         (luminance+(pixels.data[from+channel]-luminance)*appearance.saturation)*appearance.brightness*alpha + output.data[to + channel] * (1 - alpha);
       if (pixels.data[from+3] > 127) inkDepth[index] = Math.max(inkDepth[index], z);
+      if(captureFocus){coverage[index]=alpha+coverage[index]*(1-alpha);visibleDepth[index]=z;if(protectedInk)sharp[index]=1;}
     }
     context.clearRect(bounds.x0, bounds.y0, bounds.x1 - bounds.x0, bounds.y1 - bounds.y0);
   }
   context.putImageData(output, 0, 0);
+  return captureFocus?{image:output,coverage,sharp,depth:visibleDepth}:null;
 }

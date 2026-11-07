@@ -181,6 +181,7 @@ export function enqueueCompoundGroups(queue, context, groups, study, project, de
     const all = [...shape.beam, ...shape.stems.flatMap(s => s.points), ...shape.brackets.flat(), ...shape.heads.flatMap(h => h.contours.flat()), ...shape.accidents.flat(2), ...shape.ledgers.flatMap(l => l.points)];
     if (shape.number) all.push(shape.number);
     queue.push({ kind: 'notation-group', id: group.id, range: [Math.min(...all.map(p=>p.u))-.003, Math.max(...all.map(p=>p.u))+.003],
+      protectedHeads:shape.heads.map(head=>({bounds:polygonBounds(head.contours.flat(),1),depth:project(head.anchor.u,head.anchor.v).depth,marker:head.noteId===marker})),
       depth: shape.center.depth, depthTriangles: shape.depthTriangles, bounds: polygonBounds(all, Math.max(4, shape.center.scale * 5)), paint() {
         context.fillStyle = context.strokeStyle = ink;
         if (shape.beam.length) fill([shape.beam]);
