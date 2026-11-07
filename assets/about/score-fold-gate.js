@@ -1,8 +1,12 @@
 import { scoreRibbonData } from './score-ribbon-data.js';
 import { scoreRibbonTimeline as score } from './score-ribbon-timeline.js';
-import { createProjector, createTravelProjector } from './score-ribbon-geometry.js?v=travel-1';
+import { createProjector } from './score-ribbon-geometry.js?v=travel-1';
+import { createTravelProjector } from './score-travel-geometry.js?v=compound-2';
 import { noteHeadStemPairs, projectHeadStem } from './score-head-stems.js';
-import { buildEngraving, enqueueEngraving } from './score-engraving.js';
+import { buildEngraving, enqueueRest, projectedRest } from './score-engraving.js?v=compound-1';
+import { buildCompoundGroups, enqueueCompoundGroups } from './score-compound-groups.js?v=compound-2';
+import { paintDepthQueue, polygonBounds, SCORE_BACKGROUND } from './score-occlusion.js';
+import { mountFrontComparison } from './score-front-comparison.js';
 
 const gate = new URLSearchParams(location.search).get('score-gate');
 const engravingStudy = gate === '3b';
@@ -51,6 +55,8 @@ const points = heads.map(head=>({
 const markerId = 'guitar-33-4-1';
 const headStems = glyphStudy ? noteHeadStemPairs(score,points) : [];
 const engraving = engravingStudy ? buildEngraving(score,points,view) : null;
+const groups = engravingStudy ? buildCompoundGroups(engraving,score) : [];
+let showDetails = new URLSearchParams(location.search).get('notation') !== 'compact';
 if(glyphStudy){
   page.querySelector('h1').textContent='Cabeças e hastes · frente e proximidade';
   page.querySelector('label').lastChild.textContent=' Mostrar cabeças e hastes';
@@ -63,7 +69,12 @@ if(engravingStudy){
   page.querySelector('h1').textContent='Gravura musical · frente e proximidade';
   page.querySelector('label').lastChild.textContent=' Mostrar notação';
   page.querySelector('h1 + p').textContent='Guitarra, compassos 31–33. Seis beams de tercina, seis cifras e colchetes; D♯5 no compasso 31. O compasso 32 segue a decisão atual: pausa de compasso inteiro. Sem vozes, mouse ou blur.';
-  style.textContent += '.engraving-gate > .fold-gate-poses{grid-template-columns:1fr}';
+  style.textContent += '.engraving-gate > .fold-gate-poses{grid-template-columns:1fr}.engraving-gate figure,.engraving-gate canvas{background:#060609}';
+  const detailLabel=document.createElement('label');
+  detailLabel.innerHTML='<input type="checkbox" data-details> Tercinas completas (desmarque para comparar a versão simplificada)';
+  detailLabel.querySelector('input').checked=showDetails;
+  page.querySelector('[data-gate-check]').before(detailLabel);
+  detailLabel.querySelector('input').addEventListener('change',event=>{showDetails=event.target.checked;draw();});
 }
 let liveCanvas, poseSlider, liveLabel, pairDown, pairUp, animationFrame = 0;
 let direction = 1, lastTime = 0;
@@ -123,29 +134,44 @@ for(const p of points){
   page.querySelector('tbody').append(row);
 }
 const frames=[];
-function addFrame(container,pose,label){
+let comparison;
+function addFrame(container,pose,label,details){
   const figure=document.createElement('figure');
   const caption=document.createElement('figcaption');
   caption.textContent=label;
   const canvas=document.createElement('canvas');
   canvas.setAttribute('aria-label',label+' · '+markerId);
-  figure.append(caption,canvas);container.append(figure);frames.push({canvas,pose});
+  figure.append(caption,canvas);container.append(figure);frames.push({canvas,pose,details});
 }
-(glyphStudy?[1,.13]:[0,.35,.6,1]).forEach((p,i)=>addFrame(page.querySelector('.fold-gate > .fold-gate-poses'),p,
-  `${Math.round(p*100)}% · ${(glyphStudy?['Music frontal','Passagem próxima']:['Entrada pela borda','Retorno','Passagem próxima','Music frontal'])[i]}`));
+(engravingStudy?[1,.13,.4]:glyphStudy?[1,.13]:[0,.35,.6,1]).forEach((p,i)=>addFrame(page.querySelector('.fold-gate > .fold-gate-poses'),p,
+  `${Math.round(p*100)}% · ${(glyphStudy?['Music frontal','Passagem próxima','Passagem intermediária']:['Entrada pela borda','Retorno','Passagem próxima','Music frontal'])[i]}`));
 for(let i=0;!glyphStudy&&i<12;i++){
   addFrame(page.querySelector('.fold-gate-film'),i/11,`↓ ${(i/11*100).toFixed(1)}% · ${markerId}`);
   addFrame(page.querySelector('.fold-gate-film'),1-i/11,`↑ ${((1-i/11)*100).toFixed(1)}% · ${markerId}`);
 }
-function renderFrame(canvas,pose){
+if(engravingStudy){
+  const alternatives=document.createElement('section');
+  alternatives.className='notation-alternatives';
+  alternatives.innerHTML='<h2>Completa × simplificada · mesma câmera</h2><p>As duas versões preservam os mesmos grupos e âncoras. A simplificação omite colchetes, cifras e acidentes; não muda o trajeto.</p>';
+  for(const pose of [.13,.4]){
+    const row=document.createElement('div');row.className='fold-gate-poses';alternatives.append(row);
+    addFrame(row,pose,`${Math.round(pose*100)}% · Completa`,true);
+    addFrame(row,pose,`${Math.round(pose*100)}% · Simplificada`,false);
+  }
+  page.querySelector('.fold-gate > .fold-gate-poses').after(alternatives);
+}
+function renderFrame(canvas,pose,details=showDetails){
   const width=canvas.clientWidth,height=width/1.8;
   canvas.width=Math.round(width*2);canvas.height=Math.round(height*2);
   const ctx=canvas.getContext('2d');ctx.scale(2,2);
-  const project=(traveling?createTravelProjector:createProjector)(width,height,score,pose,view);
+  const project=(traveling?createTravelProjector:createProjector)(width,height,score,pose,view,...(engravingStudy?[.42]:[]));
   const queue=[];
+  const surfaces=[];
   const divisions=280;
   function stroke(a,b,color,thickness,depthBias=0){
-    queue.push({depth:(a.depth+b.depth)/2+depthBias,paint(){
+    const dx=b.x-a.x,dy=b.y-a.y,length2=dx*dx+dy*dy;
+    queue.push({bounds:polygonBounds([a,b],thickness+2),range:[Math.min(a.u,b.u)-.003,Math.max(a.u,b.u)+.003],depth:(a.depth+b.depth)/2+depthBias,
+      depthAt(x,y){const t=Math.max(0,Math.min(1,((x-a.x)*dx+(y-a.y)*dy)/(length2||1)));return a.depth+(b.depth-a.depth)*t+depthBias+1;},paint(){
       ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);
       ctx.strokeStyle=color;ctx.lineWidth=thickness;ctx.stroke();
     }});
@@ -155,29 +181,34 @@ function renderFrame(canvas,pose){
     const x1=view.x0+(view.x1-view.x0)*(i+1)/divisions;
     const a=project(x0,-8.6),b=project(x1,-8.6),c=project(x1,.6),d=project(x0,.6);
     const depth=project((x0+x1)/2,-4).depth;
-    // Opaque surface hides the far staff where the near staff crosses it.
-    queue.push({depth:depth-25,paint(){
+    surfaces.push([a,b,c,d]);
+    // The engraving study uses a depth-only surface; older gates retain their reference rendering.
+    if(!engravingStudy)queue.push({depth:depth-25,paint(){
       ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.lineTo(c.x,c.y);ctx.lineTo(d.x,d.y);ctx.closePath();
       ctx.fillStyle='#08080e';ctx.fill();
     }});
     for(const y of score.staffLines){
       const p=project(x0,y),q=project(x1,y);
       const shade=Math.max(.3,Math.min(1,(p.perspective-.4)/.9));
-      stroke(p,q,`rgb(${Math.round(110+shade*110)} ${Math.round(107+shade*100)} ${Math.round(137+shade*102)})`,Math.max(.65,p.perspective*1.2),.15);
+      stroke(p,q,engravingStudy?'#cfc2e2':`rgb(${Math.round(110+shade*110)} ${Math.round(107+shade*100)} ${Math.round(137+shade*102)})`,engravingStudy?engraving.staffWidth*p.scale:Math.max(.65,p.perspective*1.2),.15);
     }
   }
-  const edges=[score.bars[30].xStart,...score.bars.slice(30,33).map(b=>b.xEnd)];
+  const edges=engravingStudy?engraving.barlines.filter(line=>pose>=.85||line.x>view.x0+.01).map(line=>line.x)
+    :[score.bars[30].xStart,...score.bars.slice(30,33).map(b=>b.xEnd)];
   for(const x of edges)for(let y=-8;y<0;y+=.25){
-    const a=project(x,y),b=project(x,y+.25);stroke(a,b,'#d5c6e8',Math.max(.75,a.perspective*1.4),.2);
+    const a=project(x,y),b=project(x,y+.25);stroke(a,b,'#cfc2e2',engravingStudy?engraving.staffWidth*a.scale:Math.max(.75,a.perspective*1.4),.2);
   }
-  if(page.querySelector('input').checked)for(const note of points){
+  if(!engravingStudy&&page.querySelector('input').checked)for(const note of points){
     const p=project(note.x,note.y);
-    for(let y=2;y<=note.y;y+=2)stroke(project(note.x-1.6,y),project(note.x+1.6,y),'#b8accb',Math.max(.8,p.perspective),.25);
+    if(engravingStudy){
+      for(const line of engraving.ledgerLines.filter(line=>line.pair.note.id===note.id))stroke(project(line.x0,line.y),project(line.x1,line.y),'#cfc2e2',line.width*p.scale,.25);
+    }else for(let y=2;y<=note.y;y+=2)stroke(project(note.x-1.6,y),project(note.x+1.6,y),'#b8accb',Math.max(.8,p.perspective),.25);
     const radius=Math.max(1.3,4.6*p.perspective);
-    queue.push({depth:project(note.x,-4).depth+25,paint(){
+    const shape = glyphStudy ? projectHeadStem(headStems.find(pair=>pair.note.id===note.id),project) : null;
+    const bounds = shape ? polygonBounds([shape.head,shape.end,shape.contact],Math.max(3,p.scale*4)) : polygonBounds([p],radius+5);
+    queue.push({bounds,range:[p.u-.012,p.u+.012],depth:engravingStudy?p.depth+3:project(note.x,-4).depth+25,paint(){
       if(glyphStudy){
         const pair=headStems.find(pair=>pair.note.id===note.id);
-        const shape=projectHeadStem(pair,project);
         ctx.beginPath();ctx.moveTo(shape.contact.x,shape.contact.y);ctx.lineTo(shape.end.x,shape.end.y);
         ctx.strokeStyle=note.id===markerId?'#ffdc83':'#cfc2e2';ctx.lineWidth=Math.max(.65,pair.stem.width*p.scale);ctx.stroke();
         ctx.save();ctx.translate(p.x,p.y);ctx.scale(pair.glyph.scaleX*p.scale,pair.glyph.scaleY*p.scale);
@@ -189,15 +220,27 @@ function renderFrame(canvas,pose){
       if(note.id===markerId){ctx.beginPath();ctx.arc(p.x,p.y,radius+3,0,Math.PI*2);ctx.lineWidth=1;ctx.strokeStyle='#ffdc83';ctx.stroke();}
     }});
   }
-  if(engravingStudy&&page.querySelector('input').checked)enqueueEngraving(queue,ctx,engraving,score,project);
-  queue.sort((a,b)=>a.depth-b.depth).forEach(item=>item.paint());
+  if(engravingStudy&&page.querySelector('input').checked){
+    enqueueCompoundGroups(queue,ctx,groups,score,project,details);
+    enqueueRest(queue,ctx,engraving.rest,project);
+  }
+  if(engravingStudy){
+    paintDepthQueue(ctx,queue,surfaces,width,height);
+    const rest=projectedRest(engraving.rest,project);
+    canvas.dataset.rest=JSON.stringify({bar:32,width:rest.width,height:rest.height,x:rest.anchor.x,y:rest.anchor.y});
+    canvas.dataset.groups=JSON.stringify(queue.filter(item=>item.kind==='notation-group').map(item=>item.id));
+    canvas.dataset.beams=String(groups.filter(group=>group.beam).length);
+    canvas.dataset.details=String(details);
+    canvas.dataset.background=SCORE_BACKGROUND;
+  }else queue.sort((a,b)=>a.depth-b.depth).forEach(item=>item.paint());
   canvas.dataset.pose=String(pose);
   canvas.dataset.camera=JSON.stringify(project.camera);
   const marked = points.find(note=>note.id===markerId);
   canvas.dataset.marker=JSON.stringify(project(marked.x,marked.y));
 }
 function draw(){
-  for(const frame of frames)renderFrame(frame.canvas,frame.pose);
+  for(const frame of frames)renderFrame(frame.canvas,frame.pose,frame.details??showDetails);
+  comparison?.draw();
   if(liveCanvas){
     const pose=Number(poseSlider.value)/1000;
     renderFrame(liveCanvas,pose);renderFrame(pairDown,pose);renderFrame(pairUp,1-(1-pose));
@@ -208,3 +251,7 @@ observer.observe(page.querySelector('.fold-gate > .fold-gate-poses'));
 page.querySelector('input').addEventListener('change',draw);
 addEventListener('pagehide',()=>observer.disconnect(),{once:true});
 draw();
+if(engravingStudy){
+  const sourceSystem=scoreRibbonData.systems.find(system=>system.bars.some(bar=>bar.number===31));
+  comparison=mountFrontComparison(page,frames[0].canvas,score,sourceSystem,view);
+}

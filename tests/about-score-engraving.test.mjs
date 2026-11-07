@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { scoreRibbonTimeline as score } from '../assets/about/score-ribbon-timeline.js';
 import { scoreRibbonData } from '../assets/about/score-ribbon-data.js';
-import { buildEngraving, projectBeamPoint, projectEngravingGlyph } from '../assets/about/score-engraving.js';
+import { buildEngraving,projectedRest } from '../assets/about/score-engraving.js';
+import {buildCompoundGroups,projectCompoundGroup,enqueueCompoundGroups} from '../assets/about/score-compound-groups.js';
 import { createTravelProjector } from '../assets/about/score-ribbon-geometry.js';
 import { projectHeadStem } from '../assets/about/score-head-stems.js';
 
@@ -10,6 +11,7 @@ const view = { x0: score.bars[30].xStart, x1: score.bars[32].xEnd };
 const notes = score.pdfGlyphs.filter(g => g.noteId && g.x >= view.x0 && g.x <= view.x1)
   .map(g => ({ id: g.noteId, x: g.x, y: Math.round(g.y) }));
 const engraving = buildEngraving(score, notes, view);
+const groups=buildCompoundGroups(engraving,score);
 
 test('the source has six triplet groups, six figures and twenty-four unique bracket strokes', () => {
   assert.equal(engraving.beams.length, 6);
@@ -21,17 +23,17 @@ test('the source has six triplet groups, six figures and twenty-four unique brac
   assert.ok(engraving.brackets.every(b => b.command.kind === 'l'), 'No ties or slurs in this source excerpt');
 });
 
-test('every beam passes through its three attached stem tips in both inspected poses', () => {
-  for (const pose of [1, .13]) {
-    const project = createTravelProjector(1280, 711, score, pose, view);
-    for (const beam of engraving.beams) for (const pair of beam.members) {
-      const tip = projectHeadStem(pair, project).end;
-      const beamPoint = projectBeamPoint(beam, ...pair.stem.end, project);
-      assert.ok(Math.hypot(tip.x - beamPoint.x, tip.y - beamPoint.y) < 1e-7, pair.note.id);
-    }
-    for (const glyph of engraving.glyphs) {
-      const point = projectEngravingGlyph(glyph, project);
-      assert.ok(Number.isFinite(point.x) && Number.isFinite(point.y) && point.scale > 0);
+test('every group projects its stem tips and beam boundary through identical ribbon anchors', () => {
+  for (const pose of [1, .13,.4]) {
+    const project = createTravelProjector(1280, 711, score, pose, view,.42);
+    for (const group of groups.filter(g=>g.beam)) {
+      const shape=projectCompoundGroup(group,project);
+      for(const [index,stem] of group.stems.entries()){
+        assert.equal(stem.contact.u,stem.tip.u);
+        assert.ok([...group.upper,...group.lower].some(p=>p.u===stem.tip.u&&p.v===stem.tip.v));
+        const tip=shape.stems[index].points.at(-1);
+        assert.ok(shape.beam.some(p=>Math.hypot(p.x-tip.x,p.y-tip.y)<1e-8),stem.noteId);
+      }
     }
   }
 });
@@ -53,4 +55,69 @@ test('bar 32 uses the requested whole-measure rest and does not resurrect the ol
   assert.equal(engraving.rest.bar, 32);
   assert.equal(engraving.rest.x, (score.bars[31].xStart + score.bars[31].xEnd) / 2);
   assert.equal(engraving.rest.y, -6);
+});
+
+test('one queue item owns each complete group, and simplified detail is an explicit alternative',()=>{
+  for(const pose of [.13,.4,1]){
+    const queue=[],context={};
+    const project=createTravelProjector(1280,711,score,pose,view,.42);
+    enqueueCompoundGroups(queue,context,groups,score,project,true);
+    assert.equal(queue.length,8);
+    assert.equal(new Set(queue.map(item=>item.id)).size,8);
+    groups.forEach(group=>{
+      const item=queue.find(item=>item.id===group.id);
+      assert.equal(item.depth,projectCompoundGroup(group,project).center.depth);
+      assert.ok(item.depthTriangles.length>0);
+    });
+    const rest=projectedRest(engraving.rest,project);
+    assert.ok(rest.width>=12&&rest.height>=4);
+    assert.ok(rest.anchor.x>rest.width/2&&rest.anchor.x<1280-rest.width/2);
+  }
+});
+
+test('bracket clearance, number offset and gap are defined in ribbon units and do not depend on the camera',()=>{
+  assert.equal(new Set(groups.map(g=>g.id)).size,8);
+  assert.ok(groups.every(group=>group.anchors.every(point=>Number.isFinite(point.u)&&Number.isFinite(point.v))));
+  for(const group of groups.filter(g=>g.bracket)){
+    const b=group.bracket;
+    for(let i=0;i<=20;i++){
+      const u=b.u0+(b.u1-b.u0)*i/20;
+      assert.ok(Math.abs(b.at(u)-group.beamAt(u,b.side)-b.offset)<1e-10);
+    }
+    assert.equal(group.number.anchor.u,b.centerU);
+    assert.ok(Math.abs(group.number.anchor.v-b.at(b.centerU)-group.number.normalOffset)<1e-10);
+    const left=b.paths[0].at(-1),right=b.paths[1][0];
+    assert.ok(Math.abs((right.u-left.u)/(b.u1-b.u0)-b.gapFraction)<1e-10);
+    const serialized=JSON.stringify(group.anchors);
+    for(const pose of [.13,.4,1])projectCompoundGroup(group,createTravelProjector(1280,711,score,pose,view,.42));
+    assert.equal(JSON.stringify(group.anchors),serialized,'Projection must not mutate ribbon definitions');
+  }
+});
+
+test('the frontal glyph contours and stem contacts retain the approved uniform placement',()=>{
+  const project=createTravelProjector(1130,1130/1.8,score,1,view,.42);
+  for(const group of groups){
+    const shape=projectCompoundGroup(group,project);
+    group.heads.forEach((head,index)=>{
+      const anchor=project(head.anchor.u,head.anchor.v);
+      head.contours.forEach((points,j)=>points.forEach((point,k)=>{
+        const expected={x:anchor.x+(point.u-head.anchor.u)*anchor.scale,y:anchor.y+(point.v-head.anchor.v)*anchor.scale};
+        const actual=shape.heads[index].contours[j][k];
+        assert.ok(Math.hypot(actual.x-expected.x,actual.y-expected.y)<.15);
+      }));
+      const pair=engraving.pairs.find(p=>p.note.id===head.noteId),old=projectHeadStem(pair,project);
+      const contact=shape.stems[index].points[0];
+      assert.ok(Math.hypot(contact.x-old.contact.x,contact.y-old.contact.y)<.15);
+    });
+  }
+});
+
+test('printed line weights, ledger lengths and the double barline are retained',()=>{
+  assert.ok(Math.abs(engraving.staffWidth-.34226258)<1e-6);
+  assert.equal(engraving.barlines.length,5);
+  const around33=engraving.barlines.filter(line=>Math.abs(line.x-score.bars[32].xStart)<1);
+  assert.equal(around33.length,2);
+  const lowE=engraving.ledgerLines.filter(line=>line.pair.note.id==='guitar-33-1-1');
+  assert.deepEqual(lowE.map(line=>line.y).sort((a,b)=>a-b),[2,4,6]);
+  assert.ok(lowE.every(line=>line.x0<line.pair.glyph.x&&line.x1>line.pair.glyph.x+2));
 });

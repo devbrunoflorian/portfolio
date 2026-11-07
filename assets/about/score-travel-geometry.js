@@ -9,7 +9,7 @@ function curve(t){
   const b=[(1-u)**3/6,(3*u**3-6*u*u+4)/6,(-3*u**3+3*u*u+3*u+1)/6,u**3/6];
   return [0,1,2].map(axis=>b.reduce((sum,w,j)=>sum+w*controls[i+j][axis],0));
 }
-export function createTravelProjector(width,height,study,progress,view=study){
+export function createTravelProjector(width,height,study,progress,view=study,minimumDistance=.2){
   const p=Math.max(0,Math.min(1,progress));
   const samples=Array.from({length:1201},(_,i)=>({position:curve(i/1200).map((v,axis)=>v*(axis===1?height:width)),distance:0}));
   let normal=[0,1,0],last=norm(sub(samples[1].position,samples[0].position));
@@ -36,7 +36,7 @@ export function createTravelProjector(width,height,study,progress,view=study){
   const center=[0,1,2].map(axis=>(Math.min(...visible.map(v=>v[axis]))+Math.max(...visible.map(v=>v[axis])))/2);
   const zoomOut=Math.max(0,Math.min(1,(p-.6)/.4));
   const zoomEase=zoomOut*zoomOut*(3-2*zoomOut);
-  const focal=width*1.45,distance=focal*span/(width*.94)*(.2+.8*zoomEase);
+  const focal=width*1.45,distance=focal*span/(width*.94)*(minimumDistance+(1-minimumDistance)*zoomEase);
   const target=[...center];
   const orbit=Math.sin(Math.PI*p);
   const position=[target[0]+Math.sin(p*Math.PI*2)*distance*.15*orbit,target[1]-distance*.08*orbit,target[2]+distance];
@@ -50,6 +50,6 @@ export function createTravelProjector(width,height,study,progress,view=study){
     const rel=sub(point,position),z=dot(rel,forward),perspective=focal/z;
     return{x:width/2+dot(rel,right)*perspective,y:height/2+dot(rel,up)*perspective,depth:-z,perspective,scale:unit*perspective,u};
   };
-  project.samples=samples;project.arcLength=span;project.camera={position,target,forward};
+  project.samples=samples;project.arcLength=span;project.uvAspect=unit*(view.x1-view.x0)/span;project.camera={position,target,forward};
   return project;
 }
