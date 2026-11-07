@@ -1,5 +1,5 @@
 import { scoreRibbonStudy } from "./score-ribbon-study-data.js";
-import { drawScoreRibbon } from "./score-ribbon-renderer.js?v=mobile-frame-2";
+import { drawScoreRibbon } from "./score-ribbon-renderer.js?v=object-flow-2";
 
 const thread = document.querySelector("[data-score-thread]");
 if (!thread) throw new Error("The About score thread is missing.");
@@ -24,19 +24,44 @@ thread.append(canvas);
 
 let width = 0;
 let height = 0;
-const resizeObserver = new ResizeObserver(() => {
+let drawn = false;
+let state = { progress: 0, motionEnabled: true };
+const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+
+function render() {
   const bounds = thread.getBoundingClientRect();
   if (!bounds.width || !bounds.height || (bounds.width === width && bounds.height === height)) return;
   width = bounds.width;
   height = bounds.height;
 
-  const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
   canvas.width = Math.round(width * pixelRatio);
   canvas.height = Math.round(height * pixelRatio);
+  draw();
+}
+
+function draw() {
+  if (!width || !height) return;
   const context = canvas.getContext("2d", { alpha: true });
   context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
-  drawScoreRibbon(context, width, height, scoreRibbonStudy);
-});
+  drawScoreRibbon(context, width, height, scoreRibbonStudy, state);
+  drawn = true;
+}
+
+const resizeObserver = new ResizeObserver(render);
 
 resizeObserver.observe(thread);
-window.addEventListener("pagehide", () => resizeObserver.disconnect(), { once: true });
+
+export function updateScoreRibbonTransition(nextState) {
+  if (
+    drawn
+    && nextState.progress === state.progress
+    && nextState.motionEnabled === state.motionEnabled
+  ) return;
+  state = nextState;
+  draw();
+}
+
+export function disposeScoreRibbonTransition() {
+  resizeObserver.disconnect();
+  canvas.remove();
+}

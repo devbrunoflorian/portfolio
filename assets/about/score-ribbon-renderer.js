@@ -1,21 +1,66 @@
-function createProjector(width, height, study) {
+const vectorCache = new WeakMap();
+const noteheadPathCache = new Map();
+
+function vectorGeometry(study) {
+  let geometry = vectorCache.get(study);
+  if (geometry) return geometry;
+  geometry = {
+    drawings: study.pdfDrawings.map(drawing => ({ drawing, paths: pdfDrawingPaths(drawing) })),
+    glyphs: study.pdfGlyphs.flatMap(glyph => {
+      const definition = study.pdfGlyphPaths[glyph.glyph];
+      if (!definition) return [];
+      let path = noteheadPathCache.get(definition);
+      if (!path) {
+        path = new Path2D(definition);
+        noteheadPathCache.set(definition, path);
+      }
+      return [{ glyph, path }];
+    }),
+  };
+  vectorCache.set(study, geometry);
+  return geometry;
+}
+
+function clamp(value, minimum, maximum) {
+  return Math.max(minimum, Math.min(maximum, value));
+}
+
+function poseAt(progress) {
+  const phase = clamp(progress, 0, 1) * Math.PI * 2 * 1.25 - Math.PI / 2;
+  return {
+    bend: .075 + .045 * Math.sin(phase),
+    depth: .075 + .035 * Math.sin(phase + .72),
+    twist: .055 + .025 * Math.cos(phase - .38),
+  };
+}
+
+function createProjector(width, height, study, progress = null) {
   const rangeX = study.x1 - study.x0;
   const rangeY = study.y1 - study.y0;
   const horizontalInset = width < 520 ? 22 : 56;
   const verticalInset = width < 520 ? 44 : 76;
   const unitScale = Math.min((width - horizontalInset * 2) / rangeX, (height - verticalInset) / rangeY);
-  const cameraDistance = 600;
+  const cameraDistance = 720;
   const xInset = (width - rangeX * unitScale) / 2;
   const staffMiddle = (study.staffLines[0] + study.staffLines.at(-1)) / 2;
+  const pose = progress == null ? null : poseAt(progress);
 
   return (x, y) => {
     const u = (x - study.x0) / rangeX;
-    const phase = (u * .9 - .16) * Math.PI * 2;
-    const z = -10 + 50 * Math.sin(phase);
+    const phase = progress == null
+      ? (u * .9 - .16) * Math.PI * 2
+      : (u * .68 + progress * .92) * Math.PI * 2;
+    const secondaryPhase = progress == null ? phase : (u * 1.02 - progress * .42) * Math.PI * 2;
+    const wave = progress == null ? Math.sin(phase) : .84 * Math.sin(phase) + .16 * Math.sin(secondaryPhase);
+    const z = progress == null ? -10 + 50 * wave : pose.depth * cameraDistance * wave;
     const perspective = cameraDistance / (cameraDistance - z);
-    const bend = Math.sin(phase) * height * .12;
+    const bend = progress == null
+      ? Math.sin(phase) * height * .12
+      : height * pose.bend * wave;
+    const baseX = xInset + (x - study.x0) * unitScale;
+    const twist = pose ? Math.sin(phase * .48) * width * pose.twist * .075 : 0;
     return {
-      x: xInset + (x - study.x0) * unitScale * perspective,
+      x: width * .5 + (baseX - width * .5) * perspective + twist,
       y: height * .5 + (y - staffMiddle) * unitScale * perspective + bend * perspective,
       scale: unitScale * perspective,
       perspective,
@@ -105,52 +150,56 @@ function cropClipPath(context, project, study) {
   context.clip();
 }
 
-function drawPdfRibbon(context, project, study) {
-  const pixelRatio = context.getTransform().a || 1;
-  const inkCanvas = document.createElement("canvas");
-  inkCanvas.width = context.canvas.width;
-  inkCanvas.height = context.canvas.height;
-  const inkContext = inkCanvas.getContext("2d");
-  inkContext.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+function drawPdfRibbon(context, project, study, depthAware) {
+  const inkContext = context;
   inkContext.save();
+  inkContext.globalAlpha = .48;
   cropClipPath(inkContext, project, study);
   inkContext.lineJoin = "round";
   inkContext.lineCap = "round";
   inkContext.fillStyle = "#a99db8";
   inkContext.strokeStyle = "#a99db8";
 
-  for (const drawing of study.pdfDrawings) {
-    for (const path of pdfDrawingPaths(drawing)) {
+  const geometry = vectorGeometry(study);
+  for (const { drawing, paths } of geometry.drawings) {
+    for (const path of paths) {
       if (path.length < 2) continue;
       const projected = path.map(point => project(point.x, point.y));
       inkContext.beginPath();
       inkContext.moveTo(projected[0].x, projected[0].y);
       projected.slice(1).forEach(point => inkContext.lineTo(point.x, point.y));
       if (drawing.close) inkContext.closePath();
-      if (drawing.fill) inkContext.fill();
+      const averageScale = projected.reduce((sum, point) => sum + point.scale, 0) / projected.length;
+      const averageDepth = projected.reduce((sum, point) => sum + point.perspective, 0) / projected.length;
+      const depthAlpha = depthAware
+        ? .48 * (.72 + clamp((averageDepth - .78) / .61, 0, 1) * .28)
+        : .48;
+      if (drawing.fill) {
+        inkContext.globalAlpha = depthAlpha;
+        inkContext.fill();
+      }
       if (drawing.stroke) {
-        const averageScale = projected.reduce((sum, point) => sum + point.scale, 0) / projected.length;
+        inkContext.globalAlpha = depthAlpha;
         inkContext.lineWidth = Math.max(.65, drawing.width * averageScale);
         inkContext.stroke();
       }
     }
   }
 
-  for (const glyph of study.pdfGlyphs) {
-    const definition = study.pdfGlyphPaths[glyph.glyph];
-    if (!definition) continue;
+  for (const { glyph, path } of geometry.glyphs) {
+    if (!study.pdfGlyphPaths[glyph.glyph]) continue;
     const point = project(glyph.x, glyph.y);
     inkContext.save();
     inkContext.translate(point.x, point.y);
     inkContext.scale(glyph.scaleX * point.scale, glyph.scaleY * point.scale);
-    inkContext.fill(new Path2D(definition));
+    inkContext.globalAlpha = depthAware
+      ? .48 * (.72 + clamp((point.perspective - .78) / .61, 0, 1) * .28)
+      : .48;
+    inkContext.fill(path);
     inkContext.restore();
   }
   inkContext.restore();
-  context.save();
-  context.globalAlpha = .48;
-  context.drawImage(inkCanvas, 0, 0, context.canvas.width / pixelRatio, context.canvas.height / pixelRatio);
-  context.restore();
+  // Vector paths and noteheads stay separate drawing objects while their shared PDF coordinates bend together.
 }
 
 function staffYForMidi(midi, study) {
@@ -191,11 +240,11 @@ function blendColor(far, near, progress) {
   return `rgb(${a.map((channel, index) => Math.round(channel + (b[index] - channel) * amount)).join(" ")})`;
 }
 
-function drawRibbonVoice(context, track, project, study) {
+function drawRibbonVoice(context, track, project, study, depthAware) {
   const notes = study.voices
     .filter(event => event.track === track)
     .sort((left, right) => left.beat - right.beat)
-    .map(event => ({ x: event.x, y: staffYForMidi(event.writtenMidi, study) }));
+    .map(event => ({ ...event, x: event.x, y: staffYForMidi(event.writtenMidi, study) }));
   const points = voiceRibbonPoints(notes, project);
   context.save();
   context.lineCap = "round";
@@ -218,15 +267,30 @@ function drawRibbonVoice(context, track, project, study) {
   for (const note of notes) {
     const point = project(note.x, note.y);
     const radius = Math.max(2, Math.min(4.2, point.scale * 2.1));
+    const proximity = clamp((point.perspective - .78) / .61, 0, 1);
+    const color = track === 1 ? "#83bdff" : "#d0afff";
+    if (depthAware && proximity > .2) {
+      context.save();
+      context.globalAlpha = proximity * .34;
+      context.shadowColor = color;
+      context.shadowBlur = 4 + proximity * 11;
+      context.beginPath();
+      context.arc(point.x, point.y, radius * (1.15 + proximity * .45), 0, Math.PI * 2);
+      context.fillStyle = color;
+      context.fill();
+      context.restore();
+    }
     context.beginPath();
     context.arc(point.x, point.y, radius, 0, Math.PI * 2);
-    context.fillStyle = track === 1 ? "#83bdff" : "#d0afff";
+    context.globalAlpha = depthAware ? .46 + proximity * .54 : 1;
+    context.fillStyle = color;
     context.fill();
+    context.globalAlpha = 1;
   }
   context.restore();
 }
 
-export function drawScoreRibbon(context, width, height, study) {
+export function drawScoreRibbon(context, width, height, study, motion = null) {
   context.clearRect(0, 0, width, height);
   const atmosphere = context.createRadialGradient(width * .52, height * .52, 4, width * .52, height * .52, width * .53);
   atmosphere.addColorStop(0, "rgb(73 37 118 / 24%)");
@@ -234,8 +298,9 @@ export function drawScoreRibbon(context, width, height, study) {
   context.fillStyle = atmosphere;
   context.fillRect(0, 0, width, height);
 
-  const project = createProjector(width, height, study);
-  drawPdfRibbon(context, project, study);
-  drawRibbonVoice(context, 1, project, study);
-  drawRibbonVoice(context, 2, project, study);
+  const progress = motion ? clamp(Number.isFinite(motion.progress) ? motion.progress : 0, 0, 1) : null;
+  const project = createProjector(width, height, study, progress);
+  drawPdfRibbon(context, project, study, Boolean(motion));
+  drawRibbonVoice(context, 1, project, study, Boolean(motion));
+  drawRibbonVoice(context, 2, project, study, Boolean(motion));
 }

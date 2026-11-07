@@ -13,6 +13,8 @@ if (scoreRibbonTransitionMode) document.body.dataset.scoreRibbonTransition = "tr
 const chapters = [...root.querySelectorAll("[data-movement]")];
 const scoreThread = root.querySelector("[data-score-thread]");
 const scoreLeads = root.querySelector("[data-score-leads-global]");
+let updateRibbonTransition = null;
+let disposeRibbonTransition = null;
 const scoreCameraStops = [
   { x: -.012, y: -.012, scale: .64, opacity: .48, lead: .82, rotate: 0 },
   { x: .008, y: .018, scale: .62, opacity: .38, lead: .62, rotate: 0 },
@@ -34,6 +36,7 @@ let scoreChapterBounds = [];
 let scoreThreadNeedsMeasure = true;
 let scoreThreadLastScrollY = Number.NaN;
 let scoreThreadLastStyle = "";
+let scoreTransitionProgress = 0;
 // Each chapter enters on the previous frame, then holds its own composition for reading.
 // Let the score keep traveling while each chapter is read; it should not settle
 // after a brief camera move at the top of every section.
@@ -75,7 +78,7 @@ function cameraValue(key, index, progress) {
   return clamp(value, Math.min(start, end), Math.max(start, end));
 }
 function updateScoreThread(force = false) {
-  if (!scoreThread || motionPaused || reduceMotion.matches) return;
+  if (!scoreThread || (motionPaused && !reduceMotion.matches)) return;
   const scrollY = window.scrollY;
   if (!force && !scoreThreadNeedsMeasure && scrollY === scoreThreadLastScrollY) return;
   if (force || scoreThreadNeedsMeasure || scoreChapterBounds.length !== chapters.length) {
@@ -94,6 +97,10 @@ function updateScoreThread(force = false) {
   }
   const chapterBounds = scoreChapterBounds[chapterIndex];
   const chapterProgress = clamp((storyPoint - chapterBounds.top) / Math.max(1, chapterBounds.height), 0, 1);
+  scoreTransitionProgress = reduceMotion.matches
+    ? chapterIndex / Math.max(1, chapters.length - 1)
+    : clamp((chapterIndex + chapterProgress) / Math.max(1, chapters.length), 0, 1);
+  if (reduceMotion.matches) return;
   let index = chapterIndex;
   let progress = 0;
   if (chapterIndex > 0 && chapterProgress < cameraTransitionPortion) {
@@ -357,6 +364,11 @@ function paintScenes() {
         if (excerptElement.textContent !== label) excerptElement.textContent = label;
       }
     }
+  } else if (visible && scoreRibbonTransitionMode && updateRibbonTransition) {
+    updateRibbonTransition({
+      progress: scoreTransitionProgress,
+      motionEnabled: !motionPaused && !reduceMotion.matches,
+    });
   }
   if (snapshot && Math.floor(snapshot.seconds) !== lastDisplaySecond) {
     lastDisplaySecond = Math.floor(snapshot.seconds);
@@ -448,7 +460,7 @@ window.addEventListener("pagehide", event => {
   if (event.persisted) return;
   clearInterval(displayTimer);
   controller.abort(); observer.disconnect(); dockObserver.disconnect(); revealObserver?.disconnect(); cancelAnimationFrame(pointerFrame); cancelAnimationFrame(sceneFrame);
-  experiments.dispose(); visual.dispose(); audio.dispose();
+  experiments.dispose(); visual.dispose(); audio.dispose(); disposeRibbonTransition?.();
 }, { signal });
 
 if (scoreGridStudyMode) {
@@ -464,5 +476,12 @@ if (scoreRibbonStoryboardMode) {
 }
 
 if (scoreRibbonTransitionMode) {
-  import("./score-ribbon-transition.js?v=code-music-2");
+  import("./score-ribbon-transition.js?v=object-flow-2").then(module => {
+    updateRibbonTransition = module.updateScoreRibbonTransition;
+    disposeRibbonTransition = module.disposeScoreRibbonTransition;
+    requestScene();
+  }).catch(error => {
+    delete document.body.dataset.scoreRibbonTransition;
+    console.error("A prévia da fita musical não carregou.", error);
+  });
 }
