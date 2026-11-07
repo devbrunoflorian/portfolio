@@ -102,10 +102,6 @@ function updateScoreThread(force = false) {
   scoreTransitionTarget = reduceMotion.matches
     ? chapterIndex / Math.max(1, chapters.length - 1)
     : clamp((chapterIndex + chapterProgress) / Math.max(1, chapters.length), 0, 1);
-  if (reduceMotion.matches) {
-    scoreTransitionProgress = scoreTransitionTarget;
-    return;
-  }
   let index = chapterIndex;
   let progress = 0;
   if (chapterIndex > 0 && chapterProgress < cameraTransitionPortion) {
@@ -147,7 +143,7 @@ function updateScoreThread(force = false) {
   const now = performance.now();
   const elapsed = scoreCameraLastTime ? Math.min(64, now - scoreCameraLastTime) : 16;
   scoreCameraLastTime = now;
-  if (!scoreCameraCurrent || force) {
+  if (!scoreCameraCurrent || force || reduceMotion.matches) {
     scoreCameraCurrent = { ...target };
     scoreTransitionProgress = scoreTransitionTarget;
   } else {
@@ -163,7 +159,7 @@ function updateScoreThread(force = false) {
     Math.abs(scoreTransitionTarget - scoreTransitionProgress),
     Object.keys(target).reduce((largest, key) => Math.max(largest, Math.abs(target[key] - scoreCameraCurrent[key])), 0),
   );
-  if (remaining < .0005) {
+  if (reduceMotion.matches || remaining < .0005) {
     scoreCameraCurrent = { ...target };
     scoreTransitionProgress = scoreTransitionTarget;
   }
