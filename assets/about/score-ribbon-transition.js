@@ -23,6 +23,7 @@ thread.append(canvas);
 let width = 0;
 let height = 0;
 let drawn = false;
+let heldFoldProgress = 1;
 const poseQuery = new URLSearchParams(location.search).get('score-pose');
 const noteMarker = new URLSearchParams(location.search).get('score-note');
 const firstBarQuery = Number(new URLSearchParams(location.search).get('score-bar'));
@@ -72,11 +73,13 @@ function draw() {
     ? scoreWindowAtBeat(firstBarQuery >= 1 && firstBarQuery <= 104 ? firstBarQuery * 4 : STATIC_SCORE_BEAT, width)
     : scorePlaybackWindowAtBeat(playbackBeat, width);
   updateExcerpt(window);
-  const musicStage = document.querySelector('.score-stage-spacer').getBoundingClientRect();
   const stack = document.querySelector('.code-stack').getBoundingClientRect();
   const start = stack.bottom + scrollY - height * .65;
-  const end = musicStage.top + scrollY + musicStage.height / 2 - height / 2;
-  const foldProgress = fixedPose ?? Math.max(0, Math.min(1, (scrollY - start) / Math.max(1, end - start)));
+  const end = document.querySelector('#music').getBoundingClientRect().top + scrollY - 88;
+  const targetFold = fixedPose ?? Math.max(0, Math.min(1, (scrollY - start) / Math.max(1, end - start)));
+  if (state.reducedMotion) heldFoldProgress = 1;
+  else if (state.motionEnabled) heldFoldProgress = targetFold;
+  const foldProgress = heldFoldProgress;
   canvas.dataset.foldProgress = foldProgress.toFixed(4);
   drawScoreRibbon(context, width, height, scoreRibbonTimeline, {
     progress: state.progress,
@@ -103,6 +106,7 @@ export function updateScoreRibbonTransition(nextState) {
     drawn
     && nextState.progress === state.progress
     && nextState.motionEnabled === state.motionEnabled
+    && nextState.reducedMotion === state.reducedMotion
     && frozenSnapshot?.state === state.playbackSnapshot?.state
     && frozenSnapshot?.beat === state.playbackSnapshot?.beat
   ) return;

@@ -5,6 +5,7 @@ import { createScoreVisual, scoreStageOffsets } from "./score-visual.js";
 
 const root = document.querySelector(".about-main");
 const query = new URLSearchParams(window.location.search);
+if (query.get('score-gate') === '2a') import('./score-fold-gate.js');
 const scoreGridStudyMode = query.get("score-grid") === "study";
 const scoreRibbonStudyMode = query.get("score-ribbon") === "study";
 const scoreRibbonStoryboardMode = query.get("score-ribbon") === "storyboard";
@@ -395,6 +396,7 @@ function paintScenes() {
     updateRibbonTransition({
       progress: scoreTransitionProgress,
       motionEnabled: !motionPaused && !reduceMotion.matches,
+      reducedMotion: reduceMotion.matches,
       playbackSnapshot: snapshot,
     });
   }
@@ -504,7 +506,7 @@ if (scoreRibbonStoryboardMode) {
 }
 
 if (scoreRibbonTransitionMode) {
-  import("./score-ribbon-transition.js?v=continuous-score-9").then(module => {
+  import("./score-ribbon-transition.js?v=spatial-fold-2").then(module => {
     updateRibbonTransition = module.updateScoreRibbonTransition;
     disposeRibbonTransition = module.disposeScoreRibbonTransition;
     requestScene();

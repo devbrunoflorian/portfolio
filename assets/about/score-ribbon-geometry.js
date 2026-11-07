@@ -80,4 +80,3 @@ export function createProjector(width, height, study, progress = 1, view = study
   project.arcLength = totalLength;
   return project;
 }
-
