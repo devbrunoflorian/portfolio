@@ -368,6 +368,7 @@ function paintScenes() {
     updateRibbonTransition({
       progress: scoreTransitionProgress,
       motionEnabled: !motionPaused && !reduceMotion.matches,
+      playbackSnapshot: snapshot,
     });
   }
   if (snapshot && Math.floor(snapshot.seconds) !== lastDisplaySecond) {
@@ -476,7 +477,7 @@ if (scoreRibbonStoryboardMode) {
 }
 
 if (scoreRibbonTransitionMode) {
-  import("./score-ribbon-transition.js?v=object-flow-2").then(module => {
+  import("./score-ribbon-transition.js?v=continuous-score-5").then(module => {
     updateRibbonTransition = module.updateScoreRibbonTransition;
     disposeRibbonTransition = module.disposeScoreRibbonTransition;
     requestScene();

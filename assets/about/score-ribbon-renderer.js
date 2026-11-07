@@ -5,7 +5,12 @@ function vectorGeometry(study) {
   let geometry = vectorCache.get(study);
   if (geometry) return geometry;
   geometry = {
-    drawings: study.pdfDrawings.map(drawing => ({ drawing, paths: pdfDrawingPaths(drawing) })),
+    drawings: study.pdfDrawings.flatMap(drawing => pdfDrawingPaths(drawing, study.samplingStep ?? 4).map(path => ({
+      drawing,
+      path,
+      minX: Math.min(...path.map(point => point.x)),
+      maxX: Math.max(...path.map(point => point.x)),
+    }))),
     glyphs: study.pdfGlyphs.flatMap(glyph => {
       const definition = study.pdfGlyphPaths[glyph.glyph];
       if (!definition) return [];
@@ -34,8 +39,8 @@ function poseAt(progress) {
   };
 }
 
-function createProjector(width, height, study, progress = null) {
-  const rangeX = study.x1 - study.x0;
+function createProjector(width, height, study, progress = null, view = study) {
+  const rangeX = view.x1 - view.x0;
   const rangeY = study.y1 - study.y0;
   const horizontalInset = width < 520 ? 22 : 56;
   const verticalInset = width < 520 ? 44 : 76;
@@ -46,7 +51,7 @@ function createProjector(width, height, study, progress = null) {
   const pose = progress == null ? null : poseAt(progress);
 
   return (x, y) => {
-    const u = (x - study.x0) / rangeX;
+    const u = (x - view.x0) / rangeX;
     const phase = progress == null
       ? (u * .9 - .16) * Math.PI * 2
       : (u * .68 + progress * .92) * Math.PI * 2;
@@ -57,7 +62,7 @@ function createProjector(width, height, study, progress = null) {
     const bend = progress == null
       ? Math.sin(phase) * height * .12
       : height * pose.bend * wave;
-    const baseX = xInset + (x - study.x0) * unitScale;
+    const baseX = xInset + (x - view.x0) * unitScale;
     const twist = pose ? Math.sin(phase * .48) * width * pose.twist * .075 : 0;
     return {
       x: width * .5 + (baseX - width * .5) * perspective + twist,
@@ -70,14 +75,14 @@ function createProjector(width, height, study, progress = null) {
   };
 }
 
-function samplePdfCommand(command) {
+function samplePdfCommand(command, maxLength = 4) {
   const points = command.points.map(([x, y]) => ({ x, y }));
   if (command.kind === "polyline") return points;
 
   const distance = (left, right) => Math.hypot(right.x - left.x, right.y - left.y);
   if (command.kind === "l") {
     const [start, end] = points;
-    const steps = Math.max(1, Math.ceil(distance(start, end) / 4));
+    const steps = Math.max(1, Math.ceil(distance(start, end) / maxLength));
     return Array.from({ length: steps + 1 }, (_, index) => {
       const t = index / steps;
       return { x: start.x + (end.x - start.x) * t, y: start.y + (end.y - start.y) * t };
@@ -87,7 +92,7 @@ function samplePdfCommand(command) {
   if (command.kind === "c") {
     const [start, firstControl, secondControl, end] = points;
     const estimate = distance(start, firstControl) + distance(firstControl, secondControl) + distance(secondControl, end);
-    const steps = Math.max(8, Math.ceil(estimate / 4));
+    const steps = Math.max(8, Math.ceil(estimate / maxLength));
     return Array.from({ length: steps + 1 }, (_, index) => {
       const t = index / steps;
       const inverse = 1 - t;
@@ -105,11 +110,11 @@ function samePdfPoint(left, right) {
   return Math.hypot(right.x - left.x, right.y - left.y) < .03;
 }
 
-function pdfDrawingPaths(drawing) {
+function pdfDrawingPaths(drawing, sampleStep) {
   const paths = [];
   let current = [];
   for (const command of drawing.commands) {
-    const samples = samplePdfCommand(command);
+    const samples = samplePdfCommand(command, sampleStep);
     if (current.length && samePdfPoint(current.at(-1), samples[0])) {
       current.push(...samples.slice(1));
     } else {
@@ -124,24 +129,24 @@ function pdfDrawingPaths(drawing) {
   return paths;
 }
 
-function cropClipPath(context, project, study) {
+function cropClipPath(context, project, view, study) {
   const points = [];
   const steps = 32;
   for (let index = 0; index <= steps; index += 1) {
     const t = index / steps;
-    points.push(project(study.x0 + (study.x1 - study.x0) * t, study.y0));
+    points.push(project(view.x0 + (view.x1 - view.x0) * t, study.y0));
   }
   for (let index = 0; index <= steps; index += 1) {
     const t = index / steps;
-    points.push(project(study.x1, study.y0 + (study.y1 - study.y0) * t));
+    points.push(project(view.x1, study.y0 + (study.y1 - study.y0) * t));
   }
   for (let index = 0; index <= steps; index += 1) {
     const t = index / steps;
-    points.push(project(study.x1 - (study.x1 - study.x0) * t, study.y1));
+    points.push(project(view.x1 - (view.x1 - view.x0) * t, study.y1));
   }
   for (let index = 0; index <= steps; index += 1) {
     const t = index / steps;
-    points.push(project(study.x0, study.y1 - (study.y1 - study.y0) * t));
+    points.push(project(view.x0, study.y1 - (study.y1 - study.y0) * t));
   }
   context.beginPath();
   context.moveTo(points[0].x, points[0].y);
@@ -150,43 +155,42 @@ function cropClipPath(context, project, study) {
   context.clip();
 }
 
-function drawPdfRibbon(context, project, study, depthAware) {
+function drawPdfRibbon(context, project, study, depthAware, view) {
   const inkContext = context;
   inkContext.save();
   inkContext.globalAlpha = .48;
-  cropClipPath(inkContext, project, study);
+  cropClipPath(inkContext, project, view, study);
   inkContext.lineJoin = "round";
   inkContext.lineCap = "round";
   inkContext.fillStyle = "#a99db8";
   inkContext.strokeStyle = "#a99db8";
 
   const geometry = vectorGeometry(study);
-  for (const { drawing, paths } of geometry.drawings) {
-    for (const path of paths) {
-      if (path.length < 2) continue;
-      const projected = path.map(point => project(point.x, point.y));
-      inkContext.beginPath();
-      inkContext.moveTo(projected[0].x, projected[0].y);
-      projected.slice(1).forEach(point => inkContext.lineTo(point.x, point.y));
-      if (drawing.close) inkContext.closePath();
-      const averageScale = projected.reduce((sum, point) => sum + point.scale, 0) / projected.length;
-      const averageDepth = projected.reduce((sum, point) => sum + point.perspective, 0) / projected.length;
-      const depthAlpha = depthAware
-        ? .48 * (.72 + clamp((averageDepth - .78) / .61, 0, 1) * .28)
-        : .48;
-      if (drawing.fill) {
-        inkContext.globalAlpha = depthAlpha;
-        inkContext.fill();
-      }
-      if (drawing.stroke) {
-        inkContext.globalAlpha = depthAlpha;
-        inkContext.lineWidth = Math.max(.65, drawing.width * averageScale);
-        inkContext.stroke();
-      }
+  for (const { drawing, path, minX, maxX } of geometry.drawings) {
+    if (maxX < view.x0 - 12 || minX > view.x1 + 12 || path.length < 2) continue;
+    const projected = path.map(point => project(point.x, point.y));
+    inkContext.beginPath();
+    inkContext.moveTo(projected[0].x, projected[0].y);
+    projected.slice(1).forEach(point => inkContext.lineTo(point.x, point.y));
+    if (drawing.close) inkContext.closePath();
+    const averageScale = projected.reduce((sum, point) => sum + point.scale, 0) / projected.length;
+    const averageDepth = projected.reduce((sum, point) => sum + point.perspective, 0) / projected.length;
+    const depthAlpha = depthAware
+      ? .48 * (.72 + clamp((averageDepth - .78) / .61, 0, 1) * .28)
+      : .48;
+    if (drawing.fill) {
+      inkContext.globalAlpha = depthAlpha;
+      inkContext.fill();
+    }
+    if (drawing.stroke) {
+      inkContext.globalAlpha = depthAlpha;
+      inkContext.lineWidth = Math.max(.45, drawing.width * averageScale);
+      inkContext.stroke();
     }
   }
 
   for (const { glyph, path } of geometry.glyphs) {
+    if (glyph.x < view.x0 - 12 || glyph.x > view.x1 + 12) continue;
     if (!study.pdfGlyphPaths[glyph.glyph]) continue;
     const point = project(glyph.x, glyph.y);
     inkContext.save();
@@ -232,6 +236,28 @@ function voiceRibbonPoints(notes, project) {
   return points;
 }
 
+export function visualVoiceSegments(events, track, view, silenceTolerance = .125) {
+  const byBeat = new Map();
+  events
+    .filter(event => event.track === track && event.x >= view.x0 - 24 && event.x <= view.x1 + 24)
+    .forEach(event => {
+      const previous = byBeat.get(event.beat);
+      if (!previous || event.writtenMidi > previous.writtenMidi) byBeat.set(event.beat, event);
+    });
+  const notes = [...byBeat.values()].sort((left, right) => left.beat - right.beat);
+  const segments = [];
+  for (const note of notes) {
+    const current = segments.at(-1);
+    const previous = current?.at(-1);
+    if (!previous || note.beat > previous.beat + previous.duration + silenceTolerance) {
+      segments.push([note]);
+    } else {
+      current.push(note);
+    }
+  }
+  return segments;
+}
+
 function blendColor(far, near, progress) {
   const parse = value => value.match(/[\da-f]{2}/gi).map(channel => Number.parseInt(channel, 16));
   const a = parse(far);
@@ -240,42 +266,47 @@ function blendColor(far, near, progress) {
   return `rgb(${a.map((channel, index) => Math.round(channel + (b[index] - channel) * amount)).join(" ")})`;
 }
 
-function drawRibbonVoice(context, track, project, study, depthAware) {
-  const notes = study.voices
-    .filter(event => event.track === track)
-    .sort((left, right) => left.beat - right.beat)
-    .map(event => ({ ...event, x: event.x, y: staffYForMidi(event.writtenMidi, study) }));
-  const points = voiceRibbonPoints(notes, project);
+function drawRibbonVoice(context, track, project, study, depthAware, view, playbackBeat = null) {
+  const segments = visualVoiceSegments(study.voices, track, view)
+    .map(segment => segment.map(event => ({ ...event, y: staffYForMidi(event.writtenMidi, study) })));
+  const notes = segments.flat();
   context.save();
   context.lineCap = "round";
   context.lineJoin = "round";
-  for (let index = 0; index < points.length - 1; index += 1) {
-    const start = points[index];
-    const end = points[index + 1];
-    const gradient = context.createLinearGradient(start.x, start.y, end.x, end.y);
-    const near = track === 1 ? "#83bdff" : "#d0afff";
-    const far = track === 1 ? "#386fbd" : "#7947ad";
-    gradient.addColorStop(0, blendColor(far, near, (start.perspective - .9) / .2));
-    gradient.addColorStop(1, blendColor(far, near, (end.perspective - .9) / .2));
-    context.beginPath();
-    context.moveTo(start.x, start.y);
-    context.lineTo(end.x, end.y);
-    context.strokeStyle = gradient;
-    context.lineWidth = Math.max(1.3, Math.min(2.8, (start.scale + end.scale) * .7));
-    context.stroke();
+  for (const segment of segments) {
+    const points = voiceRibbonPoints(segment, project);
+    for (let index = 0; index < points.length - 1; index += 1) {
+      const start = points[index];
+      const end = points[index + 1];
+      const gradient = context.createLinearGradient(start.x, start.y, end.x, end.y);
+      const near = track === 1 ? "#83bdff" : "#d0afff";
+      const far = track === 1 ? "#386fbd" : "#7947ad";
+      gradient.addColorStop(0, blendColor(far, near, (start.perspective - .9) / .2));
+      gradient.addColorStop(1, blendColor(far, near, (end.perspective - .9) / .2));
+      context.beginPath();
+      context.moveTo(start.x, start.y);
+      context.lineTo(end.x, end.y);
+      context.strokeStyle = gradient;
+      context.lineWidth = Math.max(1.3, Math.min(2.8, (start.scale + end.scale) * .7));
+      context.stroke();
+    }
   }
   for (const note of notes) {
     const point = project(note.x, note.y);
     const radius = Math.max(2, Math.min(4.2, point.scale * 2.1));
     const proximity = clamp((point.perspective - .78) / .61, 0, 1);
     const color = track === 1 ? "#83bdff" : "#d0afff";
-    if (depthAware && proximity > .2) {
+    const active = playbackBeat !== null
+      && playbackBeat >= note.beat
+      && playbackBeat < note.beat + Math.max(0.04, note.duration);
+    const attack = active && playbackBeat - note.beat < .16;
+    if (active || depthAware && proximity > .2) {
       context.save();
-      context.globalAlpha = proximity * .34;
+      context.globalAlpha = active ? .62 : proximity * .34;
       context.shadowColor = color;
-      context.shadowBlur = 4 + proximity * 11;
+      context.shadowBlur = active ? (attack ? 18 : 11) : 4 + proximity * 11;
       context.beginPath();
-      context.arc(point.x, point.y, radius * (1.15 + proximity * .45), 0, Math.PI * 2);
+      context.arc(point.x, point.y, radius * (active ? (attack ? 2.1 : 1.65) : 1.15 + proximity * .45), 0, Math.PI * 2);
       context.fillStyle = color;
       context.fill();
       context.restore();
@@ -299,8 +330,28 @@ export function drawScoreRibbon(context, width, height, study, motion = null) {
   context.fillRect(0, 0, width, height);
 
   const progress = motion ? clamp(Number.isFinite(motion.progress) ? motion.progress : 0, 0, 1) : null;
-  const project = createProjector(width, height, study, progress);
-  drawPdfRibbon(context, project, study, Boolean(motion));
-  drawRibbonVoice(context, 1, project, study, Boolean(motion));
-  drawRibbonVoice(context, 2, project, study, Boolean(motion));
+  const view = motion && Number.isFinite(motion.viewStart) && Number.isFinite(motion.viewEnd)
+    ? { x0: motion.viewStart, x1: motion.viewEnd }
+    : study;
+  const playbackBeat = Number.isFinite(motion?.playbackBeat) ? motion.playbackBeat : null;
+  const project = createProjector(width, height, study, progress, view);
+  drawPdfRibbon(context, project, study, Boolean(motion), view);
+  drawRibbonVoice(context, 1, project, study, Boolean(motion), view, playbackBeat);
+  drawRibbonVoice(context, 2, project, study, Boolean(motion), view, playbackBeat);
+  if (playbackBeat !== null && Number.isFinite(motion?.playbackX)) {
+    const x = motion.playbackX;
+    if (x >= view.x0 && x <= view.x1) {
+      const top = project(x, study.y0);
+      const bottom = project(x, study.y1);
+      context.save();
+      context.globalAlpha = .44;
+      context.strokeStyle = "#f2ecff";
+      context.lineWidth = 1;
+      context.beginPath();
+      context.moveTo(top.x, top.y);
+      context.lineTo(bottom.x, bottom.y);
+      context.stroke();
+      context.restore();
+    }
+  }
 }
