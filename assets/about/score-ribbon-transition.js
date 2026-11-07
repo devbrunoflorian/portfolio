@@ -1,6 +1,6 @@
 import { scoreRibbonData } from "./score-ribbon-data.js";
 import { scorePlaybackWindowAtBeat, scorePositionAtBeat, scoreRibbonTimeline, scoreWindowAtBeat, STATIC_SCORE_BEAT } from "./score-ribbon-timeline.js?v=continuous-score-9";
-import { drawScoreRibbon } from "./score-ribbon-renderer.js?v=continuous-score-9";
+import { drawScoreRibbon } from "./score-ribbon-renderer.js?v=spatial-fold-2";
 
 const thread = document.querySelector("[data-score-thread]");
 if (!thread) throw new Error("The About score thread is missing.");
@@ -11,7 +11,7 @@ const isEnglish = document.documentElement.lang.toLowerCase().startsWith("en");
 
 const stylesheet = document.createElement("link");
 stylesheet.rel = "stylesheet";
-stylesheet.href = new URL("./score-ribbon-transition.css?continuous-score-9", import.meta.url);
+stylesheet.href = new URL("./score-ribbon-transition.css?spatial-fold-2", import.meta.url);
 stylesheet.dataset.scoreRibbonTransitionStyle = "";
 document.head.append(stylesheet);
 
@@ -23,6 +23,11 @@ thread.append(canvas);
 let width = 0;
 let height = 0;
 let drawn = false;
+const poseQuery = new URLSearchParams(location.search).get('score-pose');
+const noteMarker = new URLSearchParams(location.search).get('score-note');
+const firstBarQuery = Number(new URLSearchParams(location.search).get('score-bar'));
+const fixedPose = poseQuery !== null && Number.isFinite(Number(poseQuery))
+  ? Math.max(0, Math.min(1, Number(poseQuery))) : null;
 let state = { progress: 0, motionEnabled: true, playbackSnapshot: null };
 const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
 
@@ -64,11 +69,19 @@ function draw() {
   context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
   const playbackBeat = currentBeatForState();
   const window = playbackBeat === null
-    ? scoreWindowAtBeat(STATIC_SCORE_BEAT, width)
+    ? scoreWindowAtBeat(firstBarQuery >= 1 && firstBarQuery <= 104 ? firstBarQuery * 4 : STATIC_SCORE_BEAT, width)
     : scorePlaybackWindowAtBeat(playbackBeat, width);
   updateExcerpt(window);
+  const musicStage = document.querySelector('.score-stage-spacer').getBoundingClientRect();
+  const stack = document.querySelector('.code-stack').getBoundingClientRect();
+  const start = stack.bottom + scrollY - height * .65;
+  const end = musicStage.top + scrollY + musicStage.height / 2 - height / 2;
+  const foldProgress = fixedPose ?? Math.max(0, Math.min(1, (scrollY - start) / Math.max(1, end - start)));
+  canvas.dataset.foldProgress = foldProgress.toFixed(4);
   drawScoreRibbon(context, width, height, scoreRibbonTimeline, {
     progress: state.progress,
+    foldProgress,
+    markerNoteId: noteMarker,
     motionEnabled: state.motionEnabled,
     viewStart: window.startX,
     viewEnd: window.endX,

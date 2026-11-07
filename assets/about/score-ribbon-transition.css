@@ -18,6 +18,12 @@ body[data-score-ribbon-transition="true"] .score-ribbon-transition__canvas {
   will-change: transform, opacity;
 }
 
+@media (min-width: 701px) {
+  body[data-score-ribbon-transition="true"] .score-stage-spacer {
+    height: clamp(220px, 29vh, 270px);
+  }
+}
+
 /* The score belongs above chapter atmosphere, but every reading surface stays above it. */
 body[data-score-ribbon-transition="true"] .about-score-thread {
   z-index: 1;
@@ -66,11 +72,13 @@ body[data-score-ribbon-transition="true"] .code-stack::before {
 }
 
 /* Reading surfaces stay visually open while the score keeps travelling behind them. */
-body[data-score-ribbon-transition="true"] :is(.poem, .games-chapter .chapter-copy, .about-closing h2, .closing-links) {
+body[data-score-ribbon-transition="true"] :is(.poem, .music-heading, .score-figure figcaption, .games-chapter .chapter-copy, .about-closing h2, .closing-links) {
   isolation: isolate;
+  position: relative;
+  z-index: 2;
 }
 
-body[data-score-ribbon-transition="true"] :is(.poem, .games-chapter .chapter-copy, .about-closing h2, .closing-links)::before {
+body[data-score-ribbon-transition="true"] :is(.poem, .music-heading, .score-figure figcaption, .games-chapter .chapter-copy, .about-closing h2, .closing-links)::before {
   content: "";
   position: absolute;
   z-index: -1;
