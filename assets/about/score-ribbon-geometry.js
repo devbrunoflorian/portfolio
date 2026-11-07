@@ -25,17 +25,19 @@ export function createProjector(width, height, study, progress = 1, view = study
   const pose = clamp(progress ?? 1);
   const fold = Math.sin(Math.PI * pose) ** 1.3;
   const rangeX = view.x1 - view.x0;
-  const inset = width < 520 ? 22 : 56;
+  const inset = width * .03;
   const unitScale = Math.min((width - inset * 2) / rangeX, (height - 76) / (study.y1 - study.y0));
   const middle = (study.staffLines[0] + study.staffLines.at(-1)) / 2;
   const center = t => {
     const curved = loopPoint(t);
     const flat = [(t - .5) * rangeX * unitScale, 0, 0];
+    const entry = [(-.68 + 1.7 * t) * width, (.25 - .46 * t) * height, (.45 - 1.8 * t) * width];
     const distant = (1 - pose) * (1 - fold);
+    const frontal = pose * (1 - fold);
     return [
-      mix(flat[0], curved[0] * width, fold) * (1 - distant * .42),
-      curved[1] * height * fold + distant * height * (.12 - t * .24),
-      curved[2] * width * fold - distant * width * (.3 + t * .8),
+      flat[0] * frontal + curved[0] * width * fold + entry[0] * distant,
+      curved[1] * height * fold + entry[1] * distant,
+      curved[2] * width * fold + entry[2] * distant,
     ];
   };
   const count = 360;

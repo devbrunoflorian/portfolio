@@ -4,6 +4,23 @@ import { createProjector } from "../assets/about/score-ribbon-geometry.js";
 
 const study = { x0: 0, x1: 160, y0: -18, y1: 12, staffLines: [-8, -6, -4, -2, 0] };
 
+test('entry crosses the left border and Music occupies 94 percent of the frame', () => {
+  const entry = createProjector(1280, 800, study, 0);
+  assert.ok(entry(0, -4).x < 0);
+  assert.ok(entry(160, -4).x > 0);
+  const front = createProjector(1280, 800, study, 1);
+  assert.ok(Math.abs((front(160, -4).x - front(0, -4).x) / 1280 - .94) < 1e-8);
+});
+
+test('ten intermediate poses retrace the same note and scale it with depth', () => {
+  const down = Array.from({length:12}, (_,i)=>createProjector(1280,800,study,i/11)(125,-2));
+  const up = Array.from({length:12}, (_,i)=>createProjector(1280,800,study,1-i/11)(125,-2)).reverse();
+  down.forEach((p,i)=>{
+    assert.ok(Math.abs(p.x-up[i].x)<1e-8 && Math.abs(p.y-up[i].y)<1e-8);
+  });
+  assert.ok(Math.max(...down.map(p=>p.perspective)) > Math.min(...down.map(p=>p.perspective))*2);
+});
+
 test("Music is a uniform frontal projection of the editorial score", () => {
   const project = createProjector(1280, 800, study, 1);
   const a = project(20, -4);
