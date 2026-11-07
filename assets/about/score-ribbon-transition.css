@@ -18,6 +18,16 @@ body[data-score-ribbon-transition="true"] .score-ribbon-transition__canvas {
   will-change: transform, opacity;
 }
 
+/* The score belongs above chapter atmosphere, but every reading surface stays above it. */
+body[data-score-ribbon-transition="true"] .about-score-thread {
+  z-index: 1;
+}
+
+body[data-score-ribbon-transition="true"] :is(.hero-copy, .chapter-copy, .code-stack, .music-heading, .art-experiment, .games-experiment, .about-closing h2, .closing-links, .back-to-top) {
+  position: relative;
+  z-index: 2;
+}
+
 body[data-score-ribbon-transition="true"] .code-score-anchor {
   isolation: isolate;
   overflow: hidden;
@@ -53,4 +63,24 @@ body[data-score-ribbon-transition="true"] .code-stack::before {
   inset: -72px -16px 0;
   pointer-events: none;
   background: linear-gradient(180deg, transparent, #060609f0 96px, #060609 180px);
+}
+
+/* Reading surfaces stay visually open while the score keeps travelling behind them. */
+body[data-score-ribbon-transition="true"] :is(.poem, .games-chapter .chapter-copy, .about-closing h2, .closing-links) {
+  isolation: isolate;
+}
+
+body[data-score-ribbon-transition="true"] :is(.poem, .games-chapter .chapter-copy, .about-closing h2, .closing-links)::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: -38px -58px;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, #060609 0 40%, rgb(6 6 9 / 88%) 58%, transparent 82%);
+}
+
+@media (max-width: 700px) {
+  body[data-score-ribbon-transition="true"] :is(.poem, .games-chapter .chapter-copy, .about-closing h2, .closing-links)::before {
+    inset: -26px -20px;
+  }
 }

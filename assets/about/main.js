@@ -16,12 +16,12 @@ const scoreLeads = root.querySelector("[data-score-leads-global]");
 let updateRibbonTransition = null;
 let disposeRibbonTransition = null;
 const scoreCameraStops = [
-  { x: -.012, y: -.012, scale: .64, opacity: .48, lead: .82, rotate: 0 },
-  { x: .008, y: .018, scale: .62, opacity: .38, lead: .62, rotate: 0 },
-  { x: 0, y: .008, scale: .94, opacity: .66, lead: .98, rotate: 0 },
-  { x: -.026, y: .02, scale: .80, opacity: .32, lead: .56, rotate: 0 },
-  { x: .024, y: -.018, scale: .72, opacity: .34, lead: .50, rotate: 0 },
-  { x: 0, y: .04, scale: .62, opacity: .18, lead: .28, rotate: 0 },
+  { x: -.012, y: -.012, scale: .68, opacity: .56, lead: .82, rotate: 0 },
+  { x: .004, y: .018, scale: .66, opacity: .46, lead: .62, rotate: 0 },
+  { x: 0, y: .008, scale: .96, opacity: .78, lead: .98, rotate: 0 },
+  { x: -.040, y: .080, scale: .72, opacity: .56, lead: .56, rotate: 0 },
+  { x: -.035, y: -.030, scale: .60, opacity: .44, lead: .50, rotate: 0 },
+  { x: 0, y: .04, scale: .68, opacity: .28, lead: .28, rotate: 0 },
 ];
 const scoreCameraAnchors = {
   opening: ".hero-field",
@@ -31,12 +31,15 @@ const scoreCameraAnchors = {
   games: ".games-experiment",
   closing: ".closing-links",
 };
-const mobileScoreScale = { opening: .72, code: .66, music: .95, art: .70, games: .62, closing: .66 };
+const mobileScoreScale = { opening: .72, code: .66, music: .95, art: .65, games: .56, closing: .66 };
 let scoreChapterBounds = [];
 let scoreThreadNeedsMeasure = true;
 let scoreThreadLastScrollY = Number.NaN;
 let scoreThreadLastStyle = "";
 let scoreTransitionProgress = 0;
+let scoreTransitionTarget = 0;
+let scoreCameraCurrent = null;
+let scoreCameraLastTime = 0;
 // Each chapter enters on the previous frame, then holds its own composition for reading.
 // Let the score keep traveling while each chapter is read; it should not settle
 // after a brief camera move at the top of every section.
@@ -80,7 +83,6 @@ function cameraValue(key, index, progress) {
 function updateScoreThread(force = false) {
   if (!scoreThread || (motionPaused && !reduceMotion.matches)) return;
   const scrollY = window.scrollY;
-  if (!force && !scoreThreadNeedsMeasure && scrollY === scoreThreadLastScrollY) return;
   if (force || scoreThreadNeedsMeasure || scoreChapterBounds.length !== chapters.length) {
     scoreChapterBounds = chapters.map(chapter => {
       const bounds = chapter.getBoundingClientRect();
@@ -97,10 +99,13 @@ function updateScoreThread(force = false) {
   }
   const chapterBounds = scoreChapterBounds[chapterIndex];
   const chapterProgress = clamp((storyPoint - chapterBounds.top) / Math.max(1, chapterBounds.height), 0, 1);
-  scoreTransitionProgress = reduceMotion.matches
+  scoreTransitionTarget = reduceMotion.matches
     ? chapterIndex / Math.max(1, chapters.length - 1)
     : clamp((chapterIndex + chapterProgress) / Math.max(1, chapters.length), 0, 1);
-  if (reduceMotion.matches) return;
+  if (reduceMotion.matches) {
+    scoreTransitionProgress = scoreTransitionTarget;
+    return;
+  }
   let index = chapterIndex;
   let progress = 0;
   if (chapterIndex > 0 && chapterProgress < cameraTransitionPortion) {
@@ -138,19 +143,45 @@ function updateScoreThread(force = false) {
     ? Math.sin(Math.PI * progress) * Math.min(window.innerHeight * .16, window.innerWidth <= 700 ? 80 : 132)
     : 0;
   const y = values.y * window.innerHeight + startOffset.y + (endOffset.y - startOffset.y) * progress + verticalArc;
-  const signature = `${x.toFixed(2)}|${y.toFixed(2)}|${values.scale.toFixed(4)}|${values.opacity.toFixed(4)}|${values.lead.toFixed(4)}|${values.rotate.toFixed(3)}`;
+  const target = { x, y, scale: values.scale, opacity: values.opacity, lead: values.lead, rotate: values.rotate };
+  const now = performance.now();
+  const elapsed = scoreCameraLastTime ? Math.min(64, now - scoreCameraLastTime) : 16;
+  scoreCameraLastTime = now;
+  if (!scoreCameraCurrent || force) {
+    scoreCameraCurrent = { ...target };
+    scoreTransitionProgress = scoreTransitionTarget;
+  } else {
+    // A short exponential settle removes stepped wheel/hash transitions without
+    // making the score feel detached from the reader's hand.
+    const amount = 1 - Math.exp(-elapsed / 86);
+    Object.keys(target).forEach(key => {
+      scoreCameraCurrent[key] += (target[key] - scoreCameraCurrent[key]) * amount;
+    });
+    scoreTransitionProgress += (scoreTransitionTarget - scoreTransitionProgress) * amount;
+  }
+  const remaining = Math.max(
+    Math.abs(scoreTransitionTarget - scoreTransitionProgress),
+    Object.keys(target).reduce((largest, key) => Math.max(largest, Math.abs(target[key] - scoreCameraCurrent[key])), 0),
+  );
+  if (remaining < .0005) {
+    scoreCameraCurrent = { ...target };
+    scoreTransitionProgress = scoreTransitionTarget;
+  }
+  else requestScene();
+  const camera = scoreCameraCurrent;
+  const signature = `${camera.x.toFixed(2)}|${camera.y.toFixed(2)}|${camera.scale.toFixed(4)}|${camera.opacity.toFixed(4)}|${camera.lead.toFixed(4)}|${camera.rotate.toFixed(3)}`;
   if (signature === scoreThreadLastStyle) return;
   scoreThreadLastStyle = signature;
-  scoreThread.style.setProperty("--thread-x", `${x.toFixed(2)}px`);
-  scoreThread.style.setProperty("--thread-y", `${y.toFixed(2)}px`);
-  scoreThread.style.setProperty("--thread-scale", values.scale.toFixed(4));
-  scoreThread.style.setProperty("--thread-opacity", values.opacity.toFixed(4));
-  scoreThread.style.setProperty("--thread-rotate", `${values.rotate.toFixed(3)}deg`);
-  scoreLeads.style.setProperty("--thread-x", `${x.toFixed(2)}px`);
-  scoreLeads.style.setProperty("--thread-y", `${y.toFixed(2)}px`);
-  scoreLeads.style.setProperty("--thread-scale", values.scale.toFixed(4));
-  scoreLeads.style.setProperty("--thread-rotate", `${values.rotate.toFixed(3)}deg`);
-  scoreLeads.style.setProperty("--lead-opacity", values.lead.toFixed(4));
+  scoreThread.style.setProperty("--thread-x", `${camera.x.toFixed(2)}px`);
+  scoreThread.style.setProperty("--thread-y", `${camera.y.toFixed(2)}px`);
+  scoreThread.style.setProperty("--thread-scale", camera.scale.toFixed(4));
+  scoreThread.style.setProperty("--thread-opacity", camera.opacity.toFixed(4));
+  scoreThread.style.setProperty("--thread-rotate", `${camera.rotate.toFixed(3)}deg`);
+  scoreLeads.style.setProperty("--thread-x", `${camera.x.toFixed(2)}px`);
+  scoreLeads.style.setProperty("--thread-y", `${camera.y.toFixed(2)}px`);
+  scoreLeads.style.setProperty("--thread-scale", camera.scale.toFixed(4));
+  scoreLeads.style.setProperty("--thread-rotate", `${camera.rotate.toFixed(3)}deg`);
+  scoreLeads.style.setProperty("--lead-opacity", camera.lead.toFixed(4));
 }
 const isPortuguese = document.documentElement.lang === "pt-BR";
 const labels = isPortuguese ? {
@@ -477,7 +508,7 @@ if (scoreRibbonStoryboardMode) {
 }
 
 if (scoreRibbonTransitionMode) {
-  import("./score-ribbon-transition.js?v=continuous-score-5").then(module => {
+  import("./score-ribbon-transition.js?v=continuous-score-8").then(module => {
     updateRibbonTransition = module.updateScoreRibbonTransition;
     disposeRibbonTransition = module.disposeScoreRibbonTransition;
     requestScene();

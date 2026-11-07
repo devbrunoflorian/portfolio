@@ -11,7 +11,7 @@ const isEnglish = document.documentElement.lang.toLowerCase().startsWith("en");
 
 const stylesheet = document.createElement("link");
 stylesheet.rel = "stylesheet";
-stylesheet.href = new URL("./score-ribbon-transition.css?continuous-score-5", import.meta.url);
+stylesheet.href = new URL("./score-ribbon-transition.css?continuous-score-8", import.meta.url);
 stylesheet.dataset.scoreRibbonTransitionStyle = "";
 document.head.append(stylesheet);
 
