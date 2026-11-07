@@ -1,29 +1,25 @@
-const vectorCache = new WeakMap();
+const drawingBoundsCache = new WeakMap();
+const drawingPathCache = new WeakMap();
 const noteheadPathCache = new Map();
 
-function vectorGeometry(study) {
-  let geometry = vectorCache.get(study);
-  if (geometry) return geometry;
-  geometry = {
-    drawings: study.pdfDrawings.flatMap(drawing => pdfDrawingPaths(drawing, study.samplingStep ?? 4).map(path => ({
-      drawing,
-      path,
-      minX: Math.min(...path.map(point => point.x)),
-      maxX: Math.max(...path.map(point => point.x)),
-    }))),
-    glyphs: study.pdfGlyphs.flatMap(glyph => {
-      const definition = study.pdfGlyphPaths[glyph.glyph];
-      if (!definition) return [];
-      let path = noteheadPathCache.get(definition);
-      if (!path) {
-        path = new Path2D(definition);
-        noteheadPathCache.set(definition, path);
-      }
-      return [{ glyph, path }];
-    }),
-  };
-  vectorCache.set(study, geometry);
-  return geometry;
+function drawingBounds(drawing) {
+  if (Number.isFinite(drawing.minX) && Number.isFinite(drawing.maxX)) {
+    return { minX: drawing.minX, maxX: drawing.maxX };
+  }
+  let bounds = drawingBoundsCache.get(drawing);
+  if (bounds) return bounds;
+  const xValues = drawing.commands.flatMap(command => command.points.map(point => point[0]));
+  bounds = { minX: Math.min(...xValues), maxX: Math.max(...xValues) };
+  drawingBoundsCache.set(drawing, bounds);
+  return bounds;
+}
+
+function drawingPaths(drawing, sampleStep) {
+  let paths = drawingPathCache.get(drawing);
+  if (paths) return paths;
+  paths = pdfDrawingPaths(drawing, sampleStep);
+  drawingPathCache.set(drawing, paths);
+  return paths;
 }
 
 function clamp(value, minimum, maximum) {
@@ -165,33 +161,42 @@ function drawPdfRibbon(context, project, study, depthAware, view) {
   inkContext.fillStyle = "#a99db8";
   inkContext.strokeStyle = "#a99db8";
 
-  const geometry = vectorGeometry(study);
-  for (const { drawing, path, minX, maxX } of geometry.drawings) {
-    if (maxX < view.x0 - 12 || minX > view.x1 + 12 || path.length < 2) continue;
-    const projected = path.map(point => project(point.x, point.y));
-    inkContext.beginPath();
-    inkContext.moveTo(projected[0].x, projected[0].y);
-    projected.slice(1).forEach(point => inkContext.lineTo(point.x, point.y));
-    if (drawing.close) inkContext.closePath();
-    const averageScale = projected.reduce((sum, point) => sum + point.scale, 0) / projected.length;
-    const averageDepth = projected.reduce((sum, point) => sum + point.perspective, 0) / projected.length;
-    const depthAlpha = depthAware
-      ? .48 * (.72 + clamp((averageDepth - .78) / .61, 0, 1) * .28)
-      : .48;
-    if (drawing.fill) {
-      inkContext.globalAlpha = depthAlpha;
-      inkContext.fill();
-    }
-    if (drawing.stroke) {
-      inkContext.globalAlpha = depthAlpha;
-      inkContext.lineWidth = Math.max(.45, drawing.width * averageScale);
-      inkContext.stroke();
+  for (const drawing of study.pdfDrawings) {
+    const { minX, maxX } = drawingBounds(drawing);
+    if (maxX < view.x0 - 12 || minX > view.x1 + 12) continue;
+    for (const path of drawingPaths(drawing, study.samplingStep ?? 4)) {
+      if (path.length < 2) continue;
+      const projected = path.map(point => project(point.x, point.y));
+      inkContext.beginPath();
+      inkContext.moveTo(projected[0].x, projected[0].y);
+      projected.slice(1).forEach(point => inkContext.lineTo(point.x, point.y));
+      if (drawing.close) inkContext.closePath();
+      const averageScale = projected.reduce((sum, point) => sum + point.scale, 0) / projected.length;
+      const averageDepth = projected.reduce((sum, point) => sum + point.perspective, 0) / projected.length;
+      const depthAlpha = depthAware
+        ? .48 * (.72 + clamp((averageDepth - .78) / .61, 0, 1) * .28)
+        : .48;
+      if (drawing.fill) {
+        inkContext.globalAlpha = depthAlpha;
+        inkContext.fill();
+      }
+      if (drawing.stroke) {
+        inkContext.globalAlpha = depthAlpha;
+        inkContext.lineWidth = Math.max(.45, drawing.width * averageScale);
+        inkContext.stroke();
+      }
     }
   }
 
-  for (const { glyph, path } of geometry.glyphs) {
+  for (const glyph of study.pdfGlyphs) {
     if (glyph.x < view.x0 - 12 || glyph.x > view.x1 + 12) continue;
-    if (!study.pdfGlyphPaths[glyph.glyph]) continue;
+    const definition = study.pdfGlyphPaths[glyph.glyph];
+    if (!definition) continue;
+    let path = noteheadPathCache.get(definition);
+    if (!path) {
+      path = new Path2D(definition);
+      noteheadPathCache.set(definition, path);
+    }
     const point = project(glyph.x, glyph.y);
     inkContext.save();
     inkContext.translate(point.x, point.y);

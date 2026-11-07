@@ -22,6 +22,11 @@ test("the continuous ribbon preserves the complete guitar score and both melodie
   assert.ok(scoreRibbonData.maxPdfPitchErrorPoints < 0.5);
   assert.equal(scoreRibbonTimeline.voices.length, 399);
   assert.ok(scoreRibbonTimeline.voices.every(note => Math.abs(note.x - scorePositionAtBeat(note.beat)) < .0001));
+  assert.ok(scoreRibbonTimeline.pdfDrawings.every(drawing => (
+    Number.isFinite(drawing.minX)
+    && Number.isFinite(drawing.maxX)
+    && drawing.minX <= drawing.maxX
+  )), "each drawing needs cheap bounds before the renderer samples its paths");
 
   const first = scoreRibbonTimeline.pdfGlyphs.find(glyph => glyph.noteId === "guitar-1-1-1");
   const second = scoreRibbonTimeline.pdfGlyphs.find(glyph => glyph.noteId === "guitar-1-2-1");

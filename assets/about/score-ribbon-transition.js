@@ -1,6 +1,6 @@
 import { scoreRibbonData } from "./score-ribbon-data.js";
-import { scorePlaybackWindowAtBeat, scorePositionAtBeat, scoreRibbonTimeline, scoreWindowAtBeat, STATIC_SCORE_BEAT } from "./score-ribbon-timeline.js?v=continuous-score-5";
-import { drawScoreRibbon } from "./score-ribbon-renderer.js?v=continuous-score-5";
+import { scorePlaybackWindowAtBeat, scorePositionAtBeat, scoreRibbonTimeline, scoreWindowAtBeat, STATIC_SCORE_BEAT } from "./score-ribbon-timeline.js?v=continuous-score-9";
+import { drawScoreRibbon } from "./score-ribbon-renderer.js?v=continuous-score-9";
 
 const thread = document.querySelector("[data-score-thread]");
 if (!thread) throw new Error("The About score thread is missing.");
@@ -11,7 +11,7 @@ const isEnglish = document.documentElement.lang.toLowerCase().startsWith("en");
 
 const stylesheet = document.createElement("link");
 stylesheet.rel = "stylesheet";
-stylesheet.href = new URL("./score-ribbon-transition.css?continuous-score-8", import.meta.url);
+stylesheet.href = new URL("./score-ribbon-transition.css?continuous-score-9", import.meta.url);
 stylesheet.dataset.scoreRibbonTransitionStyle = "";
 document.head.append(stylesheet);
 

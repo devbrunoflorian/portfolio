@@ -508,7 +508,7 @@ if (scoreRibbonStoryboardMode) {
 }
 
 if (scoreRibbonTransitionMode) {
-  import("./score-ribbon-transition.js?v=continuous-score-8").then(module => {
+  import("./score-ribbon-transition.js?v=continuous-score-9").then(module => {
     updateRibbonTransition = module.updateScoreRibbonTransition;
     disposeRibbonTransition = module.disposeScoreRibbonTransition;
     requestScene();

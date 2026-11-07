@@ -47,16 +47,20 @@ function createTimeline() {
     }
 
     for (const drawing of system.drawings) {
+      const commands = drawing.commands.map(command => ({
+        ...command,
+        points: command.sourcePoints.map(([sourceX], index) => [
+          timelineX(sourceX),
+          -command.points[index][1],
+        ]),
+      }));
+      const xValues = commands.flatMap(command => command.points.map(point => point[0]));
       drawings.push({
         ...drawing,
         width: drawing.width / sourceHalfStep,
-        commands: drawing.commands.map(command => ({
-          ...command,
-          points: command.sourcePoints.map(([sourceX], index) => [
-            timelineX(sourceX),
-            -command.points[index][1],
-          ]),
-        })),
+        commands,
+        minX: Math.min(...xValues),
+        maxX: Math.max(...xValues),
       });
     }
 
