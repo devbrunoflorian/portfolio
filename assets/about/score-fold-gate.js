@@ -1,8 +1,11 @@
 import { scoreRibbonData } from './score-ribbon-data.js';
 import { scoreRibbonTimeline as score } from './score-ribbon-timeline.js';
 import { createProjector, createTravelProjector } from './score-ribbon-geometry.js?v=travel-1';
+import { noteHeadStemPairs, projectHeadStem } from './score-head-stems.js';
 
-const traveling = new URLSearchParams(location.search).get('score-gate') === '2b';
+const gate = new URLSearchParams(location.search).get('score-gate');
+const glyphStudy = gate === '3a';
+const traveling = gate === '2b' || glyphStudy;
 
 document.querySelector('.about-main').hidden = true;
 const page = document.createElement('main');
@@ -44,10 +47,18 @@ const points = heads.map(head=>({
   y:-((Math.floor(head.writtenMidi/12)-1)*7+steps[head.writtenMidi%12]-30),
 }));
 const markerId = 'guitar-33-4-1';
+const headStems = glyphStudy ? noteHeadStemPairs(score,points) : [];
+if(glyphStudy){
+  page.querySelector('h1').textContent='Cabeças e hastes · frente e proximidade';
+  page.querySelector('label').lastChild.textContent=' Mostrar cabeças e hastes';
+  page.querySelectorAll('h2')[0].remove();
+  page.querySelector('.fold-gate-film').previousElementSibling.remove();
+  page.querySelector('.fold-gate-film').remove();
+}
 let liveCanvas, poseSlider, liveLabel, pairDown, pairUp, animationFrame = 0;
 let direction = 1, lastTime = 0;
 let manualPose = false;
-if(traveling){
+if(traveling && !glyphStudy){
   page.querySelector('h1').textContent='Fita musical · câmera em viagem';
   const panel=document.createElement('section');
   panel.className='travel-panel';
@@ -55,6 +66,8 @@ if(traveling){
   page.querySelector('.fold-gate-poses').before(panel);
   liveCanvas=panel.querySelector('.travel-sticky canvas');
   poseSlider=panel.querySelector('input');liveLabel=panel.querySelector('output');
+  const studyPose=new URLSearchParams(location.search).get('study-pose');
+  if(studyPose!==null){poseSlider.value=String(Number(studyPose)*1000);manualPose=true;direction=-1;}
   pairDown=panel.querySelector('[data-pair] figure:first-child canvas');
   pairUp=panel.querySelector('[data-pair] figure:last-child canvas');
   function live(){
@@ -108,9 +121,9 @@ function addFrame(container,pose,label){
   canvas.setAttribute('aria-label',label+' · '+markerId);
   figure.append(caption,canvas);container.append(figure);frames.push({canvas,pose});
 }
-[0,.35,.6,1].forEach((p,i)=>addFrame(page.querySelector('.fold-gate > .fold-gate-poses'),p,
-  `${Math.round(p*100)}% · ${['Entrada pela borda','Retorno','Passagem próxima','Music frontal'][i]}`));
-for(let i=0;i<12;i++){
+(glyphStudy?[1,.13]:[0,.35,.6,1]).forEach((p,i)=>addFrame(page.querySelector('.fold-gate > .fold-gate-poses'),p,
+  `${Math.round(p*100)}% · ${(glyphStudy?['Music frontal','Passagem próxima']:['Entrada pela borda','Retorno','Passagem próxima','Music frontal'])[i]}`));
+for(let i=0;!glyphStudy&&i<12;i++){
   addFrame(page.querySelector('.fold-gate-film'),i/11,`↓ ${(i/11*100).toFixed(1)}% · ${markerId}`);
   addFrame(page.querySelector('.fold-gate-film'),1-i/11,`↑ ${((1-i/11)*100).toFixed(1)}% · ${markerId}`);
 }
@@ -152,6 +165,15 @@ function renderFrame(canvas,pose){
     for(let y=2;y<=note.y;y+=2)stroke(project(note.x-1.6,y),project(note.x+1.6,y),'#b8accb',Math.max(.8,p.perspective),.25);
     const radius=Math.max(1.3,4.6*p.perspective);
     queue.push({depth:project(note.x,-4).depth+25,paint(){
+      if(glyphStudy){
+        const pair=headStems.find(pair=>pair.note.id===note.id);
+        const shape=projectHeadStem(pair,project);
+        ctx.beginPath();ctx.moveTo(shape.contact.x,shape.contact.y);ctx.lineTo(shape.end.x,shape.end.y);
+        ctx.strokeStyle=note.id===markerId?'#ffdc83':'#cfc2e2';ctx.lineWidth=Math.max(.65,pair.stem.width*p.scale);ctx.stroke();
+        ctx.save();ctx.translate(p.x,p.y);ctx.scale(pair.glyph.scaleX*p.scale,pair.glyph.scaleY*p.scale);
+        ctx.fillStyle=note.id===markerId?'#ffdc83':'#a7caff';ctx.fill(new Path2D(score.pdfGlyphPaths[pair.glyph.glyph]));ctx.restore();
+        return;
+      }
       ctx.beginPath();ctx.arc(p.x,p.y,radius+1.1,0,Math.PI*2);ctx.fillStyle='#08080e';ctx.fill();
       ctx.beginPath();ctx.arc(p.x,p.y,radius,0,Math.PI*2);ctx.fillStyle=note.id===markerId?'#ffdc83':'#70a8ff';ctx.fill();
       if(note.id===markerId){ctx.beginPath();ctx.arc(p.x,p.y,radius+3,0,Math.PI*2);ctx.lineWidth=1;ctx.strokeStyle='#ffdc83';ctx.stroke();}

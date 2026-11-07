@@ -95,6 +95,4 @@ export function createProjector(width, height, study, progress = 1, view = study
   return project;
 }
 
-export function createTravelProjector(width,height,study,progress,view=study) {
-  return createProjector(width,height,study,progress,view,true);
-}
+export { createTravelProjector } from './score-travel-geometry.js';

@@ -1,8 +1,43 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createProjector, createTravelProjector } from "../assets/about/score-ribbon-geometry.js";
+import {measureScreenCurvature,SCREEN_CURVATURE_LIMIT} from '../assets/about/score-screen-curvature.js';
+import {scoreRibbonTimeline} from '../assets/about/score-ribbon-timeline.js';
+import {noteHeadStemPairs,projectHeadStem} from '../assets/about/score-head-stems.js';
 
 const study = { x0: 0, x1: 160, y0: -18, y1: 12, staffLines: [-8, -6, -4, -2, 0] };
+
+test('all 101 projected poses and three reported positions stay below screen curvature limit',()=>{
+  const view={x0:scoreRibbonTimeline.bars[30].xStart,x1:scoreRibbonTimeline.bars[32].xEnd};
+  for(const pose of [...Array.from({length:101},(_,i)=>i/100),.856,.13,.108]){
+    const result=measureScreenCurvature(createTravelProjector(1280,711,scoreRibbonTimeline,pose,view),view,scoreRibbonTimeline.staffLines);
+    assert.ok(result.maximum<=SCREEN_CURVATURE_LIMIT,pose+': '+result.maximum);
+  }
+});
+
+test('all twenty source heads have stems attached in front and close poses',()=>{
+  const view={x0:scoreRibbonTimeline.bars[30].xStart,x1:scoreRibbonTimeline.bars[32].xEnd};
+  const notes=scoreRibbonTimeline.pdfGlyphs.filter(g=>g.noteId&&g.x>=view.x0&&g.x<=view.x1).map(g=>({id:g.noteId,x:g.x,y:g.y}));
+  const pairs=noteHeadStemPairs(scoreRibbonTimeline,notes);
+  assert.equal(pairs.length,20);
+  for(const pose of [1,.13])for(const pair of pairs){
+    const shape=projectHeadStem(pair,createTravelProjector(1280,711,scoreRibbonTimeline,pose,view));
+    assert.equal(shape.contact.x,shape.end.x);
+    assert.ok(Math.abs(shape.contact.x-shape.head.x)<3.5*shape.head.scale);
+    assert.ok(Math.abs(shape.end.y-shape.contact.y)>0);
+  }
+});
+
+test('corrected camera keeps the marked note visible and the final staff at 94 percent width',()=>{
+  const view={x0:scoreRibbonTimeline.bars[30].xStart,x1:scoreRibbonTimeline.bars[32].xEnd};
+  const marked=scoreRibbonTimeline.pdfGlyphs.find(g=>g.noteId==='guitar-33-4-1');
+  for(const pose of [.856,.13,.108]){
+    const point=createTravelProjector(1280,711,scoreRibbonTimeline,pose,view)(marked.x,-2);
+    assert.ok(point.x>0&&point.x<1280&&point.y>0&&point.y<711);
+  }
+  const front=createTravelProjector(1280,711,scoreRibbonTimeline,1,view);
+  assert.ok(Math.abs((front(view.x1,-4).x-front(view.x0,-4).x)/1280-.94)<1e-5);
+});
 
 test('travel moves the observer and its look direction and retraces the same pose', () => {
   const a=createTravelProjector(1280,800,study,.25);
