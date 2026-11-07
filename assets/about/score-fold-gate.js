@@ -2,9 +2,11 @@ import { scoreRibbonData } from './score-ribbon-data.js';
 import { scoreRibbonTimeline as score } from './score-ribbon-timeline.js';
 import { createProjector, createTravelProjector } from './score-ribbon-geometry.js?v=travel-1';
 import { noteHeadStemPairs, projectHeadStem } from './score-head-stems.js';
+import { buildEngraving, enqueueEngraving } from './score-engraving.js';
 
 const gate = new URLSearchParams(location.search).get('score-gate');
-const glyphStudy = gate === '3a';
+const engravingStudy = gate === '3b';
+const glyphStudy = gate === '3a' || engravingStudy;
 const traveling = gate === '2b' || glyphStudy;
 
 document.querySelector('.about-main').hidden = true;
@@ -48,12 +50,20 @@ const points = heads.map(head=>({
 }));
 const markerId = 'guitar-33-4-1';
 const headStems = glyphStudy ? noteHeadStemPairs(score,points) : [];
+const engraving = engravingStudy ? buildEngraving(score,points,view) : null;
 if(glyphStudy){
   page.querySelector('h1').textContent='Cabeças e hastes · frente e proximidade';
   page.querySelector('label').lastChild.textContent=' Mostrar cabeças e hastes';
   page.querySelectorAll('h2')[0].remove();
   page.querySelector('.fold-gate-film').previousElementSibling.remove();
   page.querySelector('.fold-gate-film').remove();
+}
+if(engravingStudy){
+  page.classList.add('engraving-gate');
+  page.querySelector('h1').textContent='Gravura musical · frente e proximidade';
+  page.querySelector('label').lastChild.textContent=' Mostrar notação';
+  page.querySelector('h1 + p').textContent='Guitarra, compassos 31–33. Seis beams de tercina, seis cifras e colchetes; D♯5 no compasso 31. O compasso 32 segue a decisão atual: pausa de compasso inteiro. Sem vozes, mouse ou blur.';
+  style.textContent += '.engraving-gate > .fold-gate-poses{grid-template-columns:1fr}';
 }
 let liveCanvas, poseSlider, liveLabel, pairDown, pairUp, animationFrame = 0;
 let direction = 1, lastTime = 0;
@@ -179,6 +189,7 @@ function renderFrame(canvas,pose){
       if(note.id===markerId){ctx.beginPath();ctx.arc(p.x,p.y,radius+3,0,Math.PI*2);ctx.lineWidth=1;ctx.strokeStyle='#ffdc83';ctx.stroke();}
     }});
   }
+  if(engravingStudy&&page.querySelector('input').checked)enqueueEngraving(queue,ctx,engraving,score,project);
   queue.sort((a,b)=>a.depth-b.depth).forEach(item=>item.paint());
   canvas.dataset.pose=String(pose);
   canvas.dataset.camera=JSON.stringify(project.camera);
