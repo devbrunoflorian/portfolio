@@ -11,7 +11,7 @@ import {applyFocusLayers,clearFocusLayers,filterSupport} from './score-focus-lay
 import { enqueueStaffLine, HALO_HALF_WIDTH } from './score-depth-cues.js?v=profile-2';
 import { mountFrontComparison } from './score-front-comparison.js';
 import {mountDrawProfile} from './score-draw-profile.js?v=3';
-import {mountBackendComparison} from './score-backend-comparison.js';
+import {mountBackendComparison} from './score-backend-comparison.js?v=build-profile';
 const optimization=Number(new URLSearchParams(location.search).get('score-optimization')??0);
 
 const gate = new URLSearchParams(location.search).get('score-gate');

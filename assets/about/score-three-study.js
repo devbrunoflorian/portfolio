@@ -4,6 +4,7 @@ import { projectCompoundGroup, glyphContours } from './score-compound-groups.js'
 import { projectedRest } from './score-engraving.js';
 import { readingFocus } from './score-focus-profile.js';
 import { HALO_HALF_WIDTH } from './score-depth-cues.js';
+import {createDrawProfile} from './score-draw-profile.js';
 
 const BACKGROUND = [6 / 255, 6 / 255, 9 / 255];
 const INK = [207 / 255, 194 / 255, 226 / 255];
@@ -123,15 +124,27 @@ export async function mountThreeStudy(host, { score, view, points, groups, engra
   const postMesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), postMaterial);
   postScene.add(postMesh);
   const gl = renderer.getContext(), timer = gl.getExtension('EXT_disjoint_timer_query_webgl2');
+  const upload={cpuMs:0,calls:0,bytes:0},originalUploads=new Map();
+  for(const method of ['bufferData','bufferSubData']){
+    const original=gl[method];originalUploads.set(method,original);
+    gl[method]=function(...args){
+      const start=performance.now();
+      try{return original.apply(this,args);}
+      finally{upload.cpuMs+=performance.now()-start;upload.calls++;const data=args[method==='bufferData'?1:2];upload.bytes+=typeof data==='number'?data:data?.byteLength??0;}
+    };
+  }
   const debugRenderer = gl.getExtension('WEBGL_debug_renderer_info');
   const pending = [], metrics = { gpuTimer: Boolean(timer), samples: [],
     renderer: debugRenderer ? gl.getParameter(debugRenderer.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER),
     hardwareAcceleration: 'Unknown; a WebGL context does not establish hardware acceleration.',
     presentation: 'Not measured; next-RAF latency is scheduling only.' };
-  let disposed = false, cachedPose = null;
+  let disposed = false, cachedPose = null,lastBuildProfile=null;
 
   function build(pose) {
-    const project = createTravelProjector(width, height, score, pose, view, .2);
+    const profile=createDrawProfile(),end=profile.start('buffers');
+    const source=profile.measure('projection',()=>createTravelProjector(width,height,score,pose,view,.2));
+    const project=Object.assign((...args)=>profile.measure('projection',()=>source(...args)),source);
+    const filled=(contours,triangle)=>profile.measure('triangulation',()=>fillContours(contours,triangle));
     const focus = readingFocus(project, view, width, height, points.find(p => p.id === MARKER), pose);
     uniforms.focus.value = focus.distance;
     const positions = [], colors = [], protectedValues = [], halo = [];
@@ -142,9 +155,11 @@ export async function mountThreeStudy(host, { score, view, points, groups, engra
       out.push((p.x - width / 2) * z / focal, (height / 2 - p.y) * z / focal, -z);
     };
     const emit = (color = INK, protect = false) => (a, b, c) => {
+      const finish=profile.start('buffers');
       for (const p of [a, b, c]) {
         vertex(positions, p, 1); colors.push(...color); protectedValues.push(protect ? 1 : 0);
       }
+      finish();
     };
     const haloTriangle = (a, b, c) => { for (const p of [a, b, c]) vertex(halo, p); };
     for (let i = 0; i < 280; i++) {
@@ -164,28 +179,28 @@ export async function mountThreeStudy(host, { score, view, points, groups, engra
     }
     for (const group of groups) {
       const shape = projectCompoundGroup(group, project);
-      fillContours([shape.beam], emit());
+      filled([shape.beam], emit());
       for (const stem of shape.stems) stroke(stem.points, stem.width * stem.points[0].scale, emit());
       for (const line of shape.ledgers) stroke(line.points, line.width * line.points[0].scale, emit());
       for (const head of shape.heads) {
         const isGold = head.noteId === MARKER;
         const front = -project(head.anchor.u, head.anchor.v).depth / width <= focus.distance + .001;
-        fillContours(head.contours, emit(isGold ? GOLD : INK, isGold || front));
+        filled(head.contours, emit(isGold ? GOLD : INK, isGold || front));
       }
       if (details) {
         shape.brackets.forEach(path => stroke(path, group.bracket.width * path[0].scale, emit()));
-        shape.accidents.forEach(contours => fillContours(contours, emit()));
+        shape.accidents.forEach(contours => filled(contours, emit()));
         if (shape.number) {
           const number = group.number, anchor = shape.number;
           const contours = glyphContours(score.pdfGlyphPaths[number.glyph.glyph]).map(contour => contour.map(([x, y]) => ({
             ...anchor, x: anchor.x + (x - number.centerX) * number.glyph.scaleX * anchor.scale,
             y: anchor.y + (y - number.centerY) * number.glyph.scaleY * anchor.scale,
           })));
-          fillContours(contours, emit());
+          filled(contours, emit());
         }
       }
     }
-    fillContours([projectedRest(engraving.rest, project).points], emit());
+    filled([projectedRest(engraving.rest, project).points], emit());
     const replace = (mesh, values, ink = false) => {
       const geometry = new THREE.BufferGeometry();
       geometry.setAttribute('position', new THREE.Float32BufferAttribute(values, 3));
@@ -199,6 +214,7 @@ export async function mountThreeStudy(host, { score, view, points, groups, engra
     canvas.dataset.camera = JSON.stringify(project.camera);
     canvas.dataset.marker = JSON.stringify(project(points.find(p => p.id === MARKER).x, points.find(p => p.id === MARKER).y));
     cachedPose = pose;
+    end();lastBuildProfile={projectionMs:profile.values.projection??0,triangulationMs:profile.values.triangulation??0,bufferAssemblyMs:profile.values.buffers??0};
   }
 
   function pollGPU() {
@@ -216,6 +232,7 @@ export async function mountThreeStudy(host, { score, view, points, groups, engra
     if (disposed) throw new Error('Three study is disposed.');
     if (!Number.isFinite(pose) || pose < 0 || pose > 1) throw new RangeError('Pose must be between 0 and 1.');
     const started = performance.now();
+    upload.cpuMs=upload.calls=upload.bytes=0;
     pollGPU();
     const geometryCached = cachedPose === pose;
     if (!geometryCached) build(pose);
@@ -233,6 +250,7 @@ export async function mountThreeStudy(host, { score, view, points, groups, engra
     if (query) { gl.endQuery(timer.TIME_ELAPSED_EXT); pending.push({ query, sample }); }
     sample.submissionMs = performance.now() - prepared;
     sample.cpuMs = performance.now() - started;
+    Object.assign(sample,geometryCached?{projectionMs:0,triangulationMs:0,bufferAssemblyMs:0}:lastBuildProfile,{uploadCpuMs:upload.cpuMs,uploadCalls:upload.calls,uploadBytes:upload.bytes});
     sample.triangles = renderer.info.render.triangles;
     metrics.samples.push(sample);
     if (metrics.samples.length > 512) metrics.samples.shift();
@@ -295,6 +313,7 @@ export async function mountThreeStudy(host, { score, view, points, groups, engra
     inkMesh.geometry.dispose(); haloMesh.geometry.dispose(); postMesh.geometry.dispose();
     material.dispose(); haloMaterial.dispose(); postMaterial.dispose();
     target.depthTexture.dispose(); target.dispose(); renderer.dispose(); renderer.forceContextLoss(); canvas.remove();
+    for(const [method,original] of originalUploads)gl[method]=original;
   }
   return { canvas, draw, benchmark, benchmarkSequence, measureSerializedCompletion, dispose, metrics, pollGPU };
 }

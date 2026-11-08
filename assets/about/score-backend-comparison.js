@@ -6,6 +6,17 @@ export function mountBackendComparison(page,options,renderCanvas){
   page.querySelector('.notation-alternatives').append(section);
   let study;const output=section.querySelector('output'),pre=section.querySelector('pre'),canvas=section.querySelector('canvas');
   const load=section.querySelector('[data-load]'),measure=section.querySelector('[data-measure]');
+  const profileBuild=document.createElement('button');profileBuild.type='button';profileBuild.disabled=true;profileBuild.textContent='Medir build legado · 60 poses';measure.after(profileBuild);
+  profileBuild.addEventListener('click',async()=>{
+    profileBuild.disabled=measure.disabled=true;output.textContent=' Medindo build legado em60 poses…';
+    try{
+      const result=await study.benchmarkSequence({fixedSamples:0,poses:Array.from({length:60},(_,i)=>i/59),warmup:3});
+      const fields=['projectionMs','triangulationMs','bufferAssemblyMs','uploadCpuMs','uploadCalls','uploadBytes','cpuMs'];
+      const samples=result.frames.map(frame=>Object.fromEntries(fields.map(key=>[key,frame[key]])));
+      const report={count:60,viewport:{width:innerWidth,height:innerHeight},dpr:devicePixelRatio,width:study.canvas.width,height:study.canvas.height,summary:summarizeSamples(samples),samples,notes:'Exclusive instrumented CPU timings. Upload is CPU WebGL bufferData/bufferSubData submission, not isolated GPU transfer time.'};
+      pre.textContent=JSON.stringify(report,null,2);section.dataset.legacyProfileComplete='true';draw(.13);output.textContent=' Build legado medido.';
+    }finally{profileBuild.disabled=measure.disabled=false;}
+  });
   function draw(pose){
     renderCanvas(canvas,pose,true,'C');study.draw(pose,'C');
     const captions=section.querySelectorAll('figcaption');
@@ -16,7 +27,7 @@ export function mountBackendComparison(page,options,renderCanvas){
     load.disabled=true;
     try{
       section.querySelector('[data-scenes]').hidden=false;
-      const {mountThreeStudy}=await import('./score-three-study.js');
+      const {mountThreeStudy}=await import('./score-three-study.js?v=build-profile');
       const started=performance.now();
       study=await mountThreeStudy(section.querySelector('[data-three]'),{...options,width:canvas.clientWidth,height:canvas.clientWidth/1.8});
       draw(.13);section.dataset.ready='true';
@@ -29,6 +40,7 @@ export function mountBackendComparison(page,options,renderCanvas){
       section.dataset.canvasParity=JSON.stringify({changedChannels:changed,maxDelta,channels:original.length});
       output.textContent=` Pronto. Inicialização e primeiro desenho: ${(performance.now()-started).toFixed(1)} ms.`;
       measure.disabled=false;
+      profileBuild.disabled=false;
     }catch(error){output.textContent=` Não foi possível abrir: ${error.message}`;load.disabled=false;throw error;}
   });
   measure.addEventListener('click',async()=>{
