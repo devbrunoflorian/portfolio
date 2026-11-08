@@ -46,15 +46,18 @@ function compareRgba(reference, candidate) {
       candidate: { width: candidate.width, height: candidate.height, channels: candidate.data.length },
     };
   }
-  let changedChannels = 0, changedPixels = 0, maxDelta = 0;
+  let changedChannels = 0, changedPixels = 0, pixelsOver16 = 0, maxDelta = 0;
   for (let i = 0; i < reference.data.length; i += 4) {
     let pixelChanged = false;
+    let pixelMaxDelta = 0;
     for (let channel = 0; channel < 4; channel++) {
       const delta = Math.abs(reference.data[i + channel] - candidate.data[i + channel]);
       if (delta) { changedChannels++; pixelChanged = true; }
+      if (channel < 3) pixelMaxDelta = Math.max(pixelMaxDelta, delta);
       maxDelta = Math.max(maxDelta, delta);
     }
     if (pixelChanged) changedPixels++;
+    if (pixelMaxDelta > 16) pixelsOver16++;
   }
   return {
     comparable: true,
@@ -63,6 +66,8 @@ function compareRgba(reference, candidate) {
     channels: reference.data.length,
     changedChannels,
     changedPixels,
+    pixelsOver16,
+    pixelsOver16Percent: pixelsOver16 / (reference.width * reference.height) * 100,
     maxDelta,
   };
 }
@@ -94,6 +99,8 @@ export function mountGpuStudy(page, options, renderCanvas) {
         <figure><figcaption data-reference-caption>Canvas C · preparando referência</figcaption><canvas data-reference-preview aria-label="Referência estática Canvas C"></canvas></figure>
         <figure><figcaption data-gpu-caption>Three.js C · experimental</figcaption><div class="gpu-canvas-slot" data-gpu-preview><span data-gpu-placeholder>Carregue o estudo para iniciar o renderer GPU.</span></div></figure>
       </div>
+      <button type="button" data-overlay disabled>Gerar sobreposição frontal · 100%</button>
+      <figure data-overlay-figure hidden><figcaption>Canvas ciano + GPU âmbar · pose frontal 100%</figcaption><canvas data-overlay-preview aria-label="Sobreposição Canvas em ciano e GPU em âmbar na pose frontal"></canvas></figure>
       <div class="gpu-controls"><button type="button" data-lose-context disabled>Simular perda de contexto</button><button type="button" data-restore-context hidden>Restaurar contexto</button></div>
       <p data-context-fallback role="status" hidden></p>
       <div class="gpu-benchmark">
@@ -134,6 +141,8 @@ export function mountGpuStudy(page, options, renderCanvas) {
     [data-gpu-study] figure{min-width:0;margin:0;border:1px solid #383044;border-radius:7px;overflow:hidden;background:#08080e}
     [data-gpu-study] figcaption{padding:9px 12px;color:#cfb7ec;font-size:13px}
     [data-gpu-study] .gpu-pair canvas{display:block;width:100%;height:auto;aspect-ratio:1.8;background:#08080e}
+    [data-gpu-study] [data-overlay-figure]{max-width:1142px;margin:18px 0;border:1px solid #383044;border-radius:7px;overflow:hidden;background:#060609}
+    [data-gpu-study] [data-overlay-preview]{display:block;width:100%;height:auto;aspect-ratio:1.8}
     [data-gpu-study] .gpu-canvas-slot{position:relative;min-height:120px;background:#08080e;color:#bcb4c9}
     [data-gpu-study] .gpu-canvas-slot canvas{display:block;width:100%;height:auto;aspect-ratio:1.8}
     [data-gpu-study] [data-gpu-placeholder]{display:block;padding:24px}
@@ -163,6 +172,9 @@ export function mountGpuStudy(page, options, renderCanvas) {
   const dprSelect = section.querySelector('[data-dpr]');
   const cpuThrottleCheck = section.querySelector('[data-cpu-throttle]');
   const pixelDiffButton = section.querySelector('[data-pixel-diff]');
+  const overlayButton = section.querySelector('[data-overlay]');
+  const overlayFigure = section.querySelector('[data-overlay-figure]');
+  const overlayPreview = section.querySelector('[data-overlay-preview]');
   const reportElement = section.querySelector('[data-gpu-report]');
   const contextFallback = section.querySelector('[data-context-fallback]');
   const loseContextButton = section.querySelector('[data-lose-context]');
@@ -236,6 +248,7 @@ export function mountGpuStudy(page, options, renderCanvas) {
     gpuPlaceholder.textContent = 'Contexto WebGL perdido. A referência Canvas continua disponível.';
     gpuCaption.textContent = 'Three.js C · contexto WebGL perdido';
     measureButton.disabled = pixelDiffButton.disabled = true;
+    overlayButton.disabled = true;
     playButton.disabled = true;
     loseContextButton.disabled = true;
     status.textContent = 'A referência estática continua disponível; a medição GPU foi interrompida.';
@@ -247,7 +260,7 @@ export function mountGpuStudy(page, options, renderCanvas) {
 
   function onContextRestored() {
     lostContext=false;contextFallback.hidden=true;gpuStudy.canvas.hidden=false;gpuPlaceholder.hidden=true;
-    measureButton.disabled=pixelDiffButton.disabled=playButton.disabled=loseContextButton.disabled=false;
+    measureButton.disabled=pixelDiffButton.disabled=playButton.disabled=loseContextButton.disabled=overlayButton.disabled=false;
     status.textContent='Contexto WebGL restaurado. Quadro estático retomado.';
     restoreContextButton.hidden = true;
     loadButton.hidden = true;
@@ -279,6 +292,7 @@ export function mountGpuStudy(page, options, renderCanvas) {
       playButton.disabled = false;
       loseContextButton.disabled = false;
       measureButton.disabled = pixelDiffButton.disabled = dprSelect.disabled = cpuThrottleCheck.disabled = false;
+      overlayButton.disabled = false;
       restoreContextButton.hidden = true;
       loadButton.hidden = true;
       slider.value = '130';
@@ -476,19 +490,71 @@ export function mountGpuStudy(page, options, renderCanvas) {
         measureStatus.textContent = `Contagem RGBA · ${Math.round(pose * 100)}% concluído`;
       }
       const report = {
-        method: 'Channel-by-channel RGBA readback at matching CSS size and 2× backing resolution.',
+        method: 'Canvas/GPU readback at matching CSS size and 2× backing resolution. A pixel exceeds the 16/255 threshold when its largest RGB channel delta is greater than 16; alpha is excluded.',
         results,
         interpretation: 'Rasterization, edge antialiasing, color conversion, and shader composition can differ. Changed-channel counts and maximum delta do not establish visual parity or approval.',
       };
       const json = JSON.stringify(report, null, 2);
       reportElement.textContent = json;
       reportElement.dataset.gpuReport = JSON.stringify(report);
-      measureStatus.textContent = 'Contagem concluída. Diferenças de rasterização são esperadas; não indicam paridade.';
+      measureStatus.textContent = `Contagem concluída · pixels com diferença RGB >16/255: ${results.map(item => `${Math.round(item.pose * 100)}% ${item.comparison.pixelsOver16Percent.toFixed(2)}%`).join(' · ')}.`;
       drawComparison(Number(slider.value) / 1000);
     } catch (error) {
       measureStatus.textContent = `Contagem RGBA interrompida: ${error?.message ?? error}`;
     } finally {
       pixelDiffButton.disabled = measureButton.disabled = Boolean(lostContext);
+    }
+  }
+
+  async function drawFrontalOverlay() {
+    if (!gpuStudy || lostContext) return;
+    overlayButton.disabled = true;
+    try {
+      stopMotion(false);
+      gpuStudy.setPixelRatio(REFERENCE_PIXEL_RATIO);
+      drawReference(1);
+      gpuStudy.draw(1, 'C');
+      await nextFrame();
+      const source = referenceCanvas.getContext('2d').getImageData(0, 0, referenceCanvas.width, referenceCanvas.height);
+      const gpu = gpuStudy.readPixels({ mask: false });
+      if (source.width !== gpu.width || source.height !== gpu.height) throw new Error('Canvas and GPU dimensions differ.');
+      overlayPreview.width = source.width;
+      overlayPreview.height = source.height;
+      const context = overlayPreview.getContext('2d');
+      const overlay = context.createImageData(source.width, source.height);
+      for (let i = 0; i < overlay.data.length; i += 4) {
+        const canvasWeight = Math.max(0, Math.min(1, (Math.max(source.data[i], source.data[i + 1], source.data[i + 2]) - 6) / 225));
+        const gpuWeight = Math.max(0, Math.min(1, (Math.max(gpu.data[i], gpu.data[i + 1], gpu.data[i + 2]) - 6) / 225));
+        if (canvasWeight > .025 && gpuWeight > .025) {
+          const overlap = Math.max(canvasWeight, gpuWeight);
+          overlay.data[i] = 6 + overlap * 249;
+          overlay.data[i + 1] = 6 + overlap * 249;
+          overlay.data[i + 2] = 9 + overlap * 246;
+        } else if (canvasWeight > .025) {
+          overlay.data[i] = 6;
+          overlay.data[i + 1] = 6 + canvasWeight * 208;
+          overlay.data[i + 2] = 9 + canvasWeight * 246;
+        } else if (gpuWeight > .025) {
+          overlay.data[i] = 6 + gpuWeight * 249;
+          overlay.data[i + 1] = 6 + gpuWeight * 160;
+          overlay.data[i + 2] = 9 + gpuWeight * 26;
+        } else {
+          overlay.data[i] = 6;
+          overlay.data[i + 1] = 6;
+          overlay.data[i + 2] = 9;
+        }
+        overlay.data[i + 3] = 255;
+      }
+      context.putImageData(overlay, 0, 0);
+      overlayFigure.hidden = false;
+      slider.value = '1000';
+      setPoseLabel(1);
+      drawGpu(1);
+      status.textContent = 'Sobreposição frontal pronta: Canvas em ciano, GPU em âmbar.';
+    } catch (error) {
+      measureStatus.textContent = `Sobreposição interrompida: ${error?.message ?? error}`;
+    } finally {
+      overlayButton.disabled = Boolean(lostContext);
     }
   }
 
@@ -515,6 +581,7 @@ export function mountGpuStudy(page, options, renderCanvas) {
   }
   measureButton.addEventListener('click', measureGpu);
   pixelDiffButton.addEventListener('click', measurePixelDifferences);
+  overlayButton.addEventListener('click', drawFrontalOverlay);
   loseContextButton.addEventListener('click', () => gpuStudy?.loseContext?.());
   restoreContextButton.addEventListener('click', () => gpuStudy?.restoreContext?.());
   function onMotionPreference(event){

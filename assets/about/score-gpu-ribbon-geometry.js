@@ -69,7 +69,8 @@ export function buildRibbonGeometry(score, view, groups, engraving) {
   const along = v => Array.from({ length: 561 }, (_, i) => point(view.x0 + (view.x1 - view.x0) * i / 560, v));
   // A contiguous ribbon is triangulated as strips, avoiding concave-outline diagonals.
   strip(along(-4 - HALO_HALF_WIDTH), along(-4 + HALO_HALF_WIDTH), { kind: 4 });
-  for (const y of score.staffLines) strip(along(y - engraving.staffWidth / 2), along(y + engraving.staffWidth / 2));
+  // Match Canvas' screen-space stroke instead of offsetting in staff-space.
+  for (const y of score.staffLines) stroke(along(y), engraving.staffWidth);
   for (const bar of engraving.barlines) stroke(Array.from({ length: 33 }, (_, i) => point(bar.x, -8 + i / 4)),
     engraving.staffWidth, { arrivalBar: bar.x <= view.x0 + .01 ? 1 : 0 });
 
