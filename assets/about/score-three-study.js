@@ -179,7 +179,7 @@ export async function mountThreeStudy(host, { score, view, points, groups, engra
     }
     for (const group of groups) {
       const shape = projectCompoundGroup(group, project);
-      filled([shape.beam], emit());
+      filled(shape.beams, emit());
       for (const stem of shape.stems) stroke(stem.points, stem.width * stem.points[0].scale, emit());
       for (const line of shape.ledgers) stroke(line.points, line.width * line.points[0].scale, emit());
       for (const head of shape.heads) {
@@ -188,10 +188,10 @@ export async function mountThreeStudy(host, { score, view, points, groups, engra
         filled(head.contours, emit(isGold ? GOLD : INK, isGold || front));
       }
       if (details) {
-        shape.brackets.forEach(path => stroke(path, group.bracket.width * path[0].scale, emit()));
         shape.accidents.forEach(contours => filled(contours, emit()));
-        if (shape.number) {
-          const number = group.number, anchor = shape.number;
+        for (const [index, tuplet] of shape.tuplets.entries()) {
+          const number = group.tuplets?.[index] ?? group.number, anchor = tuplet.number;
+          tuplet.brackets.forEach(path => stroke(path, number.bracket.width * path[0].scale, emit()));
           const contours = glyphContours(score.pdfGlyphPaths[number.glyph.glyph]).map(contour => contour.map(([x, y]) => ({
             ...anchor, x: anchor.x + (x - number.centerX) * number.glyph.scaleX * anchor.scale,
             y: anchor.y + (y - number.centerY) * number.glyph.scaleY * anchor.scale,

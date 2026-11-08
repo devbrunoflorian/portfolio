@@ -97,6 +97,17 @@ test('notation windows build from Intro through the final open-note system',()=>
   }
 });
 
+test('GPU buffers keep the final shared beam bands in one score group',()=>{
+  const notation=playbackNotationAtBeat(410);
+  const group=notation.groups.find(item=>item.bar===103&&item.heads.length===6);
+  assert.ok(group);
+  assert.equal(group.beamBands.length,3);
+  assert.equal(group.tuplets.length,6);
+  const geometry=buildRibbonGeometry(score,notation.view,notation.groups,notation.engraving,notation.voicePaths);
+  assert.ok(geometry.attributes.position.array.every(Number.isFinite));
+  geometry.dispose();
+});
+
 test('Float32 arc table reconstructs the reference projection across sixty camera poses',()=>{
   const base=createTravelProjector(width,height,score,0,view);
   const table=createRibbonFrameTable(base.samples),N=table.size,T=table.data;

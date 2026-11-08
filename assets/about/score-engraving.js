@@ -8,12 +8,20 @@ export function buildEngraving(study, notes, view) {
   const pairs = noteHeadStemPairs(study, notes);
   const drawings = study.pdfDrawings.filter(d => d.maxX >= view.x0 && d.minX <= view.x1);
   const containedDrawings = drawings.filter(d => d.minX >= view.x0 && d.maxX <= view.x1);
-  const beams = containedDrawings.filter(d => d.fill).map(drawing => {
+  const beamDrawings = containedDrawings.filter(d => d.fill).map(drawing => {
     const members = pairs.filter(pair => pair.stem && pair.stem.end[0] >= drawing.minX - .3
       && pair.stem.end[0] <= drawing.maxX + .3).sort((a, b) => a.stem.end[0] - b.stem.end[0]);
     const vertices = drawing.commands.flatMap(c => c.points);
     return { drawing, members, vertices };
   }).filter(beam => beam.members.length >= 2 && beam.drawing.maxX - beam.drawing.minX > 1.5);
+  const beamGroups = new Map();
+  for (const candidate of beamDrawings) {
+    const memberKey = candidate.members.map(pair => pair.note.id).join('|');
+    const group = beamGroups.get(memberKey);
+    if (group) group.drawings.push(candidate.drawing);
+    else beamGroups.set(memberKey, { ...candidate, memberKey, drawings: [candidate.drawing] });
+  }
+  const beams = [...beamGroups.values()];
   const nearestBeam = (x, y) => beams.reduce((best, beam) => {
     const centerX=(beam.drawing.minX+beam.drawing.maxX)/2;
     const middle=beam.members.reduce((nearest,pair)=>Math.abs(pair.stem.end[0]-centerX)<Math.abs(nearest.stem.end[0]-centerX)?pair:nearest).stem.end;

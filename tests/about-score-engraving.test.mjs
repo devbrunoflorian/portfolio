@@ -121,3 +121,25 @@ test('printed line weights, ledger lengths and the double barline are retained',
   assert.deepEqual(lowE.map(line=>line.y).sort((a,b)=>a-b),[2,4,6]);
   assert.ok(lowE.every(line=>line.x0<line.pair.glyph.x&&line.x1>line.pair.glyph.x+2));
 });
+
+test('the final six-note beam group keeps three source bands and all six triplet labels together',()=>{
+  const bar=score.bars[102],barView={x0:bar.xStart,x1:bar.xEnd};
+  const barNotes=score.pdfGlyphs.filter(g=>g.noteId&&g.x>=barView.x0&&g.x<=barView.x1)
+    .map(g=>({id:g.noteId,x:g.x,y:Math.round(g.y)}));
+  const source=buildEngraving(score,barNotes,barView);
+  const beam=source.beams.find(item=>item.members.length===6);
+  assert.ok(beam,'the PDF has one shared six-note beamed group');
+  assert.equal(beam.drawings.length,3,'the three engraved beam strips stay as separate contours');
+  const allCompounds=buildCompoundGroups(source,score);
+  const compound=allCompounds.find(group=>group.heads.length===6);
+  assert.ok(compound);
+  assert.equal(allCompounds.filter(group=>group.heads.some(head=>beam.members.some(member=>member.note.id===head.noteId))).length,1);
+  assert.equal(compound.beamBands.length,3);
+  assert.equal(compound.stems.length,6);
+  assert.equal(compound.tuplets.length,6,'every printed triplet number is retained');
+  assert.equal(new Set(compound.heads.map(head=>head.noteId)).size,6);
+  const shape=projectCompoundGroup(compound,createTravelProjector(1280,711,score,.4,barView,.42));
+  assert.equal(shape.beams.length,3);
+  assert.equal(shape.tuplets.length,6);
+  assert.ok(shape.beams.flat().every(point=>Number.isFinite(point.x)&&Number.isFinite(point.y)));
+});

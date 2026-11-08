@@ -102,7 +102,9 @@ export function buildRibbonGeometry(score, view, groups, engraving, voicePaths =
       const t=Math.abs(span)<1e-7?0:(p.u-a.from)/span;
       return point(a.base+(b.base-a.base)*t,p.v,{remap:a.offset+(b.offset-a.offset)*t});
     };
-    if (group.upper) strip(group.upper.map(mapped), group.lower.map(mapped));
+    if (group.beamBands) {
+      for (const band of group.beamBands) strip(band.upper.map(mapped), band.lower.map(mapped));
+    } else if (group.upper) strip(group.upper.map(mapped), group.lower.map(mapped));
     for (let i = 0; i < group.stems.length; i++) {
       const s = group.stems[i], h = group.heads[i], tip = mapped(s.tip);
       // Head contact and beam tip are projected independently; the connecting stem
@@ -121,9 +123,10 @@ export function buildRibbonGeometry(score, view, groups, engraving, voicePaths =
     };
     for (const h of group.heads) glyph(h, h.noteId === MARKER ? 1 : 0);
     for (const a of group.accidents) glyph(a);
-    for (const path of group.bracket?.paths ?? []) stroke(path.map(mapped), group.bracket.width);
-    if (group.number) {
-      const n = group.number, a = mapped(n.anchor);
+    const tuplets = group.tuplets ?? (group.number ? [group.number] : []);
+    for (const n of tuplets) {
+      for (const path of n.bracket?.paths ?? []) stroke(path.map(mapped), n.bracket.width);
+      const a = mapped(n.anchor);
       const contours = glyphContours(score.pdfGlyphPaths[n.glyph.glyph]).map(c => c.map(([x, y]) => {
         const offset = [(x - n.centerX) * n.glyph.scaleX, (y - n.centerY) * n.glyph.scaleY];
         return point(a.u, a.v, { x: a.u + offset[0], y: a.v + offset[1], remap: a.remap, kind: 5, offset });
