@@ -7,7 +7,7 @@ import {buildEngraving} from '../assets/about/score-engraving.js';
 import {buildCompoundGroups} from '../assets/about/score-compound-groups.js';
 import {scoreRibbonTimeline as score} from '../assets/about/score-ribbon-timeline.js';
 import {scoreRibbonData} from '../assets/about/score-ribbon-data.js';
-import {createAdaptiveDpr, initialGpuPixelRatio} from '../assets/about/score-gpu-budget.js';
+import {createAdaptiveDpr, initialGpuPixelRatio, poseBetweenDocumentCenters} from '../assets/about/score-gpu-budget.js';
 
 const view={x0:score.bars[30].xStart,x1:score.bars[32].xEnd},width=1142,height=width/1.8;
 const step=[0,0,1,1,2,3,3,4,4,5,5,6];
@@ -98,4 +98,21 @@ test('adaptive DPR discards a window across an idle gap',()=>{
   for(let frame=1;frame<59;frame++)assert.equal(budget.observe(2000+frame*16),null);
   const result=budget.observe(2000+59*16);
   assert.equal(result.intervals,59);assert.equal(result.pixelRatio,1.5);
+});
+
+test('scroll camera pose is pure, clamped, and reversible between the two reading centers',()=>{
+  const codeTop=500,codeHeight=300,musicTop=1800,musicHeight=400,viewport=800;
+  const start=codeTop+codeHeight/2, end=musicTop+musicHeight/2;
+  const scrollAt=(center)=>center-viewport/2;
+  const poseAt=(scroll)=>poseBetweenDocumentCenters(scroll,viewport,codeTop,codeHeight,musicTop,musicHeight);
+  assert.equal(poseAt(scrollAt(start)),0);
+  assert.equal(poseAt(scrollAt((start+end)/2)),.5);
+  assert.equal(poseAt(scrollAt(end)),1);
+  const positions=[0,.1,.2,.3,.4,.5,.6,.7,.8,.9,1].map(p=>start+(end-start)*p);
+  const descending=positions.map(center=>poseAt(scrollAt(center)));
+  const ascending=[...positions].reverse().map(center=>poseAt(scrollAt(center)));
+  assert.deepEqual(ascending,[...descending].reverse());
+  assert.ok(descending.every((pose,index)=>index===0||pose>=descending[index-1]));
+  assert.equal(poseAt(scrollAt(start)-100),0);
+  assert.equal(poseAt(scrollAt(end)+100),1);
 });

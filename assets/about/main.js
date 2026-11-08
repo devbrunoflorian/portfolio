@@ -10,12 +10,15 @@ const scoreGridStudyMode = query.get("score-grid") === "study";
 const scoreRibbonStudyMode = query.get("score-ribbon") === "study";
 const scoreRibbonStoryboardMode = query.get("score-ribbon") === "storyboard";
 const scoreRibbonTransitionMode = query.get("score-ribbon") === "transition";
+const scoreGpuScrollMode = query.get("score-gpu") === "scroll";
 if (scoreRibbonTransitionMode) document.body.dataset.scoreRibbonTransition = "true";
 const chapters = [...root.querySelectorAll("[data-movement]")];
 const scoreThread = root.querySelector("[data-score-thread]");
 const scoreLeads = root.querySelector("[data-score-leads-global]");
 let updateRibbonTransition = null;
 let disposeRibbonTransition = null;
+let updateGpuScroll = null;
+let disposeGpuScroll = null;
 const scoreCameraStops = [
   { x: -.012, y: -.012, scale: .68, opacity: .56, lead: .82, rotate: 0 },
   { x: .004, y: .018, scale: .66, opacity: .46, lead: .62, rotate: 0 },
@@ -370,13 +373,13 @@ let frozenScrollBeat = null;
 let pointerFrame = 0;
 let sceneFrame = 0;
 let desiredPointer = { x: 0, y: 0 };
-function paintScenes() {
+function paintScenes(timestamp) {
   sceneFrame = 0;
   if (!scoreRibbonStoryboardMode) updateScoreThread();
   const snapshot = audio.snapshot?.() ?? null;
   const mainBounds = root.getBoundingClientRect();
   const visible = mainBounds.bottom >= 0 && mainBounds.top <= innerHeight;
-  if (visible && !scoreRibbonStoryboardMode && !scoreRibbonTransitionMode) {
+  if (visible && !scoreRibbonStoryboardMode && !scoreRibbonTransitionMode && !scoreGpuScrollMode) {
     const chapter = root.dataset.activeMovement ?? "opening";
     // Silence uses the page's reading position as a visual-only score cursor.
     // Playback remains authoritative whenever audio is active.
@@ -392,6 +395,13 @@ function paintScenes() {
         if (excerptElement.textContent !== label) excerptElement.textContent = label;
       }
     }
+  } else if (visible && scoreGpuScrollMode && updateGpuScroll) {
+    updateGpuScroll({
+      chapter: root.dataset.activeMovement ?? "opening",
+      motionEnabled: !motionPaused && !reduceMotion.matches,
+      reducedMotion: reduceMotion.matches,
+      timestamp,
+    });
   } else if (visible && scoreRibbonTransitionMode && updateRibbonTransition) {
     updateRibbonTransition({
       progress: scoreTransitionProgress,
@@ -404,10 +414,10 @@ function paintScenes() {
     lastDisplaySecond = Math.floor(snapshot.seconds);
     syncMixer(snapshot);
   }
-  if (visible && !scoreRibbonStoryboardMode && audio.playing && !motionPaused && !reduceMotion.matches) requestScene();
+  if (visible && !scoreRibbonStoryboardMode && !scoreGpuScrollMode && audio.playing && !motionPaused && !reduceMotion.matches) requestScene();
 }
 function requestScene() {
-  if (!sceneFrame && !document.hidden) sceneFrame = requestAnimationFrame(paintScenes);
+  if (!sceneFrame && !document.hidden) sceneFrame = requestAnimationFrame(timestamp => paintScenes(timestamp));
 }
 function invalidateScoreLayout() {
   scoreThreadNeedsMeasure = true;
@@ -490,7 +500,7 @@ window.addEventListener("pagehide", event => {
   if (event.persisted) return;
   clearInterval(displayTimer);
   controller.abort(); observer.disconnect(); dockObserver.disconnect(); revealObserver?.disconnect(); cancelAnimationFrame(pointerFrame); cancelAnimationFrame(sceneFrame);
-  experiments.dispose(); visual.dispose(); audio.dispose(); disposeRibbonTransition?.();
+  experiments.dispose(); visual.dispose(); audio.dispose(); disposeRibbonTransition?.(); disposeGpuScroll?.();
 }, { signal });
 
 if (scoreGridStudyMode) {
@@ -513,5 +523,20 @@ if (scoreRibbonTransitionMode) {
   }).catch(error => {
     delete document.body.dataset.scoreRibbonTransition;
     console.error("A prévia da fita musical não carregou.", error);
+  });
+}
+
+if (scoreGpuScrollMode) {
+  import("./score-gpu-scroll.js?v=live-1").then(module => module.mountAboutGpuScroll(root)).then(runtime => {
+    updateGpuScroll = runtime.update;
+    disposeGpuScroll = runtime.dispose;
+    requestScene();
+  }).catch(error => {
+    console.error("The GPU score could not load; falling back to the Canvas score transition.", error);
+    import("./score-ribbon-transition.js?v=canvas-fallback-1").then(module => {
+      updateRibbonTransition = module.updateScoreRibbonTransition;
+      disposeRibbonTransition = module.disposeScoreRibbonTransition;
+      requestScene();
+    });
   });
 }

@@ -18,6 +18,15 @@ function nextLowerRatio(ratio) {
   return ratio;
 }
 
+/** Map the viewport's reading line between two document-space anchor centers. */
+export function poseBetweenDocumentCenters(scrollY, viewportHeight, startTop, startHeight, endTop, endHeight) {
+  const startCenter = startTop + startHeight / 2;
+  const endCenter = endTop + endHeight / 2;
+  const readingLine = scrollY + viewportHeight / 2;
+  const span = Math.max(1, endCenter - startCenter);
+  return Math.max(0, Math.min(1, (readingLine - startCenter) / span));
+}
+
 /**
  * Observe consecutive rendered-pose RAFs. Long idle gaps start a new window so
  * an intentional pause between scroll gestures cannot lower the device DPR.
