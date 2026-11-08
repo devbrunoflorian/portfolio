@@ -30,7 +30,7 @@ function loadTransitionStylesheet() {
   if (document.querySelector('[data-score-ribbon-transition-style]')) return null;
   const stylesheet = document.createElement('link');
   stylesheet.rel = 'stylesheet';
-  stylesheet.href = new URL('./score-ribbon-transition.css?gpu-scroll-1', import.meta.url);
+  stylesheet.href = new URL('./score-ribbon-transition.css?gpu-scroll-read-1', import.meta.url);
   stylesheet.dataset.scoreRibbonTransitionStyle = '';
   document.head.append(stylesheet);
   return stylesheet;

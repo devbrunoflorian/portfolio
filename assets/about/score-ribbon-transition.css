@@ -34,6 +34,21 @@ body[data-score-ribbon-transition="true"] :is(.hero-copy, .chapter-copy, .code-s
   z-index: 2;
 }
 
+body[data-score-gpu-scroll="true"] :is(.code-chapter .chapter-copy, .music-heading .chapter-copy, .music-intro) {
+  position: relative;
+  z-index: 2;
+  isolation: isolate;
+}
+
+body[data-score-gpu-scroll="true"] :is(.code-chapter .chapter-copy, .music-heading .chapter-copy, .music-intro)::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: -30px -42px;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, #060609 0 58%, rgb(6 6 9 / 96%) 74%, transparent 100%);
+}
+
 body[data-score-ribbon-transition="true"] .code-score-anchor {
   isolation: isolate;
   overflow: hidden;
@@ -88,6 +103,10 @@ body[data-score-ribbon-transition="true"] :is(.poem, .music-heading, .score-figu
 }
 
 @media (max-width: 700px) {
+  body[data-score-gpu-scroll="true"] :is(.code-chapter .chapter-copy, .music-heading .chapter-copy, .music-intro)::before {
+    inset: -22px -24px;
+  }
+
   body[data-score-ribbon-transition="true"] :is(.poem, .games-chapter .chapter-copy, .about-closing h2, .closing-links)::before {
     inset: -26px -20px;
   }
