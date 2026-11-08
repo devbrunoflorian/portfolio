@@ -8,7 +8,7 @@ import {buildCompoundGroups} from '../assets/about/score-compound-groups.js';
 import {scoreRibbonTimeline as score} from '../assets/about/score-ribbon-timeline.js';
 import {scoreRibbonData} from '../assets/about/score-ribbon-data.js';
 import {createAdaptiveDpr, initialGpuPixelRatio, poseBetweenDocumentCenters} from '../assets/about/score-gpu-budget.js';
-import {playbackNotationAtBeat,selectedNotation} from '../assets/about/score-gpu-scroll.js';
+import {playbackNotationAtBeat,selectedNotation,selectedNotationForBars} from '../assets/about/score-gpu-scroll.js';
 import {staffYForMidi} from '../assets/about/score-ribbon-renderer.js';
 import {scorePlaybackWindowAtBeat,scorePositionAtBeat} from '../assets/about/score-ribbon-timeline.js';
 
@@ -104,6 +104,26 @@ test('GPU buffers keep the final shared beam bands in one score group',()=>{
   assert.equal(group.beamBands.length,3);
   assert.equal(group.tuplets.length,6);
   const geometry=buildRibbonGeometry(score,notation.view,notation.groups,notation.engraving,notation.voicePaths);
+  assert.ok(geometry.attributes.position.array.every(Number.isFinite));
+  geometry.dispose();
+});
+
+test('study windows can inspect the final six-note triplet group and mark one of its real notes',()=>{
+  const notation=selectedNotationForBars(101,103);
+  assert.deepEqual([notation.firstBar,notation.lastBar],[101,103]);
+  const group=notation.groups.find(item=>item.bar===103&&item.heads.length===6);
+  assert.ok(group,'the final measure group is available in the selected window');
+  assert.equal(group.beamBands.length,3);
+  assert.equal(group.tuplets.length,6);
+  assert.deepEqual(group.heads.map(head=>head.glyph.noteId),[
+    'guitar-103-1-1','guitar-103-2-1','guitar-103-3-1',
+    'guitar-103-4-1','guitar-103-5-1','guitar-103-6-1',
+  ]);
+  const markerId=group.heads[0].glyph.noteId;
+  const geometry=buildRibbonGeometry(score,notation.view,notation.groups,notation.engraving,notation.voicePaths,markerId);
+  const gold=geometry.attributes.gold.array,heads=geometry.attributes.frontHead.array;
+  assert.ok(gold.some(value=>value===1),'the selected marker note receives the explicit GPU mask');
+  gold.forEach((value,index)=>{if(value===1)assert.equal(heads[index],1);});
   assert.ok(geometry.attributes.position.array.every(Number.isFinite));
   geometry.dispose();
 });

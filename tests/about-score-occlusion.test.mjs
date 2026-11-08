@@ -40,3 +40,12 @@ test('one compound item fades by local pixel depth; gold and foreground heads re
   assert.ok(pixel(1)[0]<100);
   assert.deepEqual(pixel(3),[200,180,220,255]);
 });
+
+test('non-finite off-camera bounds are skipped before Canvas readback',()=>{
+  let painted=false,readbacks=0;
+  const context={canvas:{width:4,height:4},createImageData(w,h){return{width:w,height:h,data:new Uint8ClampedArray(w*h*4)};},clearRect(){},
+    getImageData(){readbacks++;throw new Error('invalid Canvas readback');},putImageData(){}};
+  paintDepthQueue(context,[{bounds:{x0:NaN,y0:0,x1:1,y1:1},depth:-10,paint(){painted=true;}}],[],4,4);
+  assert.equal(painted,false);
+  assert.equal(readbacks,0);
+});

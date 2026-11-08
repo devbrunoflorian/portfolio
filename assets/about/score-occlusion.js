@@ -50,12 +50,15 @@ export function paintDepthQueue(context, queue, surfaces, cssWidth, cssHeight, o
   finish?.();
   for (const item of queue.sort((a, b) => a.depth - b.depth)) {
     const bounds = item.bounds ?? { x0: 0, y0: 0, x1: cssWidth, y1: cssHeight };
-    const x0 = Math.max(0, Math.floor(bounds.x0 * scale)), y0 = Math.max(0, Math.floor(bounds.y0 * scale));
-    const x1 = Math.min(width, Math.ceil(bounds.x1 * scale)), y1 = Math.min(height, Math.ceil(bounds.y1 * scale));
+    const scaledBounds=[bounds.x0*scale,bounds.y0*scale,bounds.x1*scale,bounds.y1*scale];
+    if(!scaledBounds.every(Number.isFinite))continue;
+    const [rawX0,rawY0,rawX1,rawY1]=scaledBounds;
+    const x0 = Math.max(0, Math.floor(rawX0)), y0 = Math.max(0, Math.floor(rawY0));
+    const x1 = Math.min(width, Math.ceil(rawX1)), y1 = Math.min(height, Math.ceil(rawY1));
     if (x1 <= x0 || y1 <= y0) continue;
     finish=profile?.start('pathDraw');item.paint();finish?.();
     finish=profile?.start('maskReadback');
-    const pixels = context.getImageData(x0, y0, x1 - x0, y1 - y0);
+    const pixels=context.getImageData(x0,y0,x1-x0,y1-y0);
     finish?.();finish=profile?.start('maskRaster');
     const localDepth = item.depthTriangles ? new Float32Array(pixels.width * pixels.height).fill(-Infinity) : null;
     const localOwners = item.kind==='staff-line'?new Float32Array(pixels.width*pixels.height).fill(-1):null;

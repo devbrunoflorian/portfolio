@@ -2,7 +2,7 @@ import * as THREE from './vendor/three-score.min.js';
 import { glyphContours } from './score-compound-groups.js';
 import { HALO_HALF_WIDTH } from './score-depth-cues.js';
 
-const MARKER = 'guitar-33-4-1';
+const DEFAULT_MARKER = 'guitar-33-4-1';
 
 function contains(ring, point) {
   let inside = false;
@@ -31,7 +31,7 @@ function fill(contours, emit) {
 }
 
 /** Immutable source UVs, glyph offsets and attachment parameters; never rebuilt per pose. */
-export function buildRibbonGeometry(score, view, groups, engraving, voicePaths = []) {
+export function buildRibbonGeometry(score, view, groups, engraving, voicePaths = [], markerId = DEFAULT_MARKER) {
   const attributes = { position: [], sourceUV: [], remap: [], glyphOffset: [], segmentEnd: [],
     segmentRemap: [], stroke: [], kind: [], gold: [], frontHead: [], arrivalBar: [], voice: [] };
   const point = (u, v, extra = {}) => ({ x: u, y: v, u, v, ...extra });
@@ -121,7 +121,7 @@ export function buildRibbonGeometry(score, view, groups, engraving, voicePaths =
       fill(contours.map(c => c.map(p => point(p.u, p.v, { u: anchor.u, v: anchor.v, kind: 1,
         offset: [p.u - anchor.u, p.v - anchor.v], gold: protect, head: g.noteId ? 1 : 0 }))), emit);
     };
-    for (const h of group.heads) glyph(h, h.noteId === MARKER ? 1 : 0);
+    for (const h of group.heads) glyph(h, h.noteId === markerId ? 1 : 0);
     for (const a of group.accidents) glyph(a);
     const tuplets = group.tuplets ?? (group.number ? [group.number] : []);
     for (const n of tuplets) {

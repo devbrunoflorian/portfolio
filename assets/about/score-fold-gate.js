@@ -3,19 +3,25 @@ import { scoreRibbonTimeline as score } from './score-ribbon-timeline.js';
 import { createProjector } from './score-ribbon-geometry.js?v=travel-1';
 import { createTravelProjector } from './score-travel-geometry.js?v=profile-2';
 import { noteHeadStemPairs, projectHeadStem } from './score-head-stems.js';
-import { buildEngraving, enqueueRest, projectedRest } from './score-engraving.js?v=compound-1';
-import { buildCompoundGroups, enqueueCompoundGroups } from './score-compound-groups.js?v=profile-3';
-import { paintDepthQueue, polygonBounds, SCORE_BACKGROUND, DEPTH_BANDS } from './score-occlusion.js?v=profile-1';
+import { enqueueRest, projectedRest } from './score-engraving.js?v=compound-1';
+import { enqueueCompoundGroups } from './score-compound-groups.js?v=profile-3';
+import { paintDepthQueue, polygonBounds, SCORE_BACKGROUND, DEPTH_BANDS } from './score-occlusion.js?v=profile-2';
 import {readingFocus,FOCUS_RADII} from './score-focus-profile.js';
 import {applyFocusLayers,clearFocusLayers,filterSupport} from './score-focus-layers.js?v=profile-1';
 import { enqueueStaffLine, HALO_HALF_WIDTH } from './score-depth-cues.js?v=profile-2';
 import { mountFrontComparison } from './score-front-comparison.js';
 import {mountDrawProfile} from './score-draw-profile.js?v=3';
 import {mountBackendComparison} from './score-backend-comparison.js?v=build-profile';
+import {selectedNotationForBars} from './score-gpu-scroll.js';
 const optimization=Number(new URLSearchParams(location.search).get('score-optimization')??0);
 
 const gate = new URLSearchParams(location.search).get('score-gate');
 const gpuStudyOnly=new URLSearchParams(location.search).get('score-gpu')==='study';
+const requestedFirstBar=Number(new URLSearchParams(location.search).get('score-first-bar')??31);
+const firstBar=gpuStudyOnly
+  ? Math.max(1,Math.min(score.bars.length-2,Number.isFinite(requestedFirstBar)?Math.floor(requestedFirstBar):31))
+  : 31;
+const lastBar=firstBar+2;
 const engravingStudy = gate === '3b';
 const glyphStudy = gate === '3a' || engravingStudy;
 const traveling = gate === '2b' || glyphStudy;
@@ -51,18 +57,16 @@ style.textContent = `
 `;
 document.head.append(style);
 style.textContent += '.travel-panel{margin:24px 0}.travel-panel canvas{width:100%;aspect-ratio:1.8;display:block;background:#08080e;border:1px solid #383044}.travel-controls{display:flex;gap:16px;align-items:center;flex-wrap:wrap}.travel-controls input{width:min(400px,50vw)}.travel-controls button{padding:10px 18px;background:#30203e;border:1px solid #8562ac;color:#eee}.travel-scroll{height:160vh}.travel-sticky{position:sticky;top:74px;background:#060609;padding:10px 0}.travel-sticky canvas{max-height:65vh;object-fit:contain}';
-const view = { x0: score.bars[30].xStart, x1: score.bars[32].xEnd };
-const steps = [0,0,1,1,2,3,3,4,4,5,5,6];
-const glyphs = new Map(score.pdfGlyphs.filter(g => g.noteId).map(g => [g.noteId,g]));
-const heads = scoreRibbonData.systems.flatMap(system => system.heads).filter(h=>h.bar>=31&&h.bar<=33);
-const points = heads.map(head=>({
-  id:head.id, bar:head.bar, midi:head.writtenMidi, x:glyphs.get(head.id).x,
-  y:-((Math.floor(head.writtenMidi/12)-1)*7+steps[head.writtenMidi%12]-30),
-}));
-const markerId = 'guitar-33-4-1';
+const notation=selectedNotationForBars(firstBar,lastBar);
+const {view,points}=notation;
 const headStems = glyphStudy ? noteHeadStemPairs(score,points) : [];
-const engraving = engravingStudy ? buildEngraving(score,points,view) : null;
-const groups = engravingStudy ? buildCompoundGroups(engraving,score) : [];
+const engraving = engravingStudy ? notation.engraving : null;
+const groups = engravingStudy ? notation.groups : [];
+const markerId = points.some(point=>point.id==='guitar-33-4-1')
+  ? 'guitar-33-4-1'
+  : groups.find(group=>group.bar===lastBar&&group.heads.length>=4)?.heads[0]?.glyph?.noteId
+    ?? points.find(point=>point.bar===lastBar)?.id
+    ?? points[0]?.id;
 let showDetails = new URLSearchParams(location.search).get('notation') !== 'compact';
 let focusBackend='auto';
 if(glyphStudy){
@@ -76,7 +80,7 @@ if(engravingStudy){
   page.classList.add('engraving-gate');
   page.querySelector('h1').textContent='Gravura musical · frente e proximidade';
   page.querySelector('label').lastChild.textContent=' Mostrar notação';
-  page.querySelector('h1 + p').textContent='Guitarra, compassos 31–33. B: recorte e esmaecimento atrás do plano de leitura. C: o mesmo B com foco por profundidade. Sem vozes, mouse ou áudio.';
+  page.querySelector('h1 + p').textContent=`Guitarra, compassos ${firstBar}–${lastBar}. B: recorte e esmaecimento atrás do plano de leitura. C: o mesmo B com foco por profundidade. Sem vozes, mouse ou áudio.`;
   style.textContent += '.engraving-gate > .fold-gate-poses{grid-template-columns:1fr}.engraving-gate figure,.engraving-gate canvas{background:#060609}';
   const detailLabel=document.createElement('label');
   detailLabel.innerHTML='<input type="checkbox" data-details> Tercinas completas (desmarque para comparar a versão simplificada)';
@@ -250,7 +254,7 @@ function renderFrame(canvas,pose,details=showDetails,variant='B',backend='auto',
   for(const x of edges)for(let y=-8;y<0;y+=.25){
     const a=project(x,y),b=project(x,y+.25);stroke(a,b,'#cfc2e2',engravingStudy?engraving.staffWidth*a.scale:Math.max(.75,a.perspective*1.4),.2);
   }
-  if(!engravingStudy&&page.querySelector('input').checked)for(const note of points){
+  if(!engravingStudy&&page.querySelector('input[type="checkbox"]').checked)for(const note of points){
     const p=project(note.x,note.y);
     if(engravingStudy){
       for(const line of engraving.ledgerLines.filter(line=>line.pair.note.id===note.id))stroke(project(line.x0,line.y),project(line.x1,line.y),'#cfc2e2',line.width*p.scale,.25);
@@ -272,7 +276,7 @@ function renderFrame(canvas,pose,details=showDetails,variant='B',backend='auto',
       if(note.id===markerId){ctx.beginPath();ctx.arc(p.x,p.y,radius+3,0,Math.PI*2);ctx.lineWidth=1;ctx.strokeStyle='#ffdc83';ctx.stroke();}
     }});
   }
-  if(engravingStudy&&page.querySelector('input').checked){
+  if(engravingStudy&&page.querySelector('input[type="checkbox"]').checked){
     enqueueCompoundGroups(queue,ctx,groups,score,project,details,profile,optimizationLevel>=3);
     enqueueRest(queue,ctx,engraving.rest,project);
   }
@@ -322,7 +326,7 @@ function draw(){
 }
 const observer=new ResizeObserver(draw);
 observer.observe(page.querySelector('.fold-gate > .fold-gate-poses'));
-page.querySelector('input').addEventListener('change',draw);
+page.querySelector('input[type="checkbox"]').addEventListener('change',draw);
 addEventListener('pagehide',()=>observer.disconnect(),{once:true});
 draw();
 if(engravingStudy&&!gpuStudyOnly){
@@ -335,6 +339,25 @@ if(engravingStudy&&gpuStudyOnly){
   for(const child of page.children)child.hidden=true;
   style.textContent+=' .fold-gate > [hidden]{display:none!important}';
   const title=page.querySelector('h1');title.hidden=false;title.textContent='Dissonância · projeção na GPU';
+  const rangeForm=document.createElement('form');
+  rangeForm.method='get';
+  rangeForm.action=location.pathname;
+  rangeForm.className='score-range-form';
+  rangeForm.innerHTML=`<label for="score-first-bar">Primeiro compasso do trecho de 3</label><input id="score-first-bar" name="score-first-bar" type="number" min="1" max="${score.bars.length-2}" step="1" value="${firstBar}" required><output>Compassos ${firstBar}–${lastBar}</output><button type="submit">Abrir trecho</button>`;
+  for(const [name,value] of new URLSearchParams(location.search)){
+    if(name==='score-first-bar')continue;
+    const hidden=document.createElement('input');hidden.type='hidden';hidden.name=name;hidden.value=value;rangeForm.append(hidden);
+  }
+  const firstBarInput=rangeForm.querySelector('input[name="score-first-bar"]');
+  const rangeOutput=rangeForm.querySelector('output');
+  firstBarInput.addEventListener('input',()=>{
+    const value=Number(firstBarInput.value);
+    if(!Number.isFinite(value))return;
+    const clamped=Math.max(1,Math.min(score.bars.length-2,Math.floor(value)));
+    rangeOutput.textContent=`Compassos ${clamped}–${clamped+2}`;
+  });
+  title.after(rangeForm);
+  style.textContent+='.score-range-form{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:12px 0 20px}.score-range-form label{min-height:44px}.score-range-form input{width:84px;padding:9px 10px;border:1px solid #705585;border-radius:4px;background:#21172b;color:#f1eafa;font:inherit}.score-range-form button{min-height:44px;padding:9px 13px;border:1px solid #705585;border-radius:4px;background:#21172b;color:#f1eafa;font:inherit;cursor:pointer}.score-range-form :focus-visible{outline:2px solid #ffdc83;outline-offset:2px}.score-range-form output{color:#cfb7ec}';
   const {mountGpuStudy}=await import('./score-gpu-study.js?v=4');
-  await mountGpuStudy(page,{score,view,points,groups,engraving},renderFrame);
+  await mountGpuStudy(page,{score,view,points,groups,engraving,firstBar,lastBar,markerId,maxFirstBar:score.bars.length-2},renderFrame);
 }

@@ -75,11 +75,13 @@ function compareRgba(reference, candidate) {
 }
 
 export function mountGpuStudy(page, options, renderCanvas) {
+  const { firstBar = 31, lastBar = firstBar + 2, markerId = 'guitar-33-4-1' } = options;
+  const windowLabel = `compassos ${firstBar}–${lastBar}`;
   const section = document.createElement('section');
   section.dataset.gpuStudy = 'true';
   section.innerHTML = `
-    <h2>Projeção na GPU · estudo experimental</h2>
-    <p>Three.js com deformação no vertex shader, comparado ao Canvas C. O Canvas é uma referência estática. Diferenças de rasterização são esperadas e não demonstram paridade visual.</p>
+    <h2>Projeção na GPU · ${windowLabel}</h2>
+    <p>Three.js com deformação no vertex shader, comparado ao Canvas C. A referência mostra a mesma janela de ${windowLabel}; a nota dourada é <code>${markerId}</code>. Diferenças de rasterização são esperadas e não demonstram paridade visual.</p>
     <button type="button" data-load>Carregar estudo GPU</button>
     <output data-status role="status" aria-live="polite">Preparando a referência Canvas C · 13%…</output>
     <div data-controls>
@@ -216,13 +218,13 @@ export function mountGpuStudy(page, options, renderCanvas) {
     referencePose = pose;
     referenceReady = true;
     copyCanvas(referenceCanvas, referencePreview);
-    referenceCaption.textContent = `Canvas C · referência ${Math.round(pose * 100)}% · backing ${referenceCanvas.width}×${referenceCanvas.height}`;
+    referenceCaption.textContent = `Canvas C · ${windowLabel} · ${Math.round(pose * 100)}% · backing ${referenceCanvas.width}×${referenceCanvas.height}`;
   }
 
   function drawGpu(pose) {
     if (!gpuStudy || lostContext) return;
     gpuStudy.draw(pose, 'C');
-    gpuCaption.textContent = `Three.js C · ${Math.round(pose * 100)}% · experimental`;
+    gpuCaption.textContent = `Three.js C · ${windowLabel} · ${Math.round(pose * 100)}% · experimental`;
   }
 
   function drawComparison(pose) {
@@ -342,7 +344,7 @@ export function mountGpuStudy(page, options, renderCanvas) {
       slider.value = String(next);
       const pose = setPoseLabel(next / 1000);
       drawGpu(pose);
-      referenceCaption.textContent = `Canvas C · referência estática ${Math.round(referencePose * 100)}%`;
+      referenceCaption.textContent = `Canvas C · ${windowLabel} · referência estática ${Math.round(referencePose * 100)}%`;
       if (now - fpsWindowStart >= 500) {
         const rafFps = fpsWindowFrames * 1000 / (now - fpsWindowStart);
         fpsOutput.textContent = `Cadência RAF ${rafFps.toFixed(1)} callbacks/s · não é FPS GPU`;

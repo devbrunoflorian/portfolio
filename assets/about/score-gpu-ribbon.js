@@ -5,7 +5,7 @@ import { buildRibbonGeometry } from './score-gpu-ribbon-geometry.js?v=score-play
 
 const BACKGROUND = [6 / 255, 6 / 255, 9 / 255];
 const TABLE_SIZE = 2048;
-const MARKER = 'guitar-33-4-1';
+const DEFAULT_MARKER = 'guitar-33-4-1';
 
 /** Resample the reference's transported frames uniformly by arc length once. */
 export function createRibbonFrameTable(samples) {
@@ -117,7 +117,7 @@ const postFragment = `
     gl_FragColor=vec4(total/weights,1.);
   }`;
 
-export async function mountGpuRibbon(host, { score, view, points, groups, engraving, voicePaths = [], width, height, pixelRatio = 1, diagnostics = true }) {
+export async function mountGpuRibbon(host, { score, view, points, groups, engraving, voicePaths = [], width, height, pixelRatio = 1, diagnostics = true, markerId = DEFAULT_MARKER }) {
   width ||= host.clientWidth;
   height ||= width / 1.8;
   if (!(width > 0 && height > 0)) throw new RangeError('GPU ribbon requires a positive viewport.');
@@ -135,7 +135,7 @@ export async function mountGpuRibbon(host, { score, view, points, groups, engrav
   const table = createRibbonFrameTable(initial.samples);
   const frames = new THREE.DataTexture(table.data, TABLE_SIZE, 2, THREE.RGBAFormat, THREE.FloatType);
   frames.needsUpdate = true;
-  let geometry = buildRibbonGeometry(score, view, groups, engraving, voicePaths);
+  let geometry = buildRibbonGeometry(score, view, groups, engraving, voicePaths, markerId);
   const focal = width * 1.45, near = width * .01, far = width * 20;
   const camera = new THREE.PerspectiveCamera(2 * Math.atan(height / (2 * focal)) * 180 / Math.PI, width / height, near, far);
   // The reference's world uses screen-down Y. Flip only the projection Y so
@@ -190,7 +190,7 @@ export async function mountGpuRibbon(host, { score, view, points, groups, engrav
       return original.apply(this,args);
     };
   }
-  const marker = points.find(p => p.id === MARKER);
+  const marker = points.find(p => p.id === markerId) ?? points[0];
   const targetPosition = new THREE.Vector3();
   let pixelRatioInitialized = false;
 
@@ -243,7 +243,7 @@ export async function mountGpuRibbon(host, { score, view, points, groups, engrav
 
   function setNotation(notation) {
     if (disposed) throw new Error('GPU ribbon is disposed.');
-    const next = buildRibbonGeometry(score, notation.view, notation.groups, notation.engraving, notation.voicePaths ?? []);
+    const next = buildRibbonGeometry(score, notation.view, notation.groups, notation.engraving, notation.voicePaths ?? [], markerId);
     const previous = geometry;
     geometry = next;
     mesh.geometry = next;
