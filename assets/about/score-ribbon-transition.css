@@ -40,6 +40,12 @@ body[data-score-gpu-scroll="true"] :is(.code-chapter .chapter-copy, .music-headi
   isolation: isolate;
 }
 
+body[data-score-gpu-scroll="true"] :is(.music-tools, .music-explore) {
+  position: relative;
+  z-index: 2;
+  isolation: isolate;
+}
+
 body[data-score-gpu-scroll="true"] .score-gpu-scroll-canvas {
   transform: translate3d(var(--thread-x, 0px), var(--thread-y, 0px), 0)
     scale(var(--thread-scale, 1)) rotate(var(--thread-rotate, 0deg));
@@ -84,6 +90,15 @@ body[data-score-gpu-scroll="true"] :is(.code-chapter .chapter-copy, .music-headi
   inset: -30px -42px;
   pointer-events: none;
   background: radial-gradient(ellipse at center, #060609 0 58%, rgb(6 6 9 / 96%) 74%, transparent 100%);
+}
+
+body[data-score-gpu-scroll="true"] :is(.music-tools, .music-explore)::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: -24px -30px;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, #060609 0 52%, rgb(6 6 9 / 95%) 72%, transparent 100%);
 }
 
 body[data-score-ribbon-transition="true"] .code-score-anchor {
@@ -142,6 +157,10 @@ body[data-score-ribbon-transition="true"] :is(.poem, .music-heading, .score-figu
 @media (max-width: 700px) {
   body[data-score-gpu-scroll="true"] :is(.code-chapter .chapter-copy, .music-heading .chapter-copy, .music-intro)::before {
     inset: -22px -24px;
+  }
+
+  body[data-score-gpu-scroll="true"] :is(.music-tools, .music-explore)::before {
+    inset: -18px -20px;
   }
 
   body[data-score-gpu-scroll="true"] .about-hero .hero-copy::before {
