@@ -2,7 +2,11 @@ import { score } from "./score.js?v=a1c14c40";
 import { createJourneyAudio, playbackPositionForDisplay } from "./audio.js";
 import { mountExperiments } from "./experiments.js";
 import { createScoreVisual, scoreStageOffsets } from "./score-visual.js";
-import { SCORE_CAMERA_POSE_STOPS, scoreJourneyAtReadingLine, scorePoseAtReadingLine } from "./score-camera-journey.js";
+import {
+  SCORE_CAMERA_POSE_STOPS,
+  createScoreCurve,
+  createScoreJourneyCurve,
+} from "./score-camera-journey.js";
 
 const root = document.querySelector(".about-main");
 const query = new URLSearchParams(window.location.search);
@@ -30,11 +34,11 @@ const scoreCameraStops = [
 ];
 const scoreGpuCameraStops = [
   { x: -.11, y: .02, scale: .62, opacity: .58, lead: .82, rotate: 0 },
-  { x: -.02, y: .02, scale: .60, opacity: .50, lead: .62, rotate: 0 },
-  { x: 0, y: .01, scale: .96, opacity: .78, lead: .98, rotate: 0 },
-  { x: -.01, y: .06, scale: .70, opacity: .58, lead: .56, rotate: 0 },
-  { x: 0, y: .16, scale: .50, opacity: .48, lead: .50, rotate: 0 },
-  { x: 0, y: .18, scale: .54, opacity: .38, lead: .28, rotate: 0 },
+  { x: -.02, y: .03, scale: .60, opacity: .50, lead: .62, rotate: 0 },
+  { x: 0, y: .05, scale: .96, opacity: .78, lead: .98, rotate: 0 },
+  { x: -.01, y: .08, scale: .70, opacity: .58, lead: .56, rotate: 0 },
+  { x: 0, y: .15, scale: .50, opacity: .48, lead: .50, rotate: 0 },
+  { x: 0, y: .19, scale: .54, opacity: .38, lead: .28, rotate: 0 },
 ];
 const scoreCameraAnchors = {
   opening: ".hero-field",
@@ -47,6 +51,10 @@ const scoreCameraAnchors = {
 const mobileScoreScale = { opening: .72, code: .66, music: .95, art: .65, games: .56, closing: .66 };
 let scoreGpuPose = 0;
 let scoreChapterBounds = [];
+let scoreChapterCenters = [];
+let scoreGpuOffsetStops = [];
+let scoreGpuCurves = null;
+let scoreGpuOffsetsNeedMeasure = true;
 let scoreThreadNeedsMeasure = true;
 let scoreThreadLastScrollY = Number.NaN;
 let scoreThreadLastStyle = "";
@@ -81,7 +89,7 @@ const revealObserver = supportsViewTimeline ? null : new IntersectionObserver(en
 }, { rootMargin: "-12% 0px -18% 0px", threshold: 0 });
 if (revealObserver) revealTargets.forEach(element => revealObserver.observe(element));
 function cameraValue(key, index, progress) {
-  const stops = scoreGpuScrollMode ? scoreGpuCameraStops : scoreCameraStops;
+  const stops = scoreCameraStops;
   const before = stops[Math.max(0, index - 1)][key];
   const start = stops[index][key];
   const end = stops[index + 1][key];
@@ -99,7 +107,9 @@ function updateScoreThread(force = false) {
       const bounds = chapter.getBoundingClientRect();
       return { top: bounds.top + scrollY, bottom: bounds.bottom + scrollY, height: bounds.height };
     });
+    scoreChapterCenters = scoreChapterBounds.map(bounds => bounds.top + bounds.height / 2);
     scoreThreadNeedsMeasure = false;
+    if (scoreGpuScrollMode) scoreGpuOffsetsNeedMeasure = true;
   }
   scoreThreadLastScrollY = scrollY;
   const storyPoint = scrollY + window.innerHeight * .52;
@@ -108,49 +118,104 @@ function updateScoreThread(force = false) {
     chapterIndex = scoreChapterBounds.findIndex(bounds => storyPoint < bounds.top);
     chapterIndex = chapterIndex < 0 ? scoreChapterBounds.length - 1 : Math.max(0, chapterIndex - 1);
   }
-  const chapterCenters = scoreChapterBounds.map(bounds => bounds.top + bounds.height / 2);
-  const journey = scoreJourneyAtReadingLine(storyPoint, chapterCenters);
-  if (scoreGpuScrollMode) {
-    const poseStops = window.innerWidth <= 700 ? SCORE_CAMERA_POSE_STOPS.mobile : SCORE_CAMERA_POSE_STOPS.desktop;
-    scoreGpuPose = scorePoseAtReadingLine(storyPoint, chapterCenters, poseStops).pose;
+  const chapterCenters = scoreChapterCenters;
+  if (scoreGpuScrollMode && scoreGpuOffsetsNeedMeasure) {
+    const mobile = window.innerWidth <= 700;
+    scoreGpuOffsetStops = chapters.map((chapter, index) => {
+      const movement = chapter.dataset.movement;
+      const scale = mobile ? mobileScoreScale[movement] : scoreGpuCameraStops[index].scale;
+      const centerScrollY = chapterCenters[index] - window.innerHeight * .52;
+      return scoreStageOffsets(scoreAnchorFor(chapter), scale, centerScrollY, { ignoreRevealTransforms: true });
+    });
+    const valuesFor = key => scoreGpuCameraStops.map(stop => stop[key]);
+    scoreGpuCurves = {
+      journey: createScoreJourneyCurve(chapterCenters),
+      pose: createScoreCurve(chapterCenters, mobile ? SCORE_CAMERA_POSE_STOPS.mobile : SCORE_CAMERA_POSE_STOPS.desktop),
+      frame: Object.fromEntries(["x", "y", "scale", "opacity", "lead", "rotate"].map(key => [
+        key,
+        createScoreCurve(chapterCenters, valuesFor(key)),
+      ])),
+      mobileScale: createScoreCurve(
+        chapterCenters,
+        chapters.map(chapter => mobileScoreScale[chapter.dataset.movement]),
+      ),
+      offsetX: createScoreCurve(chapterCenters, scoreGpuOffsetStops.map(stop => stop.x)),
+      offsetY: createScoreCurve(chapterCenters, scoreGpuOffsetStops.map(stop => stop.y)),
+    };
+    scoreGpuOffsetsNeedMeasure = false;
   }
-  let index = journey.index;
-  let progress = journey.progress;
-  if (reduceMotion.matches) {
-    const settledIndex = clamp(chapterIndex, 0, scoreCameraStops.length - 1);
-    scoreTransitionTarget = settledIndex / Math.max(1, scoreCameraStops.length - 1);
-    index = Math.min(settledIndex, scoreCameraStops.length - 2);
-    progress = settledIndex === scoreCameraStops.length - 1 ? 1 : 0;
-  } else {
+  let index = 0;
+  let progress = 0;
+  let cameraReadingLine = storyPoint;
+  if (scoreGpuScrollMode) {
+    const journey = scoreGpuCurves.journey(storyPoint);
+    const poseStops = window.innerWidth <= 700 ? SCORE_CAMERA_POSE_STOPS.mobile : SCORE_CAMERA_POSE_STOPS.desktop;
+    scoreGpuPose = scoreGpuCurves.pose(storyPoint).value;
+    index = journey.index;
+    progress = journey.progress;
     scoreTransitionTarget = journey.normalizedProgress;
+    if (reduceMotion.matches) {
+      const settledIndex = clamp(chapterIndex, 0, chapters.length - 1);
+      scoreGpuPose = poseStops[settledIndex];
+      scoreTransitionTarget = settledIndex / Math.max(1, chapters.length - 1);
+      cameraReadingLine = chapterCenters[settledIndex];
+    }
+  } else {
+    const chapterBounds = scoreChapterBounds[chapterIndex];
+    const chapterProgress = clamp((storyPoint - chapterBounds.top) / Math.max(1, chapterBounds.height), 0, 1);
+    const cameraTransitionPortion = scoreRibbonTransitionMode ? .42 : .18;
+    scoreTransitionTarget = reduceMotion.matches
+      ? chapterIndex / Math.max(1, chapters.length - 1)
+      : clamp((chapterIndex + chapterProgress) / Math.max(1, chapters.length), 0, 1);
+    index = chapterIndex;
+    if (chapterIndex > 0 && chapterProgress < cameraTransitionPortion) {
+      index = chapterIndex - 1;
+      progress = chapterProgress / cameraTransitionPortion;
+    } else if (chapterIndex === scoreCameraStops.length - 1) {
+      index = chapterIndex - 1;
+      progress = 1;
+    }
+    progress = progress * progress * (3 - 2 * progress);
   }
   const mainBounds = root.getBoundingClientRect();
   const enter = clamp((window.innerHeight - mainBounds.top) / (window.innerHeight * .42), 0, 1);
   const leave = clamp(mainBounds.bottom / (window.innerHeight * .42), 0, 1);
   const visibility = Math.min(enter, leave);
+  const gpuValue = key => scoreGpuCurves.frame[key](cameraReadingLine).value;
   const values = {
-    x: cameraValue("x", index, progress),
-    y: cameraValue("y", index, progress),
-    scale: cameraValue("scale", index, progress),
-    opacity: cameraValue("opacity", index, progress) * visibility,
-    lead: cameraValue("lead", index, progress) * visibility,
-    rotate: cameraValue("rotate", index, progress),
+    x: scoreGpuScrollMode ? gpuValue("x") : cameraValue("x", index, progress),
+    y: scoreGpuScrollMode ? gpuValue("y") : cameraValue("y", index, progress),
+    scale: scoreGpuScrollMode ? gpuValue("scale") : cameraValue("scale", index, progress),
+    opacity: (scoreGpuScrollMode ? gpuValue("opacity") : cameraValue("opacity", index, progress)) * visibility,
+    lead: (scoreGpuScrollMode ? gpuValue("lead") : cameraValue("lead", index, progress)) * visibility,
+    rotate: scoreGpuScrollMode ? gpuValue("rotate") : cameraValue("rotate", index, progress),
   };
-  if (window.innerWidth <= 700) {
+  if (scoreGpuScrollMode && window.innerWidth <= 700) {
+    values.scale = scoreGpuCurves.mobileScale(cameraReadingLine).value;
+  } else if (!scoreGpuScrollMode && window.innerWidth <= 700) {
     const startScale = mobileScoreScale[chapters[index].dataset.movement];
     const endScale = mobileScoreScale[chapters[Math.min(chapters.length - 1, index + 1)].dataset.movement];
     values.scale = startScale + (endScale - startScale) * progress;
   }
-  const startOffset = scoreStageOffsets(scoreAnchorFor(chapters[index]), values.scale);
-  const endOffset = scoreStageOffsets(scoreAnchorFor(chapters[index + 1]), values.scale);
-  const x = values.x * window.innerWidth + startOffset.x + (endOffset.x - startOffset.x) * progress;
-  // Route the visual below Music's copy during the handoff, then let it settle on the real score stage.
-  const verticalArc = scoreRibbonTransitionMode
-    && chapters[index]?.dataset.movement === "code"
-    && chapters[index + 1]?.dataset.movement === "music"
-    ? Math.sin(Math.PI * progress) * Math.min(window.innerHeight * .16, window.innerWidth <= 700 ? 80 : 132)
-    : 0;
-  const y = values.y * window.innerHeight + startOffset.y + (endOffset.y - startOffset.y) * progress + verticalArc;
+  let x;
+  let y;
+  if (scoreGpuScrollMode) {
+    const offsetX = scoreGpuCurves.offsetX(cameraReadingLine).value;
+    const offsetY = scoreGpuCurves.offsetY(cameraReadingLine).value;
+    x = values.x * window.innerWidth + offsetX;
+    y = values.y * window.innerHeight + offsetY;
+  } else {
+    const startOffset = scoreStageOffsets(scoreAnchorFor(chapters[index]), values.scale);
+    const endOffset = scoreStageOffsets(scoreAnchorFor(chapters[index + 1]), values.scale);
+    x = values.x * window.innerWidth + startOffset.x + (endOffset.x - startOffset.x) * progress;
+    // Route the visual below Music's copy during the handoff, then let it settle on the real score stage.
+    const verticalArc = scoreRibbonTransitionMode
+      && chapters[index]?.dataset.movement === "code"
+      && chapters[index + 1]?.dataset.movement === "music"
+      ? Math.sin(Math.PI * progress) * Math.min(window.innerHeight * .16, window.innerWidth <= 700 ? 80 : 132)
+      : 0;
+    y = values.y * window.innerHeight + startOffset.y + (endOffset.y - startOffset.y) * progress + verticalArc;
+  }
   const target = { x, y, scale: values.scale, opacity: values.opacity, lead: values.lead, rotate: values.rotate };
   const now = performance.now();
   const elapsed = scoreCameraLastTime ? Math.min(64, now - scoreCameraLastTime) : 16;
@@ -430,6 +495,7 @@ function requestScene() {
 }
 function invalidateScoreLayout() {
   scoreThreadNeedsMeasure = true;
+  scoreGpuOffsetsNeedMeasure = true;
   requestScene();
 }
 function applyPointer() {
@@ -539,7 +605,7 @@ if (scoreGpuScrollMode) {
   import("./score-gpu-scroll.js?v=triplet-number-curve-1").then(module => module.mountAboutGpuScroll(root)).then(runtime => {
     updateGpuScroll = runtime.update;
     disposeGpuScroll = runtime.dispose;
-    requestScene();
+    invalidateScoreLayout();
   }).catch(error => {
     console.error("The GPU score could not load; falling back to the Canvas score transition.", error);
     import("./score-ribbon-transition.js?v=canvas-fallback-1").then(module => {

@@ -1,10 +1,17 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { SCORE_CAMERA_POSE_STOPS, scoreJourneyAtReadingLine, scorePoseAtReadingLine } from "../assets/about/score-camera-journey.js";
+import {
+  SCORE_CAMERA_POSE_STOPS,
+  createScoreCurve,
+  createScoreJourneyCurve,
+  scoreJourneyAtReadingLine,
+  scorePoseAtReadingLine,
+  scoreValueAtReadingLine,
+} from "../assets/about/score-camera-journey.js";
 
 const centers = [120, 640, 1980, 2650, 3360, 4020];
 
-test("camera poses land on each chapter center and stay continuous at joins", () => {
+test("journey keyframes are exact and joins remain continuous", () => {
   const start = scoreJourneyAtReadingLine(centers[0], centers);
   assert.equal(start.index, 0);
   assert.equal(start.progress, 0);
@@ -16,11 +23,9 @@ test("camera poses land on each chapter center and stay continuous at joins", ()
     const exact = scoreJourneyAtReadingLine(center, centers);
     const after = scoreJourneyAtReadingLine(center + .001, centers);
     assert.equal(exact.index, centerIndex - 1);
-    assert.equal(exact.progress, 1);
-    assert.ok(Math.abs(before.progress - 1) < 1e-5);
-    assert.equal(after.index, centerIndex);
-    assert.ok(after.progress < 1e-5);
-    assert.ok(Math.abs(before.normalizedProgress - after.normalizedProgress) < 1e-5);
+    assert.ok(Math.abs(exact.progress - 1) < 1e-12);
+    assert.ok(Math.abs(before.normalizedProgress - after.normalizedProgress) < 1e-6);
+    assert.ok(exact.velocity > 0, `journey should keep moving at chapter ${centerIndex}`);
   }
 
   const end = scoreJourneyAtReadingLine(centers.at(-1), centers);
@@ -29,10 +34,9 @@ test("camera poses land on each chapter center and stay continuous at joins", ()
   assert.equal(end.normalizedProgress, 1);
 });
 
-test("travel is reversible and slows near reading centers without stopping", () => {
-  const start = centers[1];
-  const end = centers[2];
-  const positions = Array.from({ length: 101 }, (_, index) => start + (end - start) * index / 100);
+test("global chapter progress is reversible, monotonic, and eases at reading centers", () => {
+  const positions = Array.from({ length: 1001 }, (_, index) => centers[0]
+    + (centers.at(-1) - centers[0]) * index / 1000);
   const journeyValue = position => {
     const sample = scoreJourneyAtReadingLine(position, centers);
     return sample.index + sample.progress;
@@ -42,51 +46,110 @@ test("travel is reversible and slows near reading centers without stopping", () 
 
   assert.deepEqual(up, [...down].reverse());
   assert.ok(down.every((value, index) => index === 0 || value >= down[index - 1]));
-  const localTravel = down.map(value => value - down[0]);
-  assert.ok(localTravel[10] > 0 && localTravel[10] < .1);
-  assert.ok(localTravel[50] >= .5);
-  assert.ok(localTravel[90] > .9 && localTravel[90] < 1);
-  assert.ok(localTravel[1] > 0);
-  assert.ok(localTravel.at(-2) < 1);
-  assert.ok(localTravel[1] - localTravel[0] < localTravel[50] - localTravel[49]);
-  assert.ok(localTravel[100] - localTravel[99] < localTravel[50] - localTravel[49]);
+  for (let index = 1; index < centers.length - 1; index += 1) {
+    const leftSecant = 1 / (centers[index] - centers[index - 1]);
+    const rightSecant = 1 / (centers[index + 1] - centers[index]);
+    const sample = scoreJourneyAtReadingLine(centers[index], centers);
+    assert.ok(sample.velocity < Math.min(leftSecant, rightSecant));
+  }
+  assert.ok(down.every((value, index) => index === 0 || value > down[index - 1]));
 });
 
-test("any scroll position maps to a bounded chapter segment and page progress", () => {
+test("global journey derivative is continuous and has bounded sampled acceleration", () => {
+  for (let centerIndex = 1; centerIndex < centers.length - 1; centerIndex += 1) {
+    const center = centers[centerIndex];
+    const epsilon = Math.min(center - centers[centerIndex - 1], centers[centerIndex + 1] - center) * 1e-5;
+    const leftVelocity = scoreJourneyAtReadingLine(center - epsilon, centers).velocity;
+    const atCenter = scoreJourneyAtReadingLine(center, centers).velocity;
+    const rightVelocity = scoreJourneyAtReadingLine(center + epsilon, centers).velocity;
+    const tolerance = Math.max(1e-7, Math.abs(atCenter) * 1e-3);
+    assert.ok(Math.abs(leftVelocity - atCenter) < tolerance);
+    assert.ok(Math.abs(rightVelocity - atCenter) < tolerance);
+  }
+
+  const samples = Array.from({ length: 2001 }, (_, index) => scoreJourneyAtReadingLine(
+    centers[0] + (centers.at(-1) - centers[0]) * index / 2000,
+    centers,
+  ));
+  const acceleration = samples.slice(1).map((sample, index) => {
+    const dx = (centers.at(-1) - centers[0]) / 2000;
+    return Math.abs(sample.velocity - samples[index].velocity) / dx;
+  });
+  assert.ok(acceleration.every(Number.isFinite));
+  assert.ok(Math.max(...acceleration) < 3e-5);
+});
+
+test("any scroll position maps to a bounded chapter and the path never overshoots a keyframe", () => {
   for (let position = centers[0] - 1000; position <= centers.at(-1) + 1000; position += 13) {
     const sample = scoreJourneyAtReadingLine(position, centers);
     assert.ok(sample.index >= 0 && sample.index < centers.length - 1);
     assert.ok(sample.progress >= 0 && sample.progress <= 1);
     assert.ok(sample.normalizedProgress >= 0 && sample.normalizedProgress <= 1);
+    assert.ok(sample.velocity >= 0);
   }
-});
 
-test("GPU camera traverses every chapter keyframe continuously and reversibly", () => {
-  const positions = Array.from({ length: 1001 }, (_, index) => centers[0]
-    + (centers.at(-1) - centers[0]) * index / 1000);
   for (const poses of Object.values(SCORE_CAMERA_POSE_STOPS)) {
-    const poseAt = position => scorePoseAtReadingLine(position, centers, poses).pose;
-    const down = positions.map(poseAt);
-    const up = [...positions].reverse().map(poseAt);
-
-    assert.deepEqual(up, [...down].reverse());
-    assert.ok(down.every((pose, index) => index === 0 || pose > down[index - 1]));
-    poses.forEach((pose, index) => assert.ok(Math.abs(poseAt(centers[index]) - pose) < 1e-12));
-    const frameTravel = down.slice(1).map((pose, index) => pose - down[index]);
-    assert.ok(frameTravel.every(delta => delta > 0 && delta < .01));
-    const frameAcceleration = frameTravel.slice(1).map((speed, index) => speed - frameTravel[index]);
-    assert.ok(frameAcceleration.every(delta => Math.abs(delta) < .002));
+    for (let index = 0; index < centers.length - 1; index += 1) {
+      for (let step = 0; step <= 100; step += 1) {
+        const position = centers[index] + (centers[index + 1] - centers[index]) * step / 100;
+        const sample = scorePoseAtReadingLine(position, centers, poses);
+        assert.ok(sample.pose >= Math.min(poses[index], poses[index + 1]) - 1e-12);
+        assert.ok(sample.pose <= Math.max(poses[index], poses[index + 1]) + 1e-12);
+      }
+    }
   }
 });
 
-test("camera pose stops must provide one increasing pose for each chapter", () => {
-  assert.throws(() => scorePoseAtReadingLine(0, centers, [0, .2]), /must match/);
-  assert.throws(() => scorePoseAtReadingLine(0, centers, [0, .2, .2, .5, .7, 1]), /must match/);
-  assert.throws(() => scorePoseAtReadingLine(0, centers, [0, .2, .4, .6, 1.2, 1.3]), /must match/);
+test("GPU poses reach the approved frontal at Music and remain reversible", () => {
+  for (const poses of Object.values(SCORE_CAMERA_POSE_STOPS)) {
+    assert.equal(poses[2], 1);
+    const positions = Array.from({ length: 1001 }, (_, index) => centers[0]
+      + (centers.at(-1) - centers[0]) * index / 1000);
+    const down = positions.map(position => scorePoseAtReadingLine(position, centers, poses).pose);
+    const up = [...positions].reverse().map(position => scorePoseAtReadingLine(position, centers, poses).pose);
+    assert.deepEqual(up, [...down].reverse());
+    poses.forEach((pose, index) => assert.ok(Math.abs(
+      scorePoseAtReadingLine(centers[index], centers, poses).pose - pose,
+    ) < 1e-12));
+  }
 });
 
-test("invalid chapter centers and a stopped travel profile are rejected", () => {
+test("camera values share continuous derivatives across both rising and turning joins", () => {
+  for (const stops of Object.values(SCORE_CAMERA_POSE_STOPS)) {
+    for (let centerIndex = 1; centerIndex < centers.length - 1; centerIndex += 1) {
+      const center = centers[centerIndex];
+      const epsilon = Math.min(center - centers[centerIndex - 1], centers[centerIndex + 1] - center) * 1e-5;
+      const left = scoreValueAtReadingLine(center - epsilon, centers, stops).velocity;
+      const at = scoreValueAtReadingLine(center, centers, stops).velocity;
+      const right = scoreValueAtReadingLine(center + epsilon, centers, stops).velocity;
+      const tolerance = Math.max(1e-7, Math.abs(at) * 1e-3);
+      assert.ok(Math.abs(left - at) < tolerance, `left derivative mismatch at ${centerIndex}`);
+      assert.ok(Math.abs(right - at) < tolerance, `right derivative mismatch at ${centerIndex}`);
+    }
+  }
+});
+
+test("prepared camera curves reuse copied keyframes for repeated scroll samples", () => {
+  const mutableCenters = [...centers];
+  const mutableValues = [0, .13, 1, .42, .8, 1];
+  const poseCurve = createScoreCurve(mutableCenters, mutableValues);
+  const journeyCurve = createScoreJourneyCurve(mutableCenters);
+  const positions = Array.from({ length: 101 }, (_, index) => centers[0]
+    + (centers.at(-1) - centers[0]) * index / 100);
+  const expectedPoses = positions.map(position => scoreValueAtReadingLine(position, centers, mutableValues));
+  const expectedJourney = positions.map(position => scoreJourneyAtReadingLine(position, centers));
+
+  mutableCenters.fill(-1);
+  mutableValues.fill(-1);
+  assert.deepEqual(positions.map(position => poseCurve(position)), expectedPoses);
+  assert.deepEqual(positions.map(position => journeyCurve(position)), expectedJourney);
+});
+
+test("invalid centers, values, pose stops, and a stopped journey profile are rejected", () => {
   assert.throws(() => scoreJourneyAtReadingLine(0, [0]), /At least two/);
   assert.throws(() => scoreJourneyAtReadingLine(0, [0, 0]), /strictly increasing/);
   assert.throws(() => scoreJourneyAtReadingLine(0, [0, 1], 1), /in \[0,1\)/);
+  assert.throws(() => scoreValueAtReadingLine(0, centers, [0, 1]), /match the chapter centers/);
+  assert.throws(() => scorePoseAtReadingLine(0, centers, [0, .2]), /match the chapter centers/);
+  assert.throws(() => scorePoseAtReadingLine(0, centers, [0, .2, 1.2, .4, .8, 1]), /within \[0,1\]/);
 });

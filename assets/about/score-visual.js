@@ -188,10 +188,48 @@ function geometryFor(host) {
   };
 }
 
-export function scoreStageOffsets(anchor, scale) {
+function layoutBoundsWithoutRevealTransforms(anchor) {
+  const revealElements = [];
+  for (let element = anchor; element && element !== document.body; element = element.parentElement) {
+    if (!element.hasAttribute("data-about-reveal")) continue;
+    const previousTransform = element.style.getPropertyValue("transform");
+    const previousTransformPriority = element.style.getPropertyPriority("transform");
+    const previousTransition = element.style.getPropertyValue("transition");
+    const previousTransitionPriority = element.style.getPropertyPriority("transition");
+    revealElements.push({
+      element,
+      previousTransform,
+      previousTransformPriority,
+      previousTransition,
+      previousTransitionPriority,
+    });
+    element.style.setProperty("transition", "none", "important");
+    element.style.setProperty("transform", "none", "important");
+  }
+
+  try {
+    return anchor.getBoundingClientRect();
+  } finally {
+    for (const state of revealElements) {
+      if (state.previousTransform) state.element.style.setProperty("transform", state.previousTransform, state.previousTransformPriority);
+      else state.element.style.removeProperty("transform");
+    }
+    // Apply the original transform while transitions are still suspended so
+    // fallback reveal transitions do not restart during layout measurement.
+    revealElements.forEach(({ element }) => getComputedStyle(element).transform);
+    for (const state of revealElements) {
+      if (state.previousTransition) state.element.style.setProperty("transition", state.previousTransition, state.previousTransitionPriority);
+      else state.element.style.removeProperty("transition");
+    }
+  }
+}
+
+export function scoreStageOffsets(anchor, scale, targetScrollY = window.scrollY, { ignoreRevealTransforms = false } = {}) {
   if (!anchor) return { x: 0, y: 0 };
   const geometry = geometryFor(anchor);
-  const bounds = anchor.getBoundingClientRect();
+  const bounds = ignoreRevealTransforms
+    ? layoutBoundsWithoutRevealTransforms(anchor)
+    : anchor.getBoundingClientRect();
   const fitScale = Math.min(window.innerWidth / geometry.width, window.innerHeight / geometry.height);
   const fitTop = (window.innerHeight - geometry.height * fitScale) / 2;
   const fitLeft = (window.innerWidth - geometry.width * fitScale) / 2;
@@ -202,7 +240,7 @@ export function scoreStageOffsets(anchor, scale) {
   const transformedStaffX = window.innerWidth / 2 + (staffX - window.innerWidth / 2) * scale;
   const transformedStaffY = window.innerHeight / 2 + (staffY - window.innerHeight / 2) * scale;
   const targetX = bounds.left + bounds.width / 2;
-  const targetY = bounds.top + bounds.height / 2;
+  const targetY = bounds.top + window.scrollY - targetScrollY + bounds.height / 2;
   return {
     x: clamp(targetX - transformedStaffX, -window.innerWidth * .34, window.innerWidth * .34),
     y: clamp(targetY - transformedStaffY, -window.innerHeight * .28, window.innerHeight * .28),
