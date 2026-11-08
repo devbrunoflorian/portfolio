@@ -6,10 +6,10 @@ const WRITTEN_OCTAVE_OFFSET = 12;
 const HEADER_SOURCE_WIDTH = 150;
 const MEASURE_WIDTH = 320;
 const HEIGHT = 360;
-// The guitar-score header SVG places the treble staff at y=176.5–272.5.
+// The guitar-score header SVG places the treble staff at y=176.5–224.5.
 // Keep the melody contours on that same five-line staff instead of a second lane above it.
 const STAFF_TOP = 176;
-const STAFF_LINE_GAP = 24;
+const STAFF_LINE_GAP = 12;
 const STAFF_BOTTOM = STAFF_TOP + STAFF_LINE_GAP * 4;
 const PIXELS_PER_BEAT = 80;
 const NATURAL_DIATONIC_STEP = [0, 0, 1, 1, 2, 3, 3, 4, 4, 5, 5, 6];

@@ -1,4 +1,5 @@
 import { scoreGridStudy } from "./score-grid-study-data.js";
+import { scoreGridRowLayout } from "./score-grid-study-layout.js";
 import { score } from "./score.js?v=a1c14c40";
 import { contourPathForNotes, contourPoints, contourYForMidi, scoreVoiceNotesInRange } from "./score-visual.js?v=score-grid-voices-1";
 
@@ -8,12 +9,21 @@ const NOTEHEAD_CENTER_BIAS = 5.9;
 const root = document.querySelector(".about-main");
 const stage = root?.querySelector('.score-stage-spacer[data-score-anchor="music"]');
 const excerptLabel = root?.querySelector("[data-score-excerpt]");
-const voiceStudyMode = new URLSearchParams(window.location.search).get("score-grid-voices") === "1";
+const studyParams = new URLSearchParams(window.location.search);
+const voiceStudyMode = studyParams.get("score-grid-voices") === "1";
+const fullSheetMode = studyParams.get("score-grid-full") === "1";
+const showGridGuides = studyParams.get("score-grid-guides") === "1";
+const requestedBar = Number(studyParams.get("score-bar") ?? "34");
+const focusBar = Number.isInteger(requestedBar) ? Math.max(1, Math.min(scoreGridStudy.bars.length, requestedBar)) : 34;
+const studyBars = fullSheetMode
+  ? scoreGridStudy.bars
+  : scoreGridStudy.bars.slice(focusBar - 1, focusBar + 2);
 const pageController = new AbortController();
 let resizeObserver;
 let currentBarsPerSystem = 0;
 
 document.body.dataset.scoreGridStudy = "true";
+document.body.dataset.scoreGridGuides = String(showGridGuides);
 
 function addStudyStylesheet() {
   if (document.querySelector("link[data-score-grid-study-style]")) return;
@@ -104,6 +114,8 @@ function createBeatGuides() {
     const line = document.createElement("i");
     line.className = "score-grid-beat-line";
     line.style.insetInlineStart = `${beat * scoreGridStudy.pixelsPerBeat}px`;
+    line.style.insetBlockStart = `${scoreGridStudy.staffTop - scoreGridStudy.cropTop}px`;
+    line.style.blockSize = `${scoreGridStudy.staffBottom - scoreGridStudy.staffTop}px`;
     guides.append(line);
   }
   return guides;
@@ -206,14 +218,15 @@ function createNoteIcon(template, event, bar, patternId, eventIndex) {
   const anchorHead = heads[0];
   const anchorNote = [...event.notes].sort((a, b) => b.writtenMidi - a.writtenMidi || a.soundingMidi - b.soundingMidi)[0];
   const pitchY = writtenPitchY(anchorNote.writtenMidi);
-  const gridRow = Math.floor((pitchY - scoreGridStudy.cropTop) / 12) + 1;
-  const gridRowY = (gridRow - 1) * 12;
+  const pitchStep = scoreGridStudy.staffLineGap / 2;
+  const gridRow = Math.floor((pitchY - scoreGridStudy.cropTop) / pitchStep) + 1;
+  const gridRowY = (gridRow - 1) * pitchStep;
   const padded = 1;
   const viewBoxX = box.x - padded;
   const viewBoxY = box.y - padded;
   const viewBox = `${viewBoxX} ${viewBoxY} ${box.width + padded * 2} ${box.height + padded * 2}`;
   const spanColumns = Math.max(1, Math.ceil((box.width + padded * 2) / timeCell));
-  const spanRows = Math.max(1, Math.ceil((box.height + padded * 2) / 12));
+  const spanRows = Math.max(1, Math.ceil((box.height + padded * 2) / pitchStep));
 
   const icon = svgElement("svg", {
     class: "score-grid-note",
@@ -265,12 +278,14 @@ function createBar(sourceMeasure, bar, pattern, patternId, templates) {
   measure.dataset.barNumber = String(bar.number);
   measure.dataset.pattern = bar.pattern;
   measure.setAttribute("aria-hidden", "true");
-  measure.style.gridTemplateRows = `repeat(${scoreGridStudy.cropHeight / 12}, 12px)`;
+  const pitchStep = scoreGridStudy.staffLineGap / 2;
+  measure.style.gridTemplateRows = `repeat(${scoreGridStudy.cropHeight / pitchStep}, ${pitchStep}px)`;
   measure.append(createStaffLines(), createBeatGuides(), createEngravingLayer(sourceMeasure, pattern.events, bar.number));
 
   const number = document.createElement("span");
   number.className = "score-grid-measure-number";
   number.textContent = String(bar.number);
+  number.style.insetBlockStart = `${Math.max(0, scoreGridStudy.staffTop - scoreGridStudy.cropTop - 20)}px`;
   measure.append(number);
 
   pattern.events.forEach((event, index) => {
@@ -280,13 +295,13 @@ function createBar(sourceMeasure, bar, pattern, patternId, templates) {
   return measure;
 }
 
-function createVoiceOverlay(rowBars, rowWidth) {
+function createVoiceOverlay(rowBars, rowWidth, headerWidth) {
   const firstBeat = (rowBars[0].number - 1) * scoreGridStudy.beatsPerBar;
   const rowBeats = rowBars.length * scoreGridStudy.beatsPerBar;
   const endBeat = firstBeat + rowBeats;
   const centerBeat = firstBeat + rowBeats / 2;
   const geometry = {
-    cursorX: 150 + rowBeats / 2 * scoreGridStudy.pixelsPerBeat + NOTEHEAD_CENTER_BIAS,
+    cursorX: headerWidth + rowBeats / 2 * scoreGridStudy.pixelsPerBeat + NOTEHEAD_CENTER_BIAS,
     pixelsPerBeat: scoreGridStudy.pixelsPerBeat,
     staffBottomY: scoreGridStudy.staffBottom,
     halfStepY: scoreGridStudy.staffLineGap / 2,
@@ -303,9 +318,9 @@ function createVoiceOverlay(rowBars, rowWidth) {
   const defs = svgElement("defs");
   const clipPath = svgElement("clipPath", { id: `score-grid-voice-clip-${rowBars[0].number}` });
   const clip = svgElement("rect", {
-    x: 150,
+    x: headerWidth,
     y: scoreGridStudy.cropTop,
-    width: rowWidth - 150,
+    width: rowWidth - headerWidth,
     height: scoreGridStudy.cropHeight,
   });
   clipPath.append(clip);
@@ -384,13 +399,15 @@ function createStudyFrame(stage, headerDocument, scoreDocuments, patterns) {
   const renderBars = () => {
     const barsPerSystem = barsPerSystemForViewport();
     currentBarsPerSystem = barsPerSystem;
-    currentSheetWidth = 150 + barsPerSystem * scoreGridStudy.barWidth;
+    const sheetHasHeader = studyBars[0]?.number === 1;
+    currentSheetWidth = (sheetHasHeader ? 150 : 0) + barsPerSystem * scoreGridStudy.barWidth;
     const rows = [];
-    for (let index = 0; index < scoreGridStudy.bars.length; index += barsPerSystem) {
-      rows.push(scoreGridStudy.bars.slice(index, index + barsPerSystem));
+    for (let index = 0; index < studyBars.length; index += barsPerSystem) {
+      rows.push(studyBars.slice(index, index + barsPerSystem));
     }
     systems = rows.length;
     sheet.style.setProperty("--score-row-width", `${currentSheetWidth}px`);
+    sheet.style.setProperty("--score-row-height", `${scoreGridStudy.cropHeight}px`);
     sheet.style.setProperty("--bars-per-system", String(barsPerSystem));
     sheet.replaceChildren();
 
@@ -399,7 +416,25 @@ function createStudyFrame(stage, headerDocument, scoreDocuments, patterns) {
       row.className = "score-grid-system";
       row.dataset.firstBar = String(rowBars[0].number);
       row.dataset.lastBar = String(rowBars.at(-1).number);
-      row.append(createHeader(headerDocument));
+      const layout = scoreGridRowLayout({
+        firstBar: rowBars[0].number,
+        sheetHasHeader,
+        headerWidth: 150,
+        barsPerSystem,
+        barWidth: scoreGridStudy.barWidth,
+      });
+      row.style.setProperty("--score-system-width", `${layout.width}px`);
+      row.style.setProperty("--score-system-height", `${scoreGridStudy.cropHeight}px`);
+      row.style.gridTemplateColumns = `${layout.barOffsetX ? `${layout.barOffsetX}px ` : ""}repeat(${barsPerSystem}, ${scoreGridStudy.barWidth}px)`;
+      if (layout.showsHeader) row.append(createHeader(headerDocument));
+      else if (layout.leadingSpacerWidth) {
+        const indent = document.createElement("div");
+        indent.className = "score-grid-indent";
+        indent.style.inlineSize = `${layout.leadingSpacerWidth}px`;
+        indent.style.blockSize = `${scoreGridStudy.cropHeight}px`;
+        indent.setAttribute("aria-hidden", "true");
+        row.append(indent);
+      }
       for (const bar of rowBars) {
         const patternId = bar.pattern;
         const entry = patterns.get(patternId);
@@ -411,17 +446,26 @@ function createStudyFrame(stage, headerDocument, scoreDocuments, patterns) {
         spacer.setAttribute("aria-hidden", "true");
         row.append(spacer);
       }
-      if (voiceStudyMode) row.append(createVoiceOverlay(rowBars, currentSheetWidth));
+      if (voiceStudyMode) row.append(createVoiceOverlay(rowBars, layout.width, layout.barOffsetX));
       sheet.append(row);
     }
 
     const isPortuguese = document.documentElement.lang.toLowerCase().startsWith("pt");
-    if (excerptLabel) excerptLabel.textContent = voiceStudyMode
+    const firstBar = studyBars[0]?.number ?? 1;
+    const lastBar = studyBars.at(-1)?.number ?? firstBar;
+    const range = firstBar === lastBar ? String(firstBar) : `${firstBar}–${lastBar}`;
+    const excerptText = fullSheetMode
+      ? isPortuguese ? "Partitura completa · 106 compassos · 26 padrões" : "Complete score · 106 bars · 26 patterns"
+      : isPortuguese ? `Recorte da pauta · compassos ${range}` : `Score excerpt · bars ${range}`;
+    const voiceText = fullSheetMode
       ? isPortuguese ? "Partitura + duas vozes · 106 compassos" : "Score + two voices · 106 bars"
-      : isPortuguese ? "Partitura completa · 106 compassos · 26 padrões" : "Complete score · 106 bars · 26 patterns";
+      : isPortuguese ? `Pauta + duas vozes · compassos ${range}` : `Score + two voices · bars ${range}`;
+    if (excerptLabel) excerptLabel.textContent = voiceStudyMode ? voiceText : excerptText;
     viewport.setAttribute("aria-label", voiceStudyMode
-      ? isPortuguese ? "Partitura de guitarra com Voz I azul e Voz II violeta, em 106 compassos" : "Guitar score with blue Voice I and violet Voice II across 106 bars"
-      : isPortuguese ? "Partitura completa de guitarra, 106 compassos, com 26 padrões reutilizados" : "Complete guitar score, 106 bars, using 26 repeated patterns");
+      ? isPortuguese ? `Pauta de guitarra com Voz I azul e Voz II violeta, compassos ${range}` : `Guitar score with blue Voice I and violet Voice II, bars ${range}`
+      : fullSheetMode
+        ? isPortuguese ? "Partitura completa de guitarra, 106 compassos, com 26 padrões reutilizados" : "Complete guitar score, 106 bars, using 26 repeated patterns"
+        : isPortuguese ? `Recorte da pauta de guitarra nos compassos ${range}` : `Guitar score excerpt, bars ${range}`);
     updateScale();
   };
 

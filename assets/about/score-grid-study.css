@@ -141,7 +141,14 @@ body[data-score-grid-study="true"] .score-grid-staff-line {
   background: rgb(190 181 201 / 47%);
 }
 
-body[data-score-grid-study="true"] .score-grid-guides { z-index: 0; }
+body[data-score-grid-study="true"] .score-grid-guides {
+  z-index: 0;
+  display: none;
+}
+
+body[data-score-grid-study="true"][data-score-grid-guides="true"] .score-grid-guides {
+  display: block;
+}
 
 body[data-score-grid-study="true"] .score-grid-beat-line {
   position: absolute;
