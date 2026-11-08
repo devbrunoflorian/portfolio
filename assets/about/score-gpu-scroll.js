@@ -80,10 +80,11 @@ export async function mountAboutGpuScroll(root, host = root.querySelector('[data
   let activeNotation = notation;
   let activeWindowKey = `${notation.firstBar}:${notation.lastBar}`;
   let activeSourceRange = { x0: notation.view.x0, x1: notation.view.x1 };
-  const state = { pose: 0, zoom: 1, chapter: 'opening', motionEnabled: true, reducedMotion: false, timestamp: null };
+  const state = { pose: 0, zoom: 1, frameOffset: { x: 0, y: 0 }, chapter: 'opening', motionEnabled: true, reducedMotion: false, timestamp: null };
   const dprBudget = createAdaptiveDpr(initialGpuPixelRatio(window.devicePixelRatio));
   let width = 0, height = 0, pixelRatio = initialGpuPixelRatio(window.devicePixelRatio);
   let gpu = null, gpuLoading = false, gpuFailed = false, pageVisible = false, disposed = false, lastPose = null, lastZoom = null;
+  let lastFrameX = null, lastFrameY = null;
   let lastSourceRange = null;
   let lastFallbackChapter = '', fallbackDirty = true, resizeFrame = 0;
 
@@ -137,17 +138,22 @@ export async function mountAboutGpuScroll(root, host = root.querySelector('[data
 
   function renderPose(pose, timestamp) {
     if (!gpu || gpuFailed || !pageVisible || document.hidden || state.reducedMotion || !state.motionEnabled) return;
-    if (lastPose === pose && lastZoom === state.zoom && lastSourceRange?.x0 === activeSourceRange.x0 && lastSourceRange?.x1 === activeSourceRange.x1) return;
+    const frameX = Number.isFinite(state.frameOffset?.x) ? state.frameOffset.x : 0;
+    const frameY = Number.isFinite(state.frameOffset?.y) ? state.frameOffset.y : 0;
+    if (lastPose === pose && lastZoom === state.zoom && lastFrameX === frameX && lastFrameY === frameY
+      && lastSourceRange?.x0 === activeSourceRange.x0 && lastSourceRange?.x1 === activeSourceRange.x1) return;
     const decision = Number.isFinite(timestamp) ? dprBudget.observe(timestamp) : null;
     if (decision?.lowered) {
       pixelRatio = decision.pixelRatio;
       gpu.setPixelRatio(pixelRatio);
     }
     gpu.setSourceRange(activeSourceRange.x0, activeSourceRange.x1);
-    gpu.draw(pose, 'C', false, state.zoom);
+    gpu.draw(pose, 'C', false, state.zoom, { x: frameX, y: frameY });
     exposeGpu();
     lastPose = pose;
     lastZoom = state.zoom;
+    lastFrameX = frameX;
+    lastFrameY = frameY;
     lastSourceRange = { ...activeSourceRange };
     host.dataset.scoreGpuPose = pose.toFixed(6);
     host.dataset.scoreGpuDpr = String(pixelRatio);
@@ -157,7 +163,7 @@ export async function mountAboutGpuScroll(root, host = root.querySelector('[data
     if (disposed || gpu || gpuLoading || gpuFailed || state.reducedMotion) return;
     gpuLoading = true;
     try {
-      const { mountGpuRibbon } = await import('./score-gpu-ribbon.js?v=score-playback-window-2');
+      const { mountGpuRibbon } = await import('./score-gpu-ribbon.js?v=editorial-frame-3');
       if (disposed) return;
       gpu = await mountGpuRibbon(host, {
         score,

@@ -4,6 +4,28 @@ import { HALO_HALF_WIDTH } from './score-depth-cues.js';
 
 const DEFAULT_MARKER = 'guitar-33-4-1';
 
+let trebleClefContoursPromise;
+
+/** Use the project's existing notation header; map its clef to guitar staff units. */
+export function trebleClefContoursFromSvg(source) {
+  const group = source.match(/<g class="vf-clef"[^>]*>([\s\S]*?)<\/g>/)?.[1];
+  const path = group?.match(/<path\s+d="([^"]+)"/)?.[1];
+  if (!path) throw new Error('The notation header does not contain a treble clef path.');
+  return glyphContours(path).map(contour => contour.map(([x, y]) => [
+    (x - 5) / 12,
+    (y - 272.5) / 12,
+  ]));
+}
+
+export function loadTrebleClefContours() {
+  trebleClefContoursPromise ??= (async () => {
+    const response = await fetch(new URL('./guitar-score/notation-header.svg', import.meta.url));
+    if (!response.ok) throw new Error(`Could not load the treble clef source (${response.status}).`);
+    return trebleClefContoursFromSvg(await response.text());
+  })();
+  return trebleClefContoursPromise;
+}
+
 function contains(ring, point) {
   let inside = false;
   for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
@@ -31,7 +53,7 @@ function fill(contours, emit) {
 }
 
 /** Immutable source UVs, glyph offsets and attachment parameters; never rebuilt per pose. */
-export function buildRibbonGeometry(score, view, groups, engraving, voicePaths = [], markerId = DEFAULT_MARKER) {
+export function buildRibbonGeometry(score, view, groups, engraving, voicePaths = [], markerId = DEFAULT_MARKER, trebleClefContours = []) {
   const attributes = { position: [], sourceUV: [], remap: [], glyphOffset: [], segmentEnd: [],
     segmentRemap: [], stroke: [], kind: [], gold: [], frontHead: [], arrivalBar: [], voice: [] };
   const point = (u, v, extra = {}) => ({ x: u, y: v, u, v, ...extra });
@@ -87,6 +109,15 @@ export function buildRibbonGeometry(score, view, groups, engraving, voicePaths =
   for (const y of score.staffLines) stroke(along(y), engraving.staffWidth);
   for (const bar of engraving.barlines) stroke(Array.from({ length: 33 }, (_, i) => point(bar.x, -8 + i / 4)),
     engraving.staffWidth, { arrivalBar: bar.x <= view.x0 + .01 ? 1 : 0 });
+
+  if (trebleClefContours.length) {
+    const anchorU = view.x0 + (view.x1 - view.x0) * .12;
+    const anchorV = score.staffBottom ?? score.staffLines.at(-1);
+    const contours = trebleClefContours.map(contour => contour.map(([x, y]) => point(anchorU, anchorV, {
+      x, y, kind: 5, offset: [x, y],
+    })));
+    fill(contours, emit);
+  }
 
   for (const group of groups) {
     const contacts = group.stems.map((s, i) => ({ from: s.contact.u, base: group.heads[i].anchor.u,

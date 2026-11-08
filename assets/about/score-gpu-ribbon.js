@@ -1,7 +1,7 @@
 import * as THREE from './vendor/three-score.min.js';
 import { createTravelProjector } from './score-travel-geometry.js';
 import { readingFocus } from './score-focus-profile.js';
-import { buildRibbonGeometry } from './score-gpu-ribbon-geometry.js?v=score-playback-window-2';
+import { buildRibbonGeometry, loadTrebleClefContours } from './score-gpu-ribbon-geometry.js?v=editorial-clef-3';
 
 const BACKGROUND = [6 / 255, 6 / 255, 9 / 255];
 const TABLE_SIZE = 2048;
@@ -27,7 +27,7 @@ export function createRibbonFrameTable(samples) {
 const vertexShader = `
   uniform sampler2D frames;
   uniform float ribbonLength, arcStart, arcSpan, unit, aspect, middle, focal, viewportWidth;
-  uniform vec2 sourceRange, viewport;
+  uniform vec2 sourceRange, viewport, frameOffset;
   attribute vec2 sourceUV, glyphOffset, segmentEnd, stroke;
   attribute float remap, segmentRemap, kind, gold, frontHead, arrivalBar, voice;
   varying float vDistance, vGold, vHead, vKind, vArrival, vVoice, vSourceX;
@@ -70,6 +70,7 @@ const vertexShader = `
       vDistance=depth+1.;
       clip.xy+=normal*stroke.x*stroke.y*.5*(unit*focal/depth)*2./viewport*clip.w;
     }
+    clip.xy+=frameOffset*vec2(2.,-2.)/viewport*clip.w;
     gl_Position=clip;
   }`;
 
@@ -133,9 +134,10 @@ export async function mountGpuRibbon(host, { score, view, points, groups, engrav
   renderer.info.autoReset = false;
   const initial = createTravelProjector(width, height, score, 0, view, .2);
   const table = createRibbonFrameTable(initial.samples);
+  const trebleClefContours = await loadTrebleClefContours();
   const frames = new THREE.DataTexture(table.data, TABLE_SIZE, 2, THREE.RGBAFormat, THREE.FloatType);
   frames.needsUpdate = true;
-  let geometry = buildRibbonGeometry(score, view, groups, engraving, voicePaths, markerId);
+  let geometry = buildRibbonGeometry(score, view, groups, engraving, voicePaths, markerId, trebleClefContours);
   const focal = width * 1.45, near = width * .01, far = width * 20;
   const camera = new THREE.PerspectiveCamera(2 * Math.atan(height / (2 * focal)) * 180 / Math.PI, width / height, near, far);
   // The reference's world uses screen-down Y. Flip only the projection Y so
@@ -146,6 +148,7 @@ export async function mountGpuRibbon(host, { score, view, points, groups, engrav
     frames: { value: frames }, ribbonLength: { value: table.length }, arcStart: { value: 0 }, arcSpan: { value: 0 },
     unit: { value: 0 }, aspect: { value: 1 }, middle: { value: (score.staffLines[0] + score.staffLines.at(-1)) / 2 },
     focal: { value: focal }, viewportWidth: { value: width }, viewport: { value: new THREE.Vector2(width, height) },
+    frameOffset: { value: new THREE.Vector2(0, 0) },
     pixelRatio: { value: pixelRatio },
     sourceRange: { value: new THREE.Vector2(view.x0, view.x1) }, focus: { value: 0 },
     fade: { value: 0 }, halo: { value: 0 }, pose: { value: 0 },
@@ -178,7 +181,7 @@ export async function mountGpuRibbon(host, { score, view, points, groups, engrav
     frameTextureBytes: table.data.byteLength, vertices: geometry.attributes.position.count,
     hardwareAcceleration: 'Unknown; renderer string does not prove hardware acceleration.',
     presentation: 'Not measured; next RAF is scheduling latency only.', contextLost: false };
-  let disposed = false, cachedPose = null, cachedZoom = null, lastVariant = 'C';
+  let disposed = false, cachedPose = null, cachedZoom = null, cachedFrameX = 0, cachedFrameY = 0, lastVariant = 'C';
   const projectorScratch = {}, focusScratch = {}, reusableSample = {};
   let lastSample = null;
   const originalGL=new Map();metrics.bufferUploadCalls=0;metrics.bufferUploadBytes=0;metrics.actualFrameUploads=0;
@@ -207,7 +210,7 @@ export async function mountGpuRibbon(host, { score, view, points, groups, engrav
   }
   setPixelRatio(pixelRatio);
 
-  function updatePose(pose, cameraZoom = 1) {
+  function updatePose(pose, cameraZoom = 1, frameOffset = { x: 0, y: 0 }) {
     const range = uniforms.sourceRange.value;
     const readingView = { x0: range.x, x1: range.y };
     const project = createTravelProjector(width, height, score, pose, readingView, .2, true, projectorScratch, cameraZoom);
@@ -219,6 +222,7 @@ export async function mountGpuRibbon(host, { score, view, points, groups, engrav
     uniforms.aspect.value = project.uvAspect;
     uniforms.focus.value = readingFocus(project, readingView, width, height, marker, pose, focusScratch).distance;
     uniforms.pose.value = pose;
+    uniforms.frameOffset.value.set(frameOffset.x, frameOffset.y);
     camera.position.fromArray(project.camera.position);
     targetPosition.fromArray(project.camera.target);camera.lookAt(targetPosition);camera.updateMatrixWorld();
     if (diagnostics) {
@@ -227,6 +231,8 @@ export async function mountGpuRibbon(host, { score, view, points, groups, engrav
     }
     cachedPose = pose;
     cachedZoom = cameraZoom;
+    cachedFrameX = frameOffset.x;
+    cachedFrameY = frameOffset.y;
   }
 
   function pollGPU() {
@@ -243,7 +249,8 @@ export async function mountGpuRibbon(host, { score, view, points, groups, engrav
 
   function setNotation(notation) {
     if (disposed) throw new Error('GPU ribbon is disposed.');
-    const next = buildRibbonGeometry(score, notation.view, notation.groups, notation.engraving, notation.voicePaths ?? [], markerId);
+    const next = buildRibbonGeometry(score, notation.view, notation.groups, notation.engraving,
+      notation.voicePaths ?? [], markerId, trebleClefContours);
     const previous = geometry;
     geometry = next;
     mesh.geometry = next;
@@ -263,17 +270,20 @@ export async function mountGpuRibbon(host, { score, view, points, groups, engrav
     return true;
   }
 
-  function draw(pose, variant = 'C', captureSample = diagnostics, cameraZoom = 1) {
+  function draw(pose, variant = 'C', captureSample = diagnostics, cameraZoom = 1, frameOffset = { x: 0, y: 0 }) {
     if (disposed) throw new Error('GPU ribbon is disposed.');
     if (metrics.contextLost) return { pose, variant, cpuMs: 0, gpuMs: null, gpuStatus: 'context-lost' };
     if (!Number.isFinite(pose) || pose < 0 || pose > 1) throw new RangeError('Pose must be in [0,1].');
     if (!Number.isFinite(cameraZoom) || cameraZoom <= 0) throw new RangeError('Camera zoom must be a positive finite number.');
-    if (cachedPose === pose && cachedZoom === cameraZoom && lastVariant === variant && lastSample) return lastSample;
+    const frameX = Number.isFinite(frameOffset?.x) ? frameOffset.x : 0;
+    const frameY = Number.isFinite(frameOffset?.y) ? frameOffset.y : 0;
+    if (cachedPose === pose && cachedZoom === cameraZoom && cachedFrameX === frameX && cachedFrameY === frameY
+      && lastVariant === variant && lastSample) return lastSample;
     const started = performance.now();
     if (diagnostics || pending.length) pollGPU();
     const uploadStart=metrics.bufferUploadCalls,textureStart=metrics.actualFrameUploads;
-    const poseCached = cachedPose === pose && cachedZoom === cameraZoom;
-    if (!poseCached) updatePose(pose, cameraZoom);
+    const poseCached = cachedPose === pose && cachedZoom === cameraZoom && cachedFrameX === frameX && cachedFrameY === frameY;
+    if (!poseCached) updatePose(pose, cameraZoom, { x: frameX, y: frameY });
     uniforms.halo.value = pose < .85 && variant !== 'A' ? 1 : 0;
     uniforms.fade.value = pose < .4 && variant !== 'A' ? 1 : 0;
     postMaterial.uniforms.blur.value = variant === 'C' && pose < .85 ? 1 : 0;
@@ -330,7 +340,9 @@ export async function mountGpuRibbon(host, { score, view, points, groups, engrav
     metrics.contextLost = false;frames.needsUpdate = true;lastSample = null;
     metrics.frameTextureUploads++;metrics.geometryUploads++;
     canvas.dataset.contextLost = 'false';
-    if (cachedPose !== null) draw(cachedPose, lastVariant);
+    if (cachedPose !== null) {
+      draw(cachedPose, lastVariant, false, cachedZoom ?? 1, { x: cachedFrameX, y: cachedFrameY });
+    }
   }
   canvas.addEventListener('webglcontextlost', onLost);
   canvas.addEventListener('webglcontextrestored', onRestored);

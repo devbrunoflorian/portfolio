@@ -13,7 +13,7 @@ function reusableGlyph(study,glyph){
 
 /** Absolute PDF glyph outlines; tessellation stays in font coordinates before placement on the ribbon. */
 export function glyphContours(path) {
-  const tokens = path.match(/[MLHVCZ]|[-+]?(?:\d*\.\d+|\d+\.?\d*)(?:e[-+]?\d+)?/gi);
+  const tokens = path.match(/[MLHQVCZ]|[-+]?(?:\d*\.\d+|\d+\.?\d*)(?:e[-+]?\d+)?/gi);
   const contours = [];
   let i = 0, command, current = [], point = [0, 0];
   const number = () => Number(tokens[i++]);
@@ -26,6 +26,13 @@ export function glyphContours(path) {
     } else if (command === 'L' || command === 'H' || command === 'V') {
       point = command === 'L' ? [number(), number()] : command === 'H' ? [number(), point[1]] : [point[0], number()];
       current.push(point);
+    } else if (command === 'Q') {
+      const a = point, b = [number(), number()], c = [number(), number()];
+      for (let step = 1; step <= 24; step++) {
+        const t = step / 24, s = 1 - t;
+        current.push([0, 1].map(axis => s * s * a[axis] + 2 * s * t * b[axis] + t * t * c[axis]));
+      }
+      point = c;
     } else if (command === 'C') {
       const a = point, b = [number(), number()], c = [number(), number()], d = [number(), number()];
       for (let step = 1; step <= 24; step++) {

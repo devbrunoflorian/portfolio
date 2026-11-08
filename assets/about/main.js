@@ -2,6 +2,7 @@ import { score } from "./score.js?v=a1c14c40";
 import { createJourneyAudio, playbackPositionForDisplay } from "./audio.js";
 import { mountExperiments } from "./experiments.js";
 import { createScoreVisual, scoreStageOffsets } from "./score-visual.js";
+import { createGpuEditorialFrame } from "./score-gpu-frame.js";
 import {
   SCORE_CAMERA_POSE_STOPS,
   createScoreCurve,
@@ -33,10 +34,10 @@ const scoreCameraStops = [
   { x: 0, y: .04, scale: .68, opacity: .28, lead: .28, rotate: 0 },
 ];
 const scoreGpuCameraStops = [
-  { x: -.11, y: .02, scale: .62, opacity: .58, lead: .82, rotate: 0 },
-  { x: -.02, y: .03, scale: .60, opacity: .50, lead: .62, rotate: 0 },
+  { x: -.11, y: .02, scale: 1.28, opacity: .58, lead: .82, rotate: 0 },
+  { x: -.02, y: .03, scale: .68, opacity: .50, lead: .62, rotate: 0 },
   { x: 0, y: .05, scale: .96, opacity: .78, lead: .98, rotate: 0 },
-  { x: -.01, y: .08, scale: .70, opacity: .58, lead: .56, rotate: 0 },
+  { x: -.01, y: .08, scale: .76, opacity: .58, lead: .56, rotate: 0 },
   { x: 0, y: .15, scale: .50, opacity: .48, lead: .50, rotate: 0 },
   { x: 0, y: .19, scale: .54, opacity: .38, lead: .28, rotate: 0 },
 ];
@@ -48,7 +49,8 @@ const scoreCameraAnchors = {
   games: ".games-experiment",
   closing: ".closing-links",
 };
-const mobileScoreScale = { opening: .72, code: .66, music: .95, art: .65, games: .56, closing: .66 };
+const scoreGpuMusicIndex = chapters.findIndex(chapter => chapter.dataset.movement === "music");
+const mobileScoreScale = { opening: 1.12, code: .68, music: .95, art: .76, games: .58, closing: .66 };
 let scoreGpuPose = 0;
 let scoreGpuZoom = 1;
 let scoreChapterBounds = [];
@@ -222,6 +224,21 @@ function updateScoreThread(force = false) {
     y = values.y * window.innerHeight + startOffset.y + (endOffset.y - startOffset.y) * progress + verticalArc;
   }
   const target = { x, y, scale: values.scale, opacity: values.opacity, lead: values.lead, rotate: values.rotate };
+  let gpuEditorialFrame = { offset: { x: 0, y: 0 }, zoom: scoreGpuZoom };
+  if (scoreGpuScrollMode && scoreGpuMusicIndex >= 0 && scoreGpuCurves) {
+    const musicReadingLine = chapterCenters[scoreGpuMusicIndex];
+    const musicScale = window.innerWidth <= 700
+      ? mobileScoreScale.music
+      : scoreGpuCameraStops[scoreGpuMusicIndex].scale;
+    const musicFrame = {
+      x: scoreGpuCurves.frame.x(musicReadingLine).value * window.innerWidth
+        + scoreGpuCurves.offsetX(musicReadingLine).value,
+      y: scoreGpuCurves.frame.y(musicReadingLine).value * window.innerHeight
+        + scoreGpuCurves.offsetY(musicReadingLine).value,
+      scale: musicScale,
+    };
+    gpuEditorialFrame = createGpuEditorialFrame({ x, y, scale: values.scale }, musicFrame, scoreGpuZoom);
+  }
   const now = performance.now();
   const elapsed = scoreCameraLastTime ? Math.min(64, now - scoreCameraLastTime) : 16;
   scoreCameraLastTime = now;
@@ -477,7 +494,8 @@ function paintScenes(timestamp) {
     const result = updateGpuScroll({
       chapter: root.dataset.activeMovement ?? "opening",
       pose: scoreGpuPose,
-      zoom: scoreGpuZoom,
+      zoom: gpuEditorialFrame.zoom,
+      frameOffset: gpuEditorialFrame.offset,
       motionEnabled: !motionPaused && !reduceMotion.matches,
       reducedMotion: reduceMotion.matches,
       playbackSnapshot: snapshot,
@@ -618,7 +636,7 @@ if (scoreRibbonTransitionMode) {
 }
 
 if (scoreGpuScrollMode) {
-  import("./score-gpu-scroll.js?v=score-playback-window-2").then(module => module.mountAboutGpuScroll(root)).then(runtime => {
+  import("./score-gpu-scroll.js?v=editorial-frame-3").then(module => module.mountAboutGpuScroll(root)).then(runtime => {
     updateGpuScroll = runtime.update;
     disposeGpuScroll = runtime.dispose;
     invalidateScoreLayout();

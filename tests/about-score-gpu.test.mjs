@@ -1,16 +1,18 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
 import {createTravelProjector} from '../assets/about/score-travel-geometry.js';
 import {createRibbonFrameTable} from '../assets/about/score-gpu-ribbon.js';
-import {buildRibbonGeometry} from '../assets/about/score-gpu-ribbon-geometry.js';
+import {buildRibbonGeometry,trebleClefContoursFromSvg} from '../assets/about/score-gpu-ribbon-geometry.js';
 import {buildEngraving} from '../assets/about/score-engraving.js';
-import {buildCompoundGroups} from '../assets/about/score-compound-groups.js';
+import {buildCompoundGroups,glyphContours} from '../assets/about/score-compound-groups.js';
 import {scoreRibbonTimeline as score} from '../assets/about/score-ribbon-timeline.js';
 import {scoreRibbonData} from '../assets/about/score-ribbon-data.js';
 import {createAdaptiveDpr, initialGpuPixelRatio, poseBetweenDocumentCenters} from '../assets/about/score-gpu-budget.js';
 import {playbackNotationAtBeat,selectedNotation,selectedNotationForBars} from '../assets/about/score-gpu-scroll.js';
 import {staffYForMidi} from '../assets/about/score-ribbon-renderer.js';
 import {scorePlaybackWindowAtBeat,scorePositionAtBeat} from '../assets/about/score-ribbon-timeline.js';
+import {createGpuEditorialFrame} from '../assets/about/score-gpu-frame.js';
 
 const view={x0:score.bars[30].xStart,x1:score.bars[32].xEnd},width=1142,height=width/1.8;
 const step=[0,0,1,1,2,3,3,4,4,5,5,6];
@@ -178,6 +180,49 @@ test('camera zoom moves the front pose closer without changing its target',()=>{
   assert.deepEqual(zoomed.camera.target,base.camera.target);
   assert.ok(Math.abs(distance(base)/distance(zoomed)-2.5)<1e-10);
   assert.throws(()=>createTravelProjector(width,height,score,1,view,.2,true,null,0),RangeError);
+});
+
+test('GPU editorial framing is neutral at Music and reversible for every chapter offset',()=>{
+  const music={x:124,y:286,scale:.96},baseZoom=2.5;
+  const front=createGpuEditorialFrame(music,music,baseZoom);
+  assert.deepEqual(front,{offset:{x:0,y:0},zoom:baseZoom});
+  const chapter={x:music.x-173,y:music.y+91,scale:.62};
+  const away=createGpuEditorialFrame(chapter,music,baseZoom);
+  const back=createGpuEditorialFrame(chapter,music,baseZoom);
+  assert.deepEqual(away,back);
+  assert.deepEqual(away.offset,{x:-173,y:91});
+  assert.ok(Math.abs(away.zoom-(baseZoom*.62/.96))<1e-12);
+});
+
+test('GPU editorial frame rejects invalid scales and camera zooms',()=>{
+  assert.throws(()=>createGpuEditorialFrame({x:0,y:0,scale:0},{x:0,y:0,scale:1}),/positive scale/);
+  assert.throws(()=>createGpuEditorialFrame({x:0,y:0,scale:1},{x:0,y:0,scale:1},0),/positive and finite/);
+});
+
+test('notation path reader preserves quadratic treble-clef contours for GPU tessellation',()=>{
+  const contours=glyphContours('M0 0 Q5 10 10 0 L10 -2 Q5 8 0 -2 Z');
+  assert.equal(contours.length,1);
+  assert.ok(contours[0].length>40);
+  assert.deepEqual(contours[0][0],[0,0]);
+  assert.deepEqual(contours[0].at(-1),[0,-2]);
+});
+
+test('existing treble clef is converted to ribbon-space contours and triangulated with the staff',()=>{
+  const svg=readFileSync(new URL('../assets/about/guitar-score/notation-header.svg',import.meta.url),'utf8');
+  const clef=trebleClefContoursFromSvg(svg);
+  const points=clef.flat();
+  assert.ok(points.length>100);
+  assert.ok(points.every(([x,y])=>Number.isFinite(x)&&Number.isFinite(y)));
+  assert.ok(Math.max(...points.map(([x])=>x))>1.5);
+  assert.ok(Math.min(...points.map(([,y])=>y))<-4);
+  assert.ok(Math.max(...points.map(([,y])=>y))<.2);
+  const geometry=buildRibbonGeometry(score,view,groups,engraving,[],undefined,clef);
+  const kinds=geometry.attributes.kind.array,uvs=geometry.attributes.sourceUV.array,offsets=geometry.attributes.glyphOffset.array;
+  const clefAnchor=view.x0+(view.x1-view.x0)*.12;
+  const clefVertices=[...kinds.keys()].filter(index=>kinds[index]===5&&Math.abs(uvs[index*2]-clefAnchor)<1e-3);
+  assert.ok(clefVertices.length>100);
+  assert.ok(clefVertices.some(index=>offsets[index*2]!==0||offsets[index*2+1]!==0));
+  geometry.dispose();
 });
 
 test('adaptive DPR starts at 1.5, only steps down after 60 consecutive frames above 20ms p95',()=>{
