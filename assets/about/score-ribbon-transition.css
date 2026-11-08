@@ -154,6 +154,11 @@ body[data-score-ribbon-transition="true"] :is(.poem, .music-heading, .score-figu
   background: radial-gradient(ellipse at center, #060609 0 40%, rgb(6 6 9 / 88%) 58%, transparent 82%);
 }
 
+body[data-score-gpu-scroll="true"] .games-chapter .chapter-copy::before {
+  inset: -42px -68px;
+  background: radial-gradient(ellipse 92% 118% at center, #060609 0 56%, rgb(6 6 9 / 97%) 74%, rgb(6 6 9 / 72%) 90%, transparent 100%);
+}
+
 @media (max-width: 700px) {
   body[data-score-gpu-scroll="true"] :is(.code-chapter .chapter-copy, .music-heading .chapter-copy, .music-intro)::before {
     inset: -22px -24px;
@@ -169,5 +174,10 @@ body[data-score-ribbon-transition="true"] :is(.poem, .music-heading, .score-figu
 
   body[data-score-ribbon-transition="true"] :is(.poem, .games-chapter .chapter-copy, .about-closing h2, .closing-links)::before {
     inset: -26px -20px;
+  }
+
+  body[data-score-gpu-scroll="true"] .games-chapter .chapter-copy::before {
+    inset: -32px -24px;
+    background: radial-gradient(ellipse 108% 124% at center, #060609 0 58%, rgb(6 6 9 / 97%) 76%, rgb(6 6 9 / 70%) 92%, transparent 100%);
   }
 }
