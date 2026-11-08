@@ -34,6 +34,9 @@ body { background: var(--about-bg); color: var(--about-ink); }
 }
 .about-main h1 { --heading-active: var(--about-violet); --heading-rest: #9b7bbd; --scroll-fill-active: var(--about-violet); --scroll-fill-rest: #a58ac3; }
 .about-main h2 { --heading-active: var(--about-ink); --heading-rest: #a49aaa; --scroll-fill-active: var(--about-ink); --scroll-fill-rest: #817b89; }
+.about-main .scroll-fill[data-scroll-fill-ready="true"] .scroll-fill-word {
+  background-image: linear-gradient(90deg, var(--word-ink, currentColor) 0%, var(--word-ink, currentColor) var(--word-fill, 100%), var(--heading-rest, var(--word-ink, currentColor)) var(--word-fill, 100%), var(--heading-rest, var(--word-ink, currentColor)) 100%);
+}
 .about-main em {
   --heading-active: var(--about-violet);
   --heading-rest: #9b7bbd;
