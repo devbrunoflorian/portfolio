@@ -11,7 +11,8 @@ const CHAPTER_POSES = { opening: 0, code: 0, music: 1, art: .52, games: .78, clo
 const PITCH_STEP = [0, 0, 1, 1, 2, 3, 3, 4, 4, 5, 5, 6];
 const STATIC_WINDOW = scoreWindowAtBeat(STATIC_SCORE_BEAT, 1280);
 const STATIC_WINDOW_WIDTH = STATIC_WINDOW.endX - STATIC_WINDOW.startX;
-const scoreLightEnabled = shouldEnableScoreLight(new URLSearchParams(window.location.search));
+const scoreLightEnabled = typeof window === 'undefined'
+  || shouldEnableScoreLight(new URLSearchParams(window.location.search));
 
 export function selectedNotationForBars(firstBar, lastBar) {
   const first = Math.max(1, Math.min(score.bars.length, Math.floor(firstBar)));
