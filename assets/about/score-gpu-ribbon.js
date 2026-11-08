@@ -26,11 +26,13 @@ export function createRibbonFrameTable(samples) {
 
 const vertexShader = `
   uniform sampler2D frames;
+  uniform vec4 staffLinesA;
+  uniform float staffLineE;
   uniform float ribbonLength, arcStart, arcSpan, unit, aspect, middle, focal, viewportWidth;
   uniform vec2 sourceRange, viewport, frameOffset;
   attribute vec2 sourceUV, glyphOffset, segmentEnd, stroke;
   attribute float remap, segmentRemap, kind, gold, frontHead, arrivalBar, voice;
-  varying float vDistance, vGold, vHead, vKind, vArrival, vVoice, vSourceX;
+  varying float vDistance, vGold, vHead, vKind, vArrival, vVoice, vSourceX, vSourceY;
   vec3 frameAt(float f, float row){
     float lo=floor(f),hi=min(${TABLE_SIZE - 1}.,lo+1.);
     return mix(texture2D(frames,vec2((lo+.5)/${TABLE_SIZE}.,row)).xyz,
@@ -51,6 +53,7 @@ const vertexShader = `
     if(kind>4.5&&kind<5.5)source+=glyphOffset*vec2(aspect,1.);
     vec4 view=projectUV(source,remap);
     vSourceX=source.x+remap*aspect;
+    vSourceY=source.y;
     float scale=unit*focal/(-view.z);
     vDistance=-view.z;vGold=gold;vHead=frontHead;vKind=kind;vArrival=arrivalBar;vVoice=voice;
     if(kind<3.5||(kind>4.5&&kind<5.5))view.xyz*=(-view.z-1.)/(-view.z);
@@ -67,6 +70,7 @@ const vertexShader = `
       clip=mix(startClip,endClip,t);
       float depth=mix(-view.z,-endView.z,t);
       vSourceX=mix(sourceUV.x+remap*aspect,segmentEnd.x+segmentRemap*aspect,t);
+      vSourceY=mix(source.y,segmentEnd.y,t);
       vDistance=depth+1.;
       clip.xy+=normal*stroke.x*stroke.y*.5*(unit*focal/depth)*2./viewport*clip.w;
     }
@@ -75,9 +79,11 @@ const vertexShader = `
   }`;
 
 const fragmentShader = `
-  uniform float focus, viewportWidth, fade, halo, pose, pixelRatio;
+  uniform float focus, viewportWidth, fade, halo, pose, pixelRatio, lighting, musicScene, glowPass;
+  uniform vec4 staffLinesA;
+  uniform float staffLineE;
   uniform vec2 viewport, sourceRange;
-  varying float vDistance,vGold,vHead,vKind,vArrival,vVoice,vSourceX;
+  varying float vDistance,vGold,vHead,vKind,vArrival,vVoice,vSourceX,vSourceY;
   void main(){
     if(vSourceX<sourceRange.x||vSourceX>sourceRange.y)discard;
     if(vArrival>.5&&pose<.85)discard;
@@ -85,10 +91,24 @@ const fragmentShader = `
     vec3 source=mix(vec3(.811764706,.760784314,.886274510),vec3(1.,.862745098,.513725490),vGold);
     if(vVoice>.5)source=vVoice<1.5?vec3(.439215686,.658823529,1.):vec3(.764705882,.603921569,1.);
     float clef=step(4.5,vKind);
+    float staffDistance=min(min(min(abs(vSourceY-staffLinesA.x),abs(vSourceY-staffLinesA.y)),
+      min(abs(vSourceY-staffLinesA.z),abs(vSourceY-staffLinesA.w))),abs(vSourceY-staffLineE));
+    float staffLine=(1.-step(.5,vVoice))*step(1.5,vKind)*(1.-step(2.5,vKind))
+      *(1.-smoothstep(.0001,.008,staffDistance));
+    float scoreHead=step(.5,vHead)*(1.-step(1.5,vKind));
+    float voiceInk=step(.5,vVoice);
+    float lightMask=max(max(staffLine,scoreHead),voiceInk);
+    float nearFocus=1.-smoothstep(focus+.02,focus+.34,vDistance/viewportWidth);
+    if(glowPass>.5){
+      if(lighting<.5||lightMask<.5){gl_FragColor=vec4(0.);return;}
+      float depthLight=mix(.22,.48,nearFocus)*(1.+.30*musicScene);
+      gl_FragColor=vec4(source*depthLight,1.);return;
+    }
     float protect=max(max(vGold,vHead*step(vDistance/viewportWidth,focus+.001)),clef);
     float t=smoothstep(.04,.70,vDistance/viewportWidth-focus)*fade*(1.-protect);
     float gray=dot(source,vec3(.2126,.7152,.0722));
     vec3 ink=mix(vec3(gray),source,mix(1.,.20,t))*mix(1.,.72,t);
+    ink=min(vec3(1.),ink+source*lightMask*lighting*(.025+.065*nearFocus)*(1.+.35*musicScene));
     vec2 pixel=gl_FragCoord.xy/pixelRatio;
     float edgeX=min(pixel.x,viewport.x-pixel.x);
     float edgeY=min(pixel.y,viewport.y-pixel.y);
@@ -99,15 +119,24 @@ const fragmentShader = `
   }`;
 
 const postFragment = `
-  uniform sampler2D image,depths;
+  uniform sampler2D image,depths,glowImage;
   uniform vec2 texel;
-  uniform float focus,viewportWidth,blur,near,far,pixelRatio;
+  uniform float focus,viewportWidth,blur,near,far,pixelRatio,glowStrength;
   varying vec2 vUv;
   float distanceAt(vec2 uv){float z=texture2D(depths,uv).x;return near*far/(far-z*(far-near));}
+  vec3 glowAt(vec2 uv){
+    vec2 spread=texel*2.2*pixelRatio;
+    return texture2D(glowImage,uv).rgb*.28
+      +(texture2D(glowImage,uv+vec2(spread.x,0.)).rgb
+       +texture2D(glowImage,uv-vec2(spread.x,0.)).rgb
+       +texture2D(glowImage,uv+vec2(0.,spread.y)).rgb
+       +texture2D(glowImage,uv-vec2(0.,spread.y)).rgb)*.18;
+  }
   void main(){
     vec4 original=texture2D(image,vUv);float d=distanceAt(vUv)/viewportWidth;
     float radius=clamp((d-focus-.05)/.2,0.,3.)/3.*2.8*pixelRatio*blur;
-    if(original.a>0.||d<=focus+.05||radius<.01){gl_FragColor=vec4(original.rgb,1.);return;}
+    vec3 glow=glowAt(vUv)*glowStrength;
+    if(original.a>0.||d<=focus+.05||radius<.01){gl_FragColor=vec4(original.rgb+glow,1.);return;}
     vec3 total=vec3(0.);float weights=0.;
     for(int y=-2;y<=2;y++)for(int x=-2;x<=2;x++){
       vec2 offset=vec2(float(x),float(y));float weight=exp(-dot(offset,offset)/2.);
@@ -116,7 +145,7 @@ const postFragment = `
       if(distanceAt(uv)/viewportWidth<=focus+.05||sampleInk.a>0.)sampleInk=original;
       total+=sampleInk.rgb*weight;weights+=weight;
     }
-    gl_FragColor=vec4(total/weights,1.);
+    gl_FragColor=vec4(total/weights+glow,1.);
   }`;
 
 export async function mountGpuRibbon(host, { score, view, points, groups, engraving, voicePaths = [], width, height, pixelRatio = 1, diagnostics = true, markerId = DEFAULT_MARKER }) {
@@ -153,7 +182,10 @@ export async function mountGpuRibbon(host, { score, view, points, groups, engrav
     frameOffset: { value: new THREE.Vector2(0, 0) },
     pixelRatio: { value: pixelRatio },
     sourceRange: { value: new THREE.Vector2(view.x0, view.x1) }, focus: { value: 0 },
+    staffLinesA: { value: new THREE.Vector4(...score.staffLines.slice(0, 4)) },
+    staffLineE: { value: score.staffLines[4] },
     fade: { value: 0 }, halo: { value: 0 }, pose: { value: 0 },
+    lighting: { value: 1 }, musicScene: { value: 0 }, glowPass: { value: 0 },
   };
   const material = new THREE.ShaderMaterial({ uniforms, vertexShader, fragmentShader,
     side: THREE.DoubleSide, blending: THREE.NoBlending, depthTest: true, depthWrite: true });
@@ -162,13 +194,16 @@ export async function mountGpuRibbon(host, { score, view, points, groups, engrav
   const target = new THREE.WebGLRenderTarget(1, 1, { samples: 4 });
   target.texture.colorSpace = THREE.LinearSRGBColorSpace;
   target.depthTexture = new THREE.DepthTexture(1, 1, THREE.UnsignedIntType);
+  const glowTarget = new THREE.WebGLRenderTarget(1, 1, { samples: 4 });
+  glowTarget.texture.colorSpace = THREE.LinearSRGBColorSpace;
   const output = new THREE.WebGLRenderTarget(1, 1, { depthBuffer: false });
   output.texture.colorSpace = THREE.LinearSRGBColorSpace;
   const postScene = new THREE.Scene(), postCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
   const postMaterial = new THREE.ShaderMaterial({ depthTest: false, depthWrite: false,
-    uniforms: { image: { value: target.texture }, depths: { value: target.depthTexture }, texel: { value: new THREE.Vector2(1, 1) },
+    uniforms: { image: { value: target.texture }, depths: { value: target.depthTexture }, glowImage: { value: glowTarget.texture },
+      texel: { value: new THREE.Vector2(1, 1) },
       focus: uniforms.focus, viewportWidth: uniforms.viewportWidth, blur: { value: 0 }, near: { value: near },
-      far: { value: far }, pixelRatio: { value: pixelRatio } },
+      far: { value: far }, pixelRatio: { value: pixelRatio }, glowStrength: { value: 0 } },
     vertexShader: 'varying vec2 vUv;void main(){vUv=uv;gl_Position=vec4(position.xy,0.,1.);}', fragmentShader: postFragment });
   const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), postMaterial);postScene.add(quad);
   const gl = renderer.getContext();
@@ -183,7 +218,8 @@ export async function mountGpuRibbon(host, { score, view, points, groups, engrav
     frameTextureBytes: table.data.byteLength, vertices: geometry.attributes.position.count,
     hardwareAcceleration: 'Unknown; renderer string does not prove hardware acceleration.',
     presentation: 'Not measured; next RAF is scheduling latency only.', contextLost: false };
-  let disposed = false, cachedPose = null, cachedZoom = null, cachedFrameX = 0, cachedFrameY = 0, lastVariant = 'C';
+  let disposed = false, cachedPose = null, cachedZoom = null, cachedFrameX = 0, cachedFrameY = 0,
+    cachedMusicScene = false, cachedLighting = true, lastVariant = 'C';
   const projectorScratch = {}, focusScratch = {}, reusableSample = {};
   let lastSample = null;
   const originalGL=new Map();metrics.bufferUploadCalls=0;metrics.bufferUploadBytes=0;metrics.actualFrameUploads=0;
@@ -205,7 +241,7 @@ export async function mountGpuRibbon(host, { score, view, points, groups, engrav
     pixelRatio = value;renderer.setPixelRatio(value);
     const w = Math.round(width * value), h = Math.round(height * value);
     renderer.setSize(w / value, h / value, false);
-    target.setSize(w, h);output.setSize(w, h);
+    target.setSize(w, h);glowTarget.setSize(w, h);output.setSize(w, h);
     postMaterial.uniforms.texel.value.set(1 / w, 1 / h);
     uniforms.pixelRatio.value = value;postMaterial.uniforms.pixelRatio.value = value;
     metrics.pixelRatio = value;pixelRatioInitialized = true;lastSample = null;
@@ -272,7 +308,7 @@ export async function mountGpuRibbon(host, { score, view, points, groups, engrav
     return true;
   }
 
-  function draw(pose, variant = 'C', captureSample = diagnostics, cameraZoom = 1, frameOffset = { x: 0, y: 0 }) {
+  function draw(pose, variant = 'C', captureSample = diagnostics, cameraZoom = 1, frameOffset = { x: 0, y: 0 }, musicScene = false, lighting = true) {
     if (disposed) throw new Error('GPU ribbon is disposed.');
     if (metrics.contextLost) return { pose, variant, cpuMs: 0, gpuMs: null, gpuStatus: 'context-lost' };
     if (!Number.isFinite(pose) || pose < 0 || pose > 1) throw new RangeError('Pose must be in [0,1].');
@@ -280,6 +316,7 @@ export async function mountGpuRibbon(host, { score, view, points, groups, engrav
     const frameX = Number.isFinite(frameOffset?.x) ? frameOffset.x : 0;
     const frameY = Number.isFinite(frameOffset?.y) ? frameOffset.y : 0;
     if (cachedPose === pose && cachedZoom === cameraZoom && cachedFrameX === frameX && cachedFrameY === frameY
+      && cachedMusicScene === Boolean(musicScene) && cachedLighting === Boolean(lighting)
       && lastVariant === variant && lastSample) return lastSample;
     const started = performance.now();
     if (diagnostics || pending.length) pollGPU();
@@ -288,7 +325,11 @@ export async function mountGpuRibbon(host, { score, view, points, groups, engrav
     if (!poseCached) updatePose(pose, cameraZoom, { x: frameX, y: frameY });
     uniforms.halo.value = pose < .85 && variant !== 'A' ? 1 : 0;
     uniforms.fade.value = pose < .4 && variant !== 'A' ? 1 : 0;
+    uniforms.musicScene.value = musicScene ? 1 : 0;
+    uniforms.lighting.value = lighting ? 1 : 0;
+    uniforms.glowPass.value = 0;
     postMaterial.uniforms.blur.value = variant === 'C' && pose < .85 ? 1 : 0;
+    postMaterial.uniforms.glowStrength.value = lighting ? (musicScene ? .78 : .58) : 0;
     lastVariant = variant;
     const prepared = performance.now();
     const sample = captureSample ? {} : reusableSample;
@@ -299,6 +340,12 @@ export async function mountGpuRibbon(host, { score, view, points, groups, engrav
     if (diagnostics || captureSample) renderer.info.reset();
     renderer.setRenderTarget(target);renderer.render(scene, camera);
     if (metrics.geometryUploads === 0) { metrics.geometryUploads = 1;metrics.frameTextureUploads = 1; }
+    if(lighting){
+      uniforms.glowPass.value=1;renderer.setClearColor(0x000000,0);
+      renderer.setRenderTarget(glowTarget);renderer.render(scene,camera);
+      uniforms.glowPass.value=0;
+    }
+    renderer.setClearColor(new THREE.Color(...BACKGROUND),0);
     renderer.setRenderTarget(null);renderer.render(postScene, postCamera);
     if (query) { gl.endQuery(timer.TIME_ELAPSED_EXT);pending.push({ query, sample }); }
     else if (timer && (diagnostics || captureSample)) sample.gpuStatus = 'queue-full';
@@ -315,6 +362,8 @@ export async function mountGpuRibbon(host, { score, view, points, groups, engrav
         focusBackend: variant === 'C' ? 'gpu-depth-gather-alpha-mask' : 'none', focusDistance: String(uniforms.focus.value),
         geometryBuilds: '1', background: '#060609' });
     }
+    cachedMusicScene = Boolean(musicScene);
+    cachedLighting = Boolean(lighting);
     lastSample = sample;
     return sample;
   }
@@ -343,7 +392,7 @@ export async function mountGpuRibbon(host, { score, view, points, groups, engrav
     metrics.frameTextureUploads++;metrics.geometryUploads++;
     canvas.dataset.contextLost = 'false';
     if (cachedPose !== null) {
-      draw(cachedPose, lastVariant, false, cachedZoom ?? 1, { x: cachedFrameX, y: cachedFrameY });
+      draw(cachedPose, lastVariant, false, cachedZoom ?? 1, { x: cachedFrameX, y: cachedFrameY }, cachedMusicScene, cachedLighting);
     }
   }
   canvas.addEventListener('webglcontextlost', onLost);
@@ -356,7 +405,7 @@ export async function mountGpuRibbon(host, { score, view, points, groups, engrav
     canvas.removeEventListener('webglcontextlost', onLost);canvas.removeEventListener('webglcontextrestored', onRestored);
     for (const { query } of pending) gl.deleteQuery(query);pending.length = 0;
     geometry.dispose();frames.dispose();material.dispose();quad.geometry.dispose();postMaterial.dispose();
-    target.depthTexture.dispose();target.dispose();output.dispose();renderer.dispose();renderer.forceContextLoss();canvas.remove();
+    target.depthTexture.dispose();target.dispose();glowTarget.dispose();output.dispose();renderer.dispose();renderer.forceContextLoss();canvas.remove();
     for(const [method,original] of originalGL)gl[method]=original;
   }
   return { canvas, draw, pollGPU, metrics, dispose, setPixelRatio, setNotation, setSourceRange, readPixels,loseContext,restoreContext };

@@ -6,3 +6,7 @@ export function shouldUseGpuScoreScroll(searchParams) {
 
   return mode === "scroll" || (mode !== "off" && !studyRoute);
 }
+
+export function shouldEnableScoreLight(searchParams) {
+  return searchParams.get("score-light") !== "off";
+}

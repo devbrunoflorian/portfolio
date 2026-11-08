@@ -5,11 +5,13 @@ import { drawScoreRibbon, staffYForMidi, visualVoiceSegments, voiceRibbonPoints 
 import { buildEngraving } from './score-engraving.js';
 import { buildCompoundGroups } from './score-compound-groups.js';
 import { createAdaptiveDpr, initialGpuPixelRatio } from './score-gpu-budget.js';
+import { shouldEnableScoreLight } from './score-gpu-route.js?v=score-light-1';
 
 const CHAPTER_POSES = { opening: 0, code: 0, music: 1, art: .52, games: .78, closing: 1 };
 const PITCH_STEP = [0, 0, 1, 1, 2, 3, 3, 4, 4, 5, 5, 6];
 const STATIC_WINDOW = scoreWindowAtBeat(STATIC_SCORE_BEAT, 1280);
 const STATIC_WINDOW_WIDTH = STATIC_WINDOW.endX - STATIC_WINDOW.startX;
+const scoreLightEnabled = shouldEnableScoreLight(new URLSearchParams(window.location.search));
 
 export function selectedNotationForBars(firstBar, lastBar) {
   const first = Math.max(1, Math.min(score.bars.length, Math.floor(firstBar)));
@@ -84,6 +86,7 @@ export async function mountAboutGpuScroll(root, host = root.querySelector('[data
   const dprBudget = createAdaptiveDpr(initialGpuPixelRatio(window.devicePixelRatio));
   let width = 0, height = 0, pixelRatio = initialGpuPixelRatio(window.devicePixelRatio);
   let gpu = null, gpuLoading = false, gpuFailed = false, pageVisible = false, disposed = false, lastPose = null, lastZoom = null;
+  let lastChapter = null;
   let lastFrameX = null, lastFrameY = null;
   let lastSourceRange = null;
   let lastFallbackChapter = '', fallbackDirty = true, resizeFrame = 0;
@@ -141,6 +144,7 @@ export async function mountAboutGpuScroll(root, host = root.querySelector('[data
     const frameX = Number.isFinite(state.frameOffset?.x) ? state.frameOffset.x : 0;
     const frameY = Number.isFinite(state.frameOffset?.y) ? state.frameOffset.y : 0;
     if (lastPose === pose && lastZoom === state.zoom && lastFrameX === frameX && lastFrameY === frameY
+      && lastChapter === state.chapter
       && lastSourceRange?.x0 === activeSourceRange.x0 && lastSourceRange?.x1 === activeSourceRange.x1) return;
     const decision = Number.isFinite(timestamp) ? dprBudget.observe(timestamp) : null;
     if (decision?.lowered) {
@@ -148,12 +152,13 @@ export async function mountAboutGpuScroll(root, host = root.querySelector('[data
       gpu.setPixelRatio(pixelRatio);
     }
     gpu.setSourceRange(activeSourceRange.x0, activeSourceRange.x1);
-    gpu.draw(pose, 'C', false, state.zoom, { x: frameX, y: frameY });
+    gpu.draw(pose, 'C', false, state.zoom, { x: frameX, y: frameY }, state.chapter === 'music', scoreLightEnabled);
     exposeGpu();
     lastPose = pose;
     lastZoom = state.zoom;
     lastFrameX = frameX;
     lastFrameY = frameY;
+    lastChapter = state.chapter;
     lastSourceRange = { ...activeSourceRange };
     host.dataset.scoreGpuPose = pose.toFixed(6);
     host.dataset.scoreGpuDpr = String(pixelRatio);
@@ -163,7 +168,7 @@ export async function mountAboutGpuScroll(root, host = root.querySelector('[data
     if (disposed || gpu || gpuLoading || gpuFailed || state.reducedMotion) return;
     gpuLoading = true;
     try {
-      const { mountGpuRibbon } = await import('./score-gpu-ribbon.js?v=mobile-clef-scale-2');
+      const { mountGpuRibbon } = await import('./score-gpu-ribbon.js?v=score-light-1');
       if (disposed) return;
       gpu = await mountGpuRibbon(host, {
         score,

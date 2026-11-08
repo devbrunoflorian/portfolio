@@ -3,7 +3,7 @@ import { createJourneyAudio, playbackPositionForDisplay } from "./audio.js";
 import { mountExperiments } from "./experiments.js";
 import { createScoreVisual, scoreStageOffsets } from "./score-visual.js";
 import { createGpuEditorialFrame } from "./score-gpu-frame.js";
-import { shouldUseGpuScoreScroll } from "./score-gpu-route.js";
+import { shouldUseGpuScoreScroll } from "./score-gpu-route.js?v=score-light-1";
 import {
   SCORE_CAMERA_POSE_STOPS,
   createScoreCurve,
@@ -643,7 +643,7 @@ if (scoreRibbonTransitionMode) {
 }
 
 if (scoreGpuScrollMode) {
-  import("./score-gpu-scroll.js?v=score-gpu-default-1").then(module => module.mountAboutGpuScroll(root)).then(runtime => {
+  import("./score-gpu-scroll.js?v=score-light-1").then(module => module.mountAboutGpuScroll(root)).then(runtime => {
     updateGpuScroll = runtime.update;
     disposeGpuScroll = runtime.dispose;
     invalidateScoreLayout();
