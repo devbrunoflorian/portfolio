@@ -70,7 +70,8 @@ const vertexShader = `
   }`;
 
 const fragmentShader = `
-  uniform float focus, viewportWidth, fade, halo, pose;
+  uniform float focus, viewportWidth, fade, halo, pose, pixelRatio;
+  uniform vec2 viewport;
   varying float vDistance,vGold,vHead,vKind,vArrival;
   void main(){
     if(vArrival>.5&&pose<.85)discard;
@@ -80,6 +81,11 @@ const fragmentShader = `
     float t=smoothstep(.04,.70,vDistance/viewportWidth-focus)*fade*(1.-protect);
     float gray=dot(source,vec3(.2126,.7152,.0722));
     vec3 ink=mix(vec3(gray),source,mix(1.,.20,t))*mix(1.,.72,t);
+    vec2 pixel=gl_FragCoord.xy/pixelRatio;
+    float edgeX=min(pixel.x,viewport.x-pixel.x);
+    float edgeY=min(pixel.y,viewport.y-pixel.y);
+    float edgeOpacity=smoothstep(0.,min(viewport.x*.16,180.),edgeX)*smoothstep(0.,min(viewport.y*.09,72.),edgeY);
+    ink=mix(vec3(${BACKGROUND.join(',')}),ink,edgeOpacity);
     // Alpha is an explicit gold mask, independent of the RGB ink color.
     gl_FragColor=vec4(mix(vec3(${BACKGROUND.join(',')}),ink,mix(1.,.32,t)),vGold);
   }`;
@@ -134,6 +140,7 @@ export async function mountGpuRibbon(host, { score, view, points, groups, engrav
     frames: { value: frames }, ribbonLength: { value: table.length }, arcStart: { value: 0 }, arcSpan: { value: 0 },
     unit: { value: 0 }, aspect: { value: 1 }, middle: { value: (score.staffLines[0] + score.staffLines.at(-1)) / 2 },
     focal: { value: focal }, viewportWidth: { value: width }, viewport: { value: new THREE.Vector2(width, height) },
+    pixelRatio: { value: pixelRatio },
     sourceRange: { value: new THREE.Vector2(view.x0, view.x1) }, focus: { value: 0 },
     fade: { value: 0 }, halo: { value: 0 }, pose: { value: 0 },
   };
@@ -189,7 +196,8 @@ export async function mountGpuRibbon(host, { score, view, points, groups, engrav
     renderer.setSize(w / value, h / value, false);
     target.setSize(w, h);output.setSize(w, h);
     postMaterial.uniforms.texel.value.set(1 / w, 1 / h);
-    postMaterial.uniforms.pixelRatio.value = value;metrics.pixelRatio = value;pixelRatioInitialized = true;lastSample = null;
+    uniforms.pixelRatio.value = value;postMaterial.uniforms.pixelRatio.value = value;
+    metrics.pixelRatio = value;pixelRatioInitialized = true;lastSample = null;
   }
   setPixelRatio(pixelRatio);
 
