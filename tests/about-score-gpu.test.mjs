@@ -35,6 +35,11 @@ test('static UV attributes have equal finite lengths, explicit gold coverage and
   assert.ok(curvedGlyphs.length>0,'triplet numbers use surface-deformed glyph geometry');
   assert.ok(curvedGlyphs.some(i=>geometry.attributes.glyphOffset.array[i*2]!==0));
   geometry.dispose();
+
+  const pageGeometry=buildRibbonGeometry(score,view,groups,engraving,[],null);
+  assert.ok(pageGeometry.attributes.gold.array.every(value=>value===0),
+    'the public scroll renderer has no study-only gold marker');
+  pageGeometry.dispose();
 });
 
 test('GPU score keeps both melody contours on the guitar score timeline and staff map',()=>{
@@ -214,7 +219,7 @@ test('existing treble clef is converted to ribbon-space contours and triangulate
   assert.ok(points.length>100);
   assert.ok(points.every(([x,y])=>Number.isFinite(x)&&Number.isFinite(y)));
   assert.ok(Math.max(...points.map(([x])=>x))>1.5);
-  assert.ok(Math.min(...points.map(([,y])=>y))<-4);
+  assert.ok(Math.min(...points.map(([,y])=>y))<-12,'treble clef remains a prominent staff-scale mark');
   assert.ok(Math.max(...points.map(([,y])=>y))<.2);
   const geometry=buildRibbonGeometry(score,view,groups,engraving,[],undefined,clef);
   const kinds=geometry.attributes.kind.array,uvs=geometry.attributes.sourceUV.array,offsets=geometry.attributes.glyphOffset.array;

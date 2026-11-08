@@ -172,6 +172,7 @@ export async function mountAboutGpuScroll(root, host = root.querySelector('[data
         height,
         pixelRatio,
         diagnostics: false,
+        markerId: null,
       });
       if (disposed) { gpu.dispose(); gpu = null; return; }
       gpu.canvas.addEventListener('webglcontextlost', onContextLost);

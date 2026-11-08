@@ -3,6 +3,7 @@ import { glyphContours } from './score-compound-groups.js';
 import { HALO_HALF_WIDTH } from './score-depth-cues.js';
 
 const DEFAULT_MARKER = 'guitar-33-4-1';
+const TREBLE_CLEF_VISUAL_SCALE = 3;
 
 let trebleClefContoursPromise;
 
@@ -11,9 +12,11 @@ export function trebleClefContoursFromSvg(source) {
   const group = source.match(/<g class="vf-clef"[^>]*>([\s\S]*?)<\/g>/)?.[1];
   const path = group?.match(/<path\s+d="([^"]+)"/)?.[1];
   if (!path) throw new Error('The notation header does not contain a treble clef path.');
-  return glyphContours(path).map(contour => contour.map(([x, y]) => [
-    (x - 5) / 12,
-    (y - 272.5) / 12,
+  const contours = glyphContours(path);
+  const anchorY = Math.max(...contours.flat().map(([, y]) => y));
+  return contours.map(contour => contour.map(([x, y]) => [
+    (x - 5) / 12 * TREBLE_CLEF_VISUAL_SCALE,
+    (y - anchorY) / 12 * TREBLE_CLEF_VISUAL_SCALE,
   ]));
 }
 

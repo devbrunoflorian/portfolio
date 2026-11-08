@@ -636,7 +636,7 @@ if (scoreRibbonTransitionMode) {
 }
 
 if (scoreGpuScrollMode) {
-  import("./score-gpu-scroll.js?v=editorial-frame-3").then(module => module.mountAboutGpuScroll(root)).then(runtime => {
+  import("./score-gpu-scroll.js?v=study-marker-hidden-1").then(module => module.mountAboutGpuScroll(root)).then(runtime => {
     updateGpuScroll = runtime.update;
     disposeGpuScroll = runtime.dispose;
     invalidateScoreLayout();

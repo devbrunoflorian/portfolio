@@ -1,7 +1,7 @@
 import * as THREE from './vendor/three-score.min.js';
 import { createTravelProjector } from './score-travel-geometry.js';
 import { readingFocus } from './score-focus-profile.js';
-import { buildRibbonGeometry, loadTrebleClefContours } from './score-gpu-ribbon-geometry.js?v=editorial-clef-3';
+import { buildRibbonGeometry, loadTrebleClefContours } from './score-gpu-ribbon-geometry.js?v=editorial-clef-5';
 
 const BACKGROUND = [6 / 255, 6 / 255, 9 / 255];
 const TABLE_SIZE = 2048;
