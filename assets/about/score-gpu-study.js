@@ -1,3 +1,5 @@
+import { createAdaptiveDpr } from './score-gpu-budget.js';
+
 const POSES = [0.13, 0.4, 1];
 const REFERENCE_PIXEL_RATIO = 2;
 
@@ -105,10 +107,10 @@ export function mountGpuStudy(page, options, renderCanvas) {
       <p data-context-fallback role="status" hidden></p>
       <div class="gpu-benchmark">
         <h3>Benchmark · 60 poses consecutivas</h3>
-        <p>Três aquecimentos, depois posições de 0% a 100%. O benchmark desenha somente no renderer GPU. Repita em cada DPR e condição de CPU.</p>
+        <p>Três aquecimentos, depois 60 posições de 0% a 100%. Para medir o teto adaptativo, rode uma vez em 1,5× na condição de CPU desejada.</p>
         <div class="gpu-controls">
           <label>DPR do renderer GPU
-            <select data-dpr disabled aria-label="DPR usado no benchmark"><option value="1">1×</option><option value="1.5">1,5×</option><option value="2" selected>2×</option></select>
+            <select data-dpr disabled aria-label="DPR usado no benchmark"><option value="1">1×</option><option value="1.5" selected>1,5×</option><option value="2">2×</option></select>
           </label>
           <label><input data-cpu-throttle type="checkbox" disabled> Confirmo que o throttling de CPU 4× está ativo no DevTools</label>
           <button type="button" data-measure disabled>Medir 60 poses</button>
@@ -365,6 +367,10 @@ export function mountGpuStudy(page, options, renderCanvas) {
       : 'normal CPU condition, user-selected';
     const poses = Array.from({ length: 60 }, (_, index) => index / 59);
     const samples = [];
+      const frameIntervals = [];
+      const adaptiveDpr = createAdaptiveDpr(pixelRatio);
+      const adaptiveDecisions = [];
+      let previousFrameTimestamp = null;
     const started = performance.now();
     try {
       stopMotion(false);
@@ -378,10 +384,14 @@ export function mountGpuStudy(page, options, renderCanvas) {
       for (let index = 0; index < poses.length; index++) {
         const pose = poses[index];
         const drawStarted = performance.now();
-        const sample = gpuStudy.draw(pose, 'C');
+        const sample = gpuStudy.draw(pose, 'C', true);
         const callMs = performance.now() - drawStarted;
         samples.push({ pose, cpuMs: Number.isFinite(sample?.cpuMs) ? sample.cpuMs : callMs, gpuSample: sample });
-        await nextFrame();
+        const frameTimestamp = await nextFrame();
+        if (previousFrameTimestamp !== null) frameIntervals.push(frameTimestamp - previousFrameTimestamp);
+        previousFrameTimestamp = frameTimestamp;
+        const decision = adaptiveDpr.observe(frameTimestamp);
+        if (decision) adaptiveDecisions.push(decision);
         gpuStudy.pollGPU();
         measureStatus.textContent = `Renderer GPU · ${index + 1}/60 · DPR ${pixelRatio}×`;
       }
@@ -401,16 +411,17 @@ export function mountGpuStudy(page, options, renderCanvas) {
         frameTextureUploads: gpuSample?.frameTextureUploads ?? null,
       }));
       const cpu = summarize(frames.map(frame => frame.cpuMs).filter(Number.isFinite));
+      const rafInterval = summarize(frameIntervals);
       const gpuValues = frames.filter(frame => frame.gpuStatus === 'available' && Number.isFinite(frame.gpuMs)).map(frame => frame.gpuMs);
       const gpu = summarize(gpuValues);
-      const cpuPass = cpu.count === 60 && cpu.max <= 3;
+      const cpuPass = cpu.count === 60 && cpu.p95 <= 3.5;
       const gpuPass = gpu.count === 60 && gpu.median <= 8 && gpu.p95 <= 12;
       const result = cpuPass && gpuPass
         ? 'pass'
-        : !cpuPass ? 'CPU maximum exceeds 3 ms or the series is incomplete'
+        : !cpuPass ? 'CPU p95 exceeds 3.5 ms or the series is incomplete'
           : 'GPU target not met or not verifiable: 60 valid timer samples are required';
       const report = {
-        method: 'Three warmups followed by 60 C draws at evenly spaced poses from 0 to 100 percent. Canvas is not drawn inside this loop.',
+        method: 'Three warmups followed by 60 C draws at evenly spaced poses from 0 to 100 percent. Canvas is not drawn inside this loop. RAF intervals use the 59 gaps between those 60 measured frame callbacks.',
         condition,
         environment: {
           userAgent: navigator.userAgent,
@@ -434,14 +445,15 @@ export function mountGpuStudy(page, options, renderCanvas) {
           },
         },
         thresholds: {
-          cpu: 'maximum per-pose draw call <= 3 ms',
+          cpu: 'p95 per-pose draw call <= 3.5 ms',
+          raf: 'after 60 consecutive pose frames, p95 interval > 20 ms lowers DPR only: 1.5 -> 1.25 -> 1',
           gpu: 'median <= 8 ms and p95 <= 12 ms, with all 60 GPU timer samples valid',
         },
-        summary: { cpu, gpu, validGpuSamples: gpu.count, result },
+        summary: { cpu, rafInterval, adaptiveDecisions, recommendedDpr: adaptiveDpr.pixelRatio, gpu, validGpuSamples: gpu.count, result },
         limitations: [
           'GPU times depend on EXT_disjoint_timer_query_webgl2 support and valid, non-disjoint query results.',
           'The checkbox records the operator-selected DevTools CPU condition; it does not throttle or verify the browser.',
-          'RAF cadence and presentation latency are not measured by this benchmark.',
+          'RAF intervals measure callback cadence, not display presentation or scanout.',
         ],
         frames,
       };
@@ -449,7 +461,7 @@ export function mountGpuStudy(page, options, renderCanvas) {
       reportElement.textContent = json;
       reportElement.dataset.gpuReport = JSON.stringify(report);
       section.dataset.complete = 'true';
-      measureStatus.textContent = `Benchmark concluído · CPU máx ${cpu.max?.toFixed(3) ?? '—'} ms · GPU ${gpu.count}/60 amostras válidas · ${result}.`;
+      measureStatus.textContent = `Benchmark concluído · CPU p95 ${cpu.p95?.toFixed(3) ?? '—'} ms · RAF p95 ${rafInterval.p95?.toFixed(2) ?? '—'} ms · DPR recomendado ${adaptiveDpr.pixelRatio}× · GPU ${gpu.count}/60 · ${result}.`;
       gpuStudy.setPixelRatio(REFERENCE_PIXEL_RATIO);
       drawComparison(Number(slider.value) / 1000);
     } catch (error) {

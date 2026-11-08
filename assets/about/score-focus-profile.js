@@ -1,15 +1,17 @@
 export const DEPTH_BANDS={clearance:.04,farOffset:.7,farOpacity:.32,farBrightness:.72,farSaturation:.2};
 export const FOCUS_RADII=[0,.8,1.6,2.8];
 
-export function readingFocus(project,view,width,height,marker,pose){
-  const visible=[];
+export function readingFocus(project,view,width,height,marker,pose,result={}){
+  let closest=Infinity;
   for(let i=0;i<=280;i++){
     const point=project(view.x0+(view.x1-view.x0)*i/280,-4);
-    if(point.x>=0&&point.x<=width&&point.y>=0&&point.y<=height)visible.push(-point.depth/width);
+    if(point.x>=0&&point.x<=width&&point.y>=0&&point.y<=height)closest=Math.min(closest,-point.depth/width);
   }
-  const closest=Math.min(...visible),gold=project(marker.x,marker.y);
+  const gold=project(marker.x,marker.y);
   const goldVisible=gold.x>=0&&gold.x<=width&&gold.y>=0&&gold.y<=height;
-  return {distance:Math.max(Number.isFinite(closest)?closest:0,goldVisible?-gold.depth/width:0),fade:pose<.4,blur:pose<.85};
+  result.distance=Math.max(Number.isFinite(closest)?closest:0,goldVisible?-gold.depth/width:0);
+  result.fade=pose<.4;result.blur=pose<.85;
+  return result;
 }
 
 export function depthAppearance(depth,width,focusDistance=0){

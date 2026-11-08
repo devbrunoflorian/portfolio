@@ -105,7 +105,7 @@ const postFragment = `
     gl_FragColor=vec4(total/weights,1.);
   }`;
 
-export async function mountGpuRibbon(host, { score, view, points, groups, engraving, width, height, pixelRatio = 1 }) {
+export async function mountGpuRibbon(host, { score, view, points, groups, engraving, width, height, pixelRatio = 1, diagnostics = true }) {
   width ||= host.clientWidth;
   height ||= width / 1.8;
   if (!(width > 0 && height > 0)) throw new RangeError('GPU ribbon requires a positive viewport.');
@@ -166,8 +166,10 @@ export async function mountGpuRibbon(host, { score, view, points, groups, engrav
     hardwareAcceleration: 'Unknown; renderer string does not prove hardware acceleration.',
     presentation: 'Not measured; next RAF is scheduling latency only.', contextLost: false };
   let disposed = false, cachedPose = null, lastVariant = 'C';
+  const projectorScratch = {}, focusScratch = {}, reusableSample = {};
+  let lastSample = null;
   const originalGL=new Map();metrics.bufferUploadCalls=0;metrics.bufferUploadBytes=0;metrics.actualFrameUploads=0;
-  for(const method of ['bufferData','bufferSubData','texImage2D','texSubImage2D']){
+  if (diagnostics) for(const method of ['bufferData','bufferSubData','texImage2D','texSubImage2D']){
     const original=gl[method];originalGL.set(method,original);
     gl[method]=function(...args){
       if(method.startsWith('buffer')){metrics.bufferUploadCalls++;const data=args[method==='bufferData'?1:2];metrics.bufferUploadBytes+=typeof data==='number'?data:data?.byteLength??0;}
@@ -177,31 +179,35 @@ export async function mountGpuRibbon(host, { score, view, points, groups, engrav
   }
   const marker = points.find(p => p.id === MARKER);
   const targetPosition = new THREE.Vector3();
+  let pixelRatioInitialized = false;
 
   function setPixelRatio(value) {
     if (!Number.isFinite(value) || value <= 0 || value > 4) throw new RangeError('Pixel ratio must be in (0,4].');
+    if (pixelRatioInitialized && value === pixelRatio) return;
     pixelRatio = value;renderer.setPixelRatio(value);
     const w = Math.round(width * value), h = Math.round(height * value);
     renderer.setSize(w / value, h / value, false);
     target.setSize(w, h);output.setSize(w, h);
     postMaterial.uniforms.texel.value.set(1 / w, 1 / h);
-    postMaterial.uniforms.pixelRatio.value = value;metrics.pixelRatio = value;
+    postMaterial.uniforms.pixelRatio.value = value;metrics.pixelRatio = value;pixelRatioInitialized = true;lastSample = null;
   }
   setPixelRatio(pixelRatio);
 
   function updatePose(pose) {
-    const project = createTravelProjector(width, height, score, pose, view, .2);
+    const project = createTravelProjector(width, height, score, pose, view, .2, true, projectorScratch);
     uniforms.arcStart.value = pose * .65 * table.length;
     uniforms.arcSpan.value = project.arcLength;
     const arrive = Math.max(0, Math.min(1, (pose - .65) / .2));
     uniforms.unit.value = (width * 1.5 * (1 - arrive) + project.arcLength * arrive) / (view.x1 - view.x0);
     uniforms.aspect.value = project.uvAspect;
-    uniforms.focus.value = readingFocus(project, view, width, height, marker, pose).distance;
+    uniforms.focus.value = readingFocus(project, view, width, height, marker, pose, focusScratch).distance;
     uniforms.pose.value = pose;
     camera.position.fromArray(project.camera.position);
     targetPosition.fromArray(project.camera.target);camera.lookAt(targetPosition);camera.updateMatrixWorld();
-    canvas.dataset.camera = JSON.stringify(project.camera);
-    canvas.dataset.marker = JSON.stringify(project(marker.x, marker.y));
+    if (diagnostics) {
+      canvas.dataset.camera = JSON.stringify(project.camera);
+      canvas.dataset.marker = JSON.stringify(project(marker.x, marker.y));
+    }
     cachedPose = pose;
   }
 
@@ -217,11 +223,13 @@ export async function mountGpuRibbon(host, { score, view, points, groups, engrav
     }
   }
 
-  function draw(pose, variant = 'C') {
+  function draw(pose, variant = 'C', captureSample = diagnostics) {
     if (disposed) throw new Error('GPU ribbon is disposed.');
     if (metrics.contextLost) return { pose, variant, cpuMs: 0, gpuMs: null, gpuStatus: 'context-lost' };
     if (!Number.isFinite(pose) || pose < 0 || pose > 1) throw new RangeError('Pose must be in [0,1].');
-    const started = performance.now();pollGPU();
+    if (cachedPose === pose && lastVariant === variant && lastSample) return lastSample;
+    const started = performance.now();
+    if (diagnostics || pending.length) pollGPU();
     const uploadStart=metrics.bufferUploadCalls,textureStart=metrics.actualFrameUploads;
     const poseCached = cachedPose === pose;
     if (!poseCached) updatePose(pose);
@@ -230,24 +238,31 @@ export async function mountGpuRibbon(host, { score, view, points, groups, engrav
     postMaterial.uniforms.blur.value = variant === 'C' && pose < .85 ? 1 : 0;
     lastVariant = variant;
     const prepared = performance.now();
-    const sample = { pose, variant, geometryCached:true,poseCached, geometryMs: 0, poseMs: prepared - started,
-      submissionMs: 0, cpuMs: 0, gpuMs: null, gpuStatus: timer ? 'pending' : 'unsupported' };
-    const query = timer && pending.length < 128 ? gl.createQuery() : null;
+    const sample = captureSample ? {} : reusableSample;
+    Object.assign(sample, { pose, variant, geometryCached:true,poseCached, geometryMs: 0, poseMs: prepared - started,
+      submissionMs: 0, cpuMs: 0, gpuMs: null, gpuStatus: timer && (diagnostics || captureSample) ? 'pending' : timer ? 'not-captured' : 'unsupported' });
+    const query = timer && (diagnostics || captureSample) && pending.length < 128 ? gl.createQuery() : null;
     if (query) gl.beginQuery(timer.TIME_ELAPSED_EXT, query);
-    renderer.info.reset();
+    if (diagnostics || captureSample) renderer.info.reset();
     renderer.setRenderTarget(target);renderer.render(scene, camera);
     if (metrics.geometryUploads === 0) { metrics.geometryUploads = 1;metrics.frameTextureUploads = 1; }
     renderer.setRenderTarget(null);renderer.render(postScene, postCamera);
     if (query) { gl.endQuery(timer.TIME_ELAPSED_EXT);pending.push({ query, sample }); }
-    else if (timer) sample.gpuStatus = 'queue-full';
+    else if (timer && (diagnostics || captureSample)) sample.gpuStatus = 'queue-full';
     sample.submissionMs = performance.now() - prepared;sample.cpuMs = performance.now() - started;
-    sample.bufferUploadCalls=metrics.bufferUploadCalls-uploadStart;sample.frameTextureUploads=metrics.actualFrameUploads-textureStart;
-    sample.triangles = renderer.info.render.triangles;metrics.samples.push(sample);
-    if (metrics.samples.length > 1024) metrics.samples.shift();
-    Object.assign(canvas.dataset, { pose: String(pose), variant, fadeEnabled: String(Boolean(uniforms.fade.value)),
-      blurEnabled: String(Boolean(postMaterial.uniforms.blur.value)), depthEnabled: String(Boolean(uniforms.halo.value)),
-      focusBackend: variant === 'C' ? 'gpu-depth-gather-alpha-mask' : 'none', focusDistance: String(uniforms.focus.value),
-      geometryBuilds: '1', background: '#060609' });
+    if (diagnostics || captureSample) {
+      sample.bufferUploadCalls=metrics.bufferUploadCalls-uploadStart;sample.frameTextureUploads=metrics.actualFrameUploads-textureStart;
+      sample.triangles = renderer.info.render.triangles;
+    }
+    if (diagnostics) {
+      metrics.samples.push(sample);
+      if (metrics.samples.length > 1024) metrics.samples.shift();
+      Object.assign(canvas.dataset, { pose: String(pose), variant, fadeEnabled: String(Boolean(uniforms.fade.value)),
+        blurEnabled: String(Boolean(postMaterial.uniforms.blur.value)), depthEnabled: String(Boolean(uniforms.halo.value)),
+        focusBackend: variant === 'C' ? 'gpu-depth-gather-alpha-mask' : 'none', focusDistance: String(uniforms.focus.value),
+        geometryBuilds: '1', background: '#060609' });
+    }
+    lastSample = sample;
     return sample;
   }
 
@@ -271,7 +286,7 @@ export async function mountGpuRibbon(host, { score, view, points, groups, engrav
   function onRestored() {
     if (disposed) return;
     timer = gl.getExtension('EXT_disjoint_timer_query_webgl2');metrics.gpuTimer = Boolean(timer);
-    metrics.contextLost = false;frames.needsUpdate = true;
+    metrics.contextLost = false;frames.needsUpdate = true;lastSample = null;
     metrics.frameTextureUploads++;metrics.geometryUploads++;
     canvas.dataset.contextLost = 'false';
     if (cachedPose !== null) draw(cachedPose, lastVariant);

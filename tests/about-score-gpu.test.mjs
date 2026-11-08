@@ -7,6 +7,7 @@ import {buildEngraving} from '../assets/about/score-engraving.js';
 import {buildCompoundGroups} from '../assets/about/score-compound-groups.js';
 import {scoreRibbonTimeline as score} from '../assets/about/score-ribbon-timeline.js';
 import {scoreRibbonData} from '../assets/about/score-ribbon-data.js';
+import {createAdaptiveDpr, initialGpuPixelRatio} from '../assets/about/score-gpu-budget.js';
 
 const view={x0:score.bars[30].xStart,x1:score.bars[32].xEnd},width=1142,height=width/1.8;
 const step=[0,0,1,1,2,3,3,4,4,5,5,6];
@@ -51,4 +52,50 @@ test('Float32 arc table reconstructs the reference projection across sixty camer
   }
   assert.ok(maximum<.5,`maximum table error ${maximum}px`);
   console.log(`Float32 table maximum screen deviation: ${maximum.toFixed(6)}px (6000 deterministic points)`);
+});
+
+test('reused projector scratch preserves coordinates and object identity across sixty poses',()=>{
+  const scratch={};let project,point,camera,position;
+  for(let index=0;index<60;index++){
+    const pose=index/59;
+    const reference=createTravelProjector(width,height,score,pose,view);
+    project=createTravelProjector(width,height,score,pose,view,.2,true,scratch);
+    const expected=reference(view.x0+(view.x1-view.x0)*.43,-7.5);
+    const actual=project(view.x0+(view.x1-view.x0)*.43,-7.5);
+    assert.ok(Math.hypot(actual.x-expected.x,actual.y-expected.y)<1e-8);
+    assert.ok(Math.abs(actual.depth-expected.depth)<1e-8);
+    assert.ok(Math.abs(actual.scale-expected.scale)<1e-8);
+    if(point)assert.equal(actual,point);
+    if(camera)assert.equal(project.camera,camera);
+    if(position)assert.equal(project.camera.position,position);
+    point=actual;camera=project.camera;position=project.camera.position;
+  }
+});
+
+test('adaptive DPR starts at 1.5, only steps down after 60 consecutive frames above 20ms p95',()=>{
+  assert.equal(initialGpuPixelRatio(3),1.5);
+  assert.equal(initialGpuPixelRatio(1),1);
+  const fast=createAdaptiveDpr(2);
+  assert.equal(fast.pixelRatio,1.5);
+  let result;
+  for(let frame=0;frame<60;frame++)result=fast.observe(frame*16);
+  assert.equal(result.frames,60);assert.equal(result.intervals,59);assert.equal(result.p95,16);
+  assert.equal(result.pixelRatio,1.5);assert.equal(result.lowered,false);
+
+  const slow=createAdaptiveDpr(1.5);
+  for(let frame=0;frame<60;frame++)result=slow.observe(frame*24);
+  assert.equal(result.p95,24);assert.equal(result.pixelRatio,1.25);assert.equal(result.lowered,true);
+  for(let frame=0;frame<60;frame++)result=slow.observe(2000+frame*24);
+  assert.equal(result.pixelRatio,1);
+  for(let frame=0;frame<60;frame++)result=slow.observe(4000+frame*24);
+  assert.equal(result.pixelRatio,1);
+});
+
+test('adaptive DPR discards a window across an idle gap',()=>{
+  const budget=createAdaptiveDpr(1.5);
+  for(let frame=0;frame<40;frame++)assert.equal(budget.observe(frame*16),null);
+  assert.equal(budget.observe(2000),null);
+  for(let frame=1;frame<59;frame++)assert.equal(budget.observe(2000+frame*16),null);
+  const result=budget.observe(2000+59*16);
+  assert.equal(result.intervals,59);assert.equal(result.pixelRatio,1.5);
 });
