@@ -113,7 +113,7 @@ export async function mountGpuRibbon(host, { score, view, points, groups, engrav
   canvas.setAttribute('aria-label', 'Estudo de partitura vetorial com projeção GPU');
   host.append(canvas);
   let renderer;
-  try { renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: false }); }
+  try { renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: false, premultipliedAlpha:false }); }
   catch (error) { canvas.remove(); throw error; }
   renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
   renderer.toneMapping = THREE.NoToneMapping;

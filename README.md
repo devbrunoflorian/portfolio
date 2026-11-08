@@ -31,6 +31,8 @@ The site uses static HTML, CSS, and JavaScript modules, with Three.js for the Ho
 
 Contact Beta 1 uses five photographic atmospheres with optional, pausable transitions and a static fallback. Scene controls let visitors select an atmosphere; continuous rain, moving commuters, and audio are not implemented.
 
+The experimental About score study triangulates ribbon geometry once and deforms it in a Three.js vertex shader. It includes pose controls, static Canvas comparisons and a reduced-motion fallback; scroll and audio integration remain separate. The lazily loaded, self-hosted Three.js r186 subset is 540,872 bytes (134,869 bytes gzip), under the [MIT license](assets/about/vendor/LICENSE-three.txt).
+
 ### Technologies
 
 `HTML` · `CSS` · `JavaScript ES modules` · `Three.js`<br />
@@ -43,6 +45,8 @@ Um portfólio bilíngue de engenharia de software, experimentos e ideias. A Home
 O site usa HTML, CSS e módulos JavaScript estáticos, com Three.js na cena da Home. Há interação por ponteiro e rolagem, navegação por teclado, suporte à preferência por movimento reduzido e apresentação estática alternativa quando o WebGL não está disponível.
 
 A Contact Beta 1 usa cinco atmosferas fotográficas, transições opcionais com pausa e fallback estático. Os controles da cena permitem escolher uma atmosfera; chuva contínua, passageiros em movimento e áudio ainda não estão implementados.
+
+O estudo experimental de partitura do About triangula a geometria da fita uma vez e a deforma no vertex shader do Three.js. Inclui controles de pose, comparações estáticas com Canvas e fallback para movimento reduzido; a integração com scroll e áudio continua separada. O recorte auto-hospedado do Three.js r186 é carregado sob demanda e tem 540.872 bytes (134.869 bytes gzip), sob [licença MIT](assets/about/vendor/LICENSE-three.txt).
 
 ### Tecnologias
 
@@ -70,6 +74,8 @@ Open one of these pages:
 - Português: <http://127.0.0.1:4173/pt-br/>
 
 Press `Ctrl+C` in the terminal to stop the preview server.
+
+To open the About GPU study, append `?score-gate=3b&score-gpu=study` to either About route.
 
 ## Project structure
 

@@ -15,6 +15,7 @@ import {mountBackendComparison} from './score-backend-comparison.js?v=build-prof
 const optimization=Number(new URLSearchParams(location.search).get('score-optimization')??0);
 
 const gate = new URLSearchParams(location.search).get('score-gate');
+const gpuStudyOnly=new URLSearchParams(location.search).get('score-gpu')==='study';
 const engravingStudy = gate === '3b';
 const glyphStudy = gate === '3a' || engravingStudy;
 const traveling = gate === '2b' || glyphStudy;
@@ -311,6 +312,7 @@ function renderFrame(canvas,pose,details=showDetails,variant='B',backend='auto',
   canvas.dataset.optimization=String(optimizationLevel);
 }
 function draw(){
+  if(gpuStudyOnly)return;
   for(const frame of frames)renderFrame(frame.canvas,frame.pose,frame.details??showDetails,frame.variant,focusBackend,frame.crop);
   comparison?.draw();
   if(liveCanvas){
@@ -323,9 +325,16 @@ observer.observe(page.querySelector('.fold-gate > .fold-gate-poses'));
 page.querySelector('input').addEventListener('change',draw);
 addEventListener('pagehide',()=>observer.disconnect(),{once:true});
 draw();
-if(engravingStudy){
+if(engravingStudy&&!gpuStudyOnly){
   const sourceSystem=scoreRibbonData.systems.find(system=>system.bars.some(bar=>bar.number===31));
   comparison=mountFrontComparison(page,frames[0].canvas,score,sourceSystem,view);
   mountDrawProfile(page,frames[1].canvas,renderFrame);
   mountBackendComparison(page,{score,view,points,groups,engraving},renderFrame);
+}
+if(engravingStudy&&gpuStudyOnly){
+  for(const child of page.children)child.hidden=true;
+  style.textContent+=' .fold-gate > [hidden]{display:none!important}';
+  const title=page.querySelector('h1');title.hidden=false;title.textContent='Dissonância · projeção na GPU';
+  const {mountGpuStudy}=await import('./score-gpu-study.js?v=4');
+  await mountGpuStudy(page,{score,view,points,groups,engraving},renderFrame);
 }
