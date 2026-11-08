@@ -140,12 +140,12 @@ export function scoreWindowAtBeat(beat, viewportWidth) {
   };
 }
 
-export function scorePlaybackWindowAtBeat(beat, viewportWidth) {
+export function scorePlaybackWindowAtBeat(beat, viewportWidth, fixedWidth = null) {
   const visibleBars = viewportWidth <= 700 ? 1 : 3;
   const typicalBarWidth = [...scoreRibbonTimeline.bars]
     .map(bar => bar.xEnd - bar.xStart)
     .sort((left, right) => left - right)[Math.floor(scoreRibbonTimeline.bars.length / 2)];
-  const width = typicalBarWidth * visibleBars;
+  const width = Number.isFinite(fixedWidth) && fixedWidth > 0 ? fixedWidth : typicalBarWidth * visibleBars;
   const center = scorePositionAtBeat(beat);
   const startX = Math.max(scoreRibbonTimeline.x0, Math.min(scoreRibbonTimeline.x1 - width, center - width / 2));
   const endX = Math.min(scoreRibbonTimeline.x1, startX + width);

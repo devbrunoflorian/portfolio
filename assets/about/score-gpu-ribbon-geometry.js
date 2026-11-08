@@ -90,13 +90,17 @@ export function buildRibbonGeometry(score, view, groups, engraving, voicePaths =
 
   for (const group of groups) {
     const contacts = group.stems.map((s, i) => ({ from: s.contact.u, base: group.heads[i].anchor.u,
-      offset: s.contact.u - group.heads[i].anchor.u }));
+      offset: s.contact.u - group.heads[i].anchor.u })).sort((a, b) => a.from - b.from)
+      .filter((item, index, all) => index === 0 || Math.abs(item.from - all[index - 1].from) > 1e-5);
     const mapped = p => {
-      const i = contacts.length === 1 ? 0 : p.u <= contacts[1].from ? 0 : contacts.length - 2;
-      const a = contacts[i], b = contacts[Math.min(i + 1, contacts.length - 1)];
-      const t = a === b ? 0 : (p.u - a.from) / (b.from - a.from);
-      return point(a.base + (b.base - a.base) * t + (a === b ? p.u - a.from : 0), p.v,
-        { remap: a.offset + (b.offset - a.offset) * t });
+      if(!contacts.length)return point(p.u,p.v,{remap:0});
+      if(contacts.length===1){const a=contacts[0];return point(p.u+a.base-a.from,p.v,{remap:a.offset});}
+      let i=0;
+      if(p.u>=contacts.at(-1).from)i=contacts.length-2;
+      else while(i<contacts.length-2&&p.u>contacts[i+1].from)i++;
+      const a=contacts[i],b=contacts[i+1],span=b.from-a.from;
+      const t=Math.abs(span)<1e-7?0:(p.u-a.from)/span;
+      return point(a.base+(b.base-a.base)*t,p.v,{remap:a.offset+(b.offset-a.offset)*t});
     };
     if (group.upper) strip(group.upper.map(mapped), group.lower.map(mapped));
     for (let i = 0; i < group.stems.length; i++) {
@@ -134,10 +138,13 @@ export function buildRibbonGeometry(score, view, groups, engraving, voicePaths =
       if (note.x >= view.x0 && note.x <= view.x1) noteDot(note, track);
     }
   }
-  const r = engraving.rest, a = point(r.x, r.y, { kind: 1 });
-  const rest = [[-r.width / 2, 0], [r.width / 2, 0], [r.width / 2, r.height], [-r.width / 2, r.height]]
-    .map(offset => ({ ...a, offset }));
-  emit(rest[0], rest[1], rest[2]); emit(rest[0], rest[2], rest[3]);
+  const r = engraving.rest;
+  if(r.x>=view.x0&&r.x<=view.x1){
+    const a = point(r.x, r.y, { kind: 1 });
+    const rest = [[-r.width / 2, 0], [r.width / 2, 0], [r.width / 2, r.height], [-r.width / 2, r.height]]
+      .map(offset => ({ ...a, offset }));
+    emit(rest[0], rest[1], rest[2]); emit(rest[0], rest[2], rest[3]);
+  }
   const geometry = new THREE.BufferGeometry();
   const sizes = { position: 3, sourceUV: 2, remap: 1, glyphOffset: 2, segmentEnd: 2,
     segmentRemap: 1, stroke: 2, kind: 1, gold: 1, frontHead: 1, arrivalBar: 1, voice: 1 };

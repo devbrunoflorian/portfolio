@@ -50,6 +50,17 @@ function sampleAlong(u0, u1, valueAt, anchors = []) {
   return us.map(u=>uv(u,valueAt(u)));
 }
 
+function interpolateAtU(anchors, u, read) {
+  if (anchors.length < 2) return read(anchors[0]);
+  let index = 0;
+  if (u >= anchors.at(-1).u) index = anchors.length - 2;
+  else while (index < anchors.length - 2 && u > anchors[index + 1].u) index += 1;
+  const a = anchors[index], b = anchors[index + 1];
+  const span = b.u - a.u;
+  if (Math.abs(span) < 1e-7) return read(Math.abs(u - a.u) <= Math.abs(u - b.u) ? a : b);
+  return mix(read(a), read(b), (u - a.u) / span);
+}
+
 function sourceEdge(beam, u, side) {
   const values = beam.drawing.commands.flatMap(command => {
     const [a, b] = command.points;
@@ -59,11 +70,12 @@ function sourceEdge(beam, u, side) {
   return side === 'upper' ? Math.min(...values) : Math.max(...values);
 }
 
-function snapOffset(beam, u) {
-  const index = u <= beam.members[1].stem.end[0] ? 0 : 1;
-  const a = beam.members[index], b = beam.members[index + 1];
-  const t = (u - a.stem.end[0]) / (b.stem.end[0] - a.stem.end[0]);
-  return mix(a.note.y - a.glyph.y, b.note.y - b.glyph.y, t);
+function createSnapOffset(beam) {
+  const anchors = beam.members.map(pair => ({
+    u: pair.stem.end[0],
+    offset: pair.note.y - pair.glyph.y,
+  })).sort((a, b) => a.u - b.u);
+  return u => interpolateAtU(anchors, u, anchor => anchor.offset);
 }
 
 function placedGlyph(glyph, anchor, study) {
@@ -78,7 +90,8 @@ export function buildCompoundGroups(engraving, study) {
   const groups = engraving.beams.map(beam => {
     const first = beam.members[0], bar = Number(first.note.id.split('-')[1]), onset = first.glyph.u;
     const group = { id: `guitar:${bar}:${onset}:voice-1`, bar, onset, voice: 1, beam, heads: [], stems: [], ledgerLines: [], accidents: [] };
-    const edge = (u, side) => sourceEdge(beam, u, side) + snapOffset(beam, u);
+    const offsetAt = createSnapOffset(beam);
+    const edge = (u, side) => sourceEdge(beam, u, side) + offsetAt(u);
     group.beamAt = edge;
     const contacts=beam.members.map(pair=>pair.stem.contact[0]);
     group.upper = sampleAlong(beam.drawing.minX, beam.drawing.maxX, u => edge(u, 'upper'),contacts);
@@ -95,37 +108,58 @@ export function buildCompoundGroups(engraving, study) {
     }
     const brackets = engraving.brackets.filter(item => item.beam === beam);
     const hooks = brackets.filter(item => Math.abs(item.command.points[0][0] - item.command.points[1][0]) < .001);
-    const u0 = Math.min(...hooks.map(item => item.command.points[0][0]));
-    const u1 = Math.max(...hooks.map(item => item.command.points[0][0]));
-    const number = engraving.glyphs.find(item => item.beam === beam).glyph;
-    const side = number.y < first.note.y ? 'upper' : 'lower';
-    const direction = side === 'upper' ? -1 : 1;
-    const offset = hooks.reduce((sum, item) => {
-      const [a, b] = item.command.points;
-      const outer = direction < 0 ? Math.min(a[1], b[1]) : Math.max(a[1], b[1]);
-      return sum + outer - sourceEdge(beam, a[0], side);
-    }, 0) / hooks.length;
-    const hookLength = Math.abs(hooks[0].command.points[0][1] - hooks[0].command.points[1][1]);
-    const horizontal = brackets.filter(item => Math.abs(item.command.points[0][0] - item.command.points[1][0]) > .001);
-    const gapLeft = Math.max(...horizontal.filter(item => Math.min(...item.command.points.map(p => p[0])) < (u0 + u1) / 2).flatMap(item => item.command.points.map(p => p[0])));
-    const gapRight = Math.min(...horizontal.filter(item => Math.max(...item.command.points.map(p => p[0])) > (u0 + u1) / 2).flatMap(item => item.command.points.map(p => p[0])));
-    const centerU = (u0 + u1) / 2, gapFraction = (gapRight - gapLeft) / (u1 - u0);
-    const at = u => edge(u, side) + offset;
-    const leftEnd = centerU - (u1 - u0) * gapFraction / 2, rightStart = centerU + (u1 - u0) * gapFraction / 2;
-    const left = sampleAlong(u0, leftEnd, at), right = sampleAlong(rightStart, u1, at);
-    left.unshift(uv(u0, at(u0) - direction * hookLength));
-    right.push(uv(u1, at(u1) - direction * hookLength));
-    group.bracket = { u0, u1, centerU, side, offset, gapFraction, at, paths: [left, right], width: brackets[0].width };
-    const numberContours = glyphContours(study.pdfGlyphPaths[number.glyph]).flat();
-    const centerX = (Math.min(...numberContours.map(p => p[0])) + Math.max(...numberContours.map(p => p[0]))) / 2;
-    const centerY = (Math.min(...numberContours.map(p => p[1])) + Math.max(...numberContours.map(p => p[1]))) / 2;
-    const sourceNumberCenterV = number.y + centerY * number.scaleY;
-    const normalOffset = sourceNumberCenterV - (sourceEdge(beam, centerU, side) + offset);
-    group.number = { glyph: number, centerX, centerY, normalOffset,
-      anchor: uv(centerU, at(centerU) + normalOffset) };
+    const numberItem = engraving.glyphs.find(item => item.beam === beam);
+    if(numberItem&&hooks.length>=2){
+      const u0 = Math.min(...hooks.map(item => item.command.points[0][0]));
+      const u1 = Math.max(...hooks.map(item => item.command.points[0][0]));
+      const number = numberItem.glyph;
+      const side = number.y < first.note.y ? 'upper' : 'lower';
+      const direction = side === 'upper' ? -1 : 1;
+      const offset = hooks.reduce((sum, item) => {
+        const [a, b] = item.command.points;
+        const outer = direction < 0 ? Math.min(a[1], b[1]) : Math.max(a[1], b[1]);
+        return sum + outer - sourceEdge(beam, a[0], side);
+      }, 0) / hooks.length;
+      const hookLength = Math.abs(hooks[0].command.points[0][1] - hooks[0].command.points[1][1]);
+      const horizontal = brackets.filter(item => Math.abs(item.command.points[0][0] - item.command.points[1][0]) > .001);
+      const centerU = (u0 + u1) / 2;
+      const leftEdges = horizontal.filter(item => Math.min(...item.command.points.map(p => p[0])) < centerU).flatMap(item => item.command.points.map(p => p[0]));
+      const rightEdges = horizontal.filter(item => Math.max(...item.command.points.map(p => p[0])) > centerU).flatMap(item => item.command.points.map(p => p[0]));
+      const numberContours = glyphContours(study.pdfGlyphPaths[number.glyph]).flat();
+      const centerX = (Math.min(...numberContours.map(p => p[0])) + Math.max(...numberContours.map(p => p[0]))) / 2;
+      const centerY = (Math.min(...numberContours.map(p => p[1])) + Math.max(...numberContours.map(p => p[1]))) / 2;
+      const glyphCenterU = number.x + centerX * number.scaleX;
+      const glyphHalfWidth = (Math.max(...numberContours.map(p => p[0])) - Math.min(...numberContours.map(p => p[0]))) * Math.abs(number.scaleX) / 2;
+      const gapPadding = Math.max(.12, (u1 - u0) * .012);
+      let gapLeft = leftEdges.length ? Math.max(...leftEdges) : glyphCenterU - glyphHalfWidth - gapPadding;
+      let gapRight = rightEdges.length ? Math.min(...rightEdges) : glyphCenterU + glyphHalfWidth + gapPadding;
+      if (!Number.isFinite(gapLeft) || !Number.isFinite(gapRight) || gapLeft >= gapRight) {
+        gapLeft = centerU - glyphHalfWidth - gapPadding;
+        gapRight = centerU + glyphHalfWidth + gapPadding;
+      }
+      gapLeft = Math.max(u0, gapLeft);
+      gapRight = Math.min(u1, gapRight);
+      const gapFraction = (gapRight - gapLeft) / (u1 - u0);
+      const at = u => edge(u, side) + offset;
+      const leftEnd = centerU - (u1 - u0) * gapFraction / 2, rightStart = centerU + (u1 - u0) * gapFraction / 2;
+      const left = sampleAlong(u0, leftEnd, at), right = sampleAlong(rightStart, u1, at);
+      left.unshift(uv(u0, at(u0) - direction * hookLength));
+      right.push(uv(u1, at(u1) - direction * hookLength));
+      group.bracket = { u0, u1, centerU, side, offset, gapFraction, at, paths: [left, right], width: brackets[0].width };
+      const sourceNumberCenterV = number.y + centerY * number.scaleY;
+      const normalOffset = sourceNumberCenterV - (sourceEdge(beam, centerU, side) + offset);
+      group.number = { glyph: number, centerX, centerY, normalOffset,
+        anchor: uv(centerU, at(centerU) + normalOffset) };
+    }
     return group;
   });
   for (const pair of engraving.pairs.filter(pair => !used.has(pair.note.id))) {
+    if(!pair.stem){
+      const bar=Number(pair.note.id.split('-')[1]);
+      groups.push({id:`guitar:${bar}:${pair.glyph.u}:voice-1`,bar,onset:pair.glyph.u,voice:1,
+        heads:[{...makeHead(pair),noteId:pair.note.id}],stems:[],ledgerLines:[],accidents:[]});
+      continue;
+    }
     const contact = uv(pair.stem.contact[0], pair.note.y + pair.stem.contact[1] - pair.glyph.y);
     const tip = uv(pair.stem.end[0], pair.note.y + pair.stem.end[1] - pair.glyph.y);
     const bar=Number(pair.note.id.split('-')[1]);
@@ -153,11 +187,13 @@ export function projectCompoundGroup(group, project) {
   // u measures arc progress, v measures staff spacing. Convert glyph widths in the
   // ribbon's intrinsic metric before projection; camera pixels never enter this conversion.
   const aspect=project.uvAspect??1;
-  const contacts=group.stems.map((stem,i)=>({from:stem.contact.u,to:group.heads[i].anchor.u+(stem.contact.u-group.heads[i].anchor.u)*aspect}));
+  const contacts=group.stems.map((stem,i)=>({u:stem.contact.u,to:group.heads[i].anchor.u+(stem.contact.u-group.heads[i].anchor.u)*aspect}))
+    .sort((a,b)=>a.u-b.u)
+    .filter((item,index,all)=>index===0||Math.abs(item.u-all[index-1].u)>1e-5);
   const remapU=u=>{
-    const index=contacts.length===1?0:u<=contacts[1].from?0:contacts.length-2;
-    const a=contacts[index],b=contacts[Math.min(index+1,contacts.length-1)];
-    return a===b?u+a.to-a.from:mix(a.to,b.to,(u-a.from)/(b.from-a.from));
+    if(contacts.length===0)return u;
+    if(contacts.length===1)return u+contacts[0].to-contacts[0].u;
+    return interpolateAtU(contacts,u,item=>item.to);
   };
   const mapped=point=>uv(remapU(point.u),point.v);
   const contour = points => points.map(point => projectPoint(mapped(point), project));

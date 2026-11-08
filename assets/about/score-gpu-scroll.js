@@ -1,6 +1,6 @@
 import { scoreRibbonData } from './score-ribbon-data.js';
 import { scoreRibbonTimeline as score, STATIC_SCORE_BEAT } from './score-ribbon-timeline.js';
-import { scorePositionAtBeat } from './score-ribbon-timeline.js';
+import { scorePlaybackWindowAtBeat, scorePositionAtBeat, scoreWindowAtBeat } from './score-ribbon-timeline.js';
 import { drawScoreRibbon, staffYForMidi, visualVoiceSegments, voiceRibbonPoints } from './score-ribbon-renderer.js';
 import { buildEngraving } from './score-engraving.js';
 import { buildCompoundGroups } from './score-compound-groups.js';
@@ -8,12 +8,16 @@ import { createAdaptiveDpr, initialGpuPixelRatio } from './score-gpu-budget.js';
 
 const CHAPTER_POSES = { opening: 0, code: 0, music: 1, art: .52, games: .78, closing: 1 };
 const PITCH_STEP = [0, 0, 1, 1, 2, 3, 3, 4, 4, 5, 5, 6];
+const STATIC_WINDOW = scoreWindowAtBeat(STATIC_SCORE_BEAT, 1280);
+const STATIC_WINDOW_WIDTH = STATIC_WINDOW.endX - STATIC_WINDOW.startX;
 
-export function selectedNotation() {
-  const bars = score.bars.slice(30, 33);
+export function selectedNotationForBars(firstBar, lastBar) {
+  const first = Math.max(1, Math.min(score.bars.length, Math.floor(firstBar)));
+  const last = Math.max(first, Math.min(score.bars.length, Math.floor(lastBar)));
+  const bars = score.bars.slice(first - 1, last);
   const view = { x0: bars[0].xStart, x1: bars.at(-1).xEnd };
   const glyphs = new Map(score.pdfGlyphs.filter(glyph => glyph.noteId).map(glyph => [glyph.noteId, glyph]));
-  const heads = scoreRibbonData.systems.flatMap(system => system.heads).filter(head => head.bar >= 31 && head.bar <= 33);
+  const heads = scoreRibbonData.systems.flatMap(system => system.heads).filter(head => head.bar >= first && head.bar <= last);
   const points = heads.map(head => ({
     id: head.id,
     bar: head.bar,
@@ -27,7 +31,16 @@ export function selectedNotation() {
     const notes = segment.map(note => ({ ...note, y: staffYForMidi(note.writtenMidi, score) }));
     return { track, notes, points: voiceRibbonPoints(notes, (x, y) => ({ x, y })) };
   }));
-  return { view, points, engraving, groups, voicePaths };
+  return { view, points, engraving, groups, voicePaths, firstBar: first, lastBar: last };
+}
+
+export function selectedNotation() {
+  return selectedNotationForBars(STATIC_WINDOW.firstBar, STATIC_WINDOW.lastBar);
+}
+
+export function playbackNotationAtBeat(beat) {
+  const frame = scorePlaybackWindowAtBeat(beat, 1280, STATIC_WINDOW_WIDTH);
+  return { ...selectedNotationForBars(frame.firstBar, frame.lastBar), sourceRange: { x0: frame.startX, x1: frame.endX } };
 }
 
 function loadTransitionStylesheet() {
@@ -64,10 +77,14 @@ export async function mountAboutGpuScroll(root, host = root.querySelector('[data
   host.append(fallback);
 
   const notation = selectedNotation();
+  let activeNotation = notation;
+  let activeWindowKey = `${notation.firstBar}:${notation.lastBar}`;
+  let activeSourceRange = { x0: notation.view.x0, x1: notation.view.x1 };
   const state = { pose: 0, zoom: 1, chapter: 'opening', motionEnabled: true, reducedMotion: false, timestamp: null };
   const dprBudget = createAdaptiveDpr(initialGpuPixelRatio(window.devicePixelRatio));
   let width = 0, height = 0, pixelRatio = initialGpuPixelRatio(window.devicePixelRatio);
   let gpu = null, gpuLoading = false, gpuFailed = false, pageVisible = false, disposed = false, lastPose = null, lastZoom = null;
+  let lastSourceRange = null;
   let lastFallbackChapter = '', fallbackDirty = true, resizeFrame = 0;
 
   function resizeFallback() {
@@ -120,16 +137,18 @@ export async function mountAboutGpuScroll(root, host = root.querySelector('[data
 
   function renderPose(pose, timestamp) {
     if (!gpu || gpuFailed || !pageVisible || document.hidden || state.reducedMotion || !state.motionEnabled) return;
-    if (lastPose === pose && lastZoom === state.zoom) return;
+    if (lastPose === pose && lastZoom === state.zoom && lastSourceRange?.x0 === activeSourceRange.x0 && lastSourceRange?.x1 === activeSourceRange.x1) return;
     const decision = Number.isFinite(timestamp) ? dprBudget.observe(timestamp) : null;
     if (decision?.lowered) {
       pixelRatio = decision.pixelRatio;
       gpu.setPixelRatio(pixelRatio);
     }
+    gpu.setSourceRange(activeSourceRange.x0, activeSourceRange.x1);
     gpu.draw(pose, 'C', false, state.zoom);
     exposeGpu();
     lastPose = pose;
     lastZoom = state.zoom;
+    lastSourceRange = { ...activeSourceRange };
     host.dataset.scoreGpuPose = pose.toFixed(6);
     host.dataset.scoreGpuDpr = String(pixelRatio);
   }
@@ -138,11 +157,11 @@ export async function mountAboutGpuScroll(root, host = root.querySelector('[data
     if (disposed || gpu || gpuLoading || gpuFailed || state.reducedMotion) return;
     gpuLoading = true;
     try {
-      const { mountGpuRibbon } = await import('./score-gpu-ribbon.js?v=score-voices-2026-11-08');
+      const { mountGpuRibbon } = await import('./score-gpu-ribbon.js?v=score-playback-window-2');
       if (disposed) return;
       gpu = await mountGpuRibbon(host, {
         score,
-        ...notation,
+        ...activeNotation,
         width,
         height,
         pixelRatio,
@@ -170,6 +189,31 @@ export async function mountAboutGpuScroll(root, host = root.querySelector('[data
   function update(nextState) {
     if (disposed) return;
     Object.assign(state, nextState);
+    const playback = nextState.playbackSnapshot;
+    const playbackActive = ['starting', 'playing', 'paused', 'finished'].includes(playback?.state)
+      && Number.isFinite(playback?.beat);
+    if (playbackActive) {
+      const window = scorePlaybackWindowAtBeat(playback.beat, 1280, STATIC_WINDOW_WIDTH);
+      const key = `${window.firstBar}:${window.lastBar}`;
+      if (key !== activeWindowKey) {
+        activeNotation = selectedNotationForBars(window.firstBar, window.lastBar);
+        activeWindowKey = key;
+        if (gpu) gpu.setNotation(activeNotation);
+        lastPose = null;
+        lastSourceRange = null;
+      }
+      activeSourceRange = { x0: window.startX, x1: window.endX };
+    } else {
+      const staticKey = `${notation.firstBar}:${notation.lastBar}`;
+      if (activeWindowKey !== staticKey) {
+        activeNotation = notation;
+        activeWindowKey = staticKey;
+        if (gpu) gpu.setNotation(activeNotation);
+        lastPose = null;
+        lastSourceRange = null;
+      }
+      activeSourceRange = { x0: notation.view.x0, x1: notation.view.x1 };
+    }
     if (!pageVisible || document.hidden) return;
     if (state.reducedMotion) {
       drawFallback(state.chapter);
@@ -225,6 +269,9 @@ export async function mountAboutGpuScroll(root, host = root.querySelector('[data
         state.pose = nextState.pose;
       }
       update({ ...nextState, pose: state.pose });
+      return { firstBar: activeNotation.firstBar, lastBar: activeNotation.lastBar,
+        playbackActive: ['starting', 'playing', 'paused', 'finished'].includes(nextState.playbackSnapshot?.state)
+          && Number.isFinite(nextState.playbackSnapshot?.beat) };
     },
     dispose() {
       if (disposed) return;

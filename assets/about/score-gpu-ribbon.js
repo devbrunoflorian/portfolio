@@ -1,7 +1,7 @@
 import * as THREE from './vendor/three-score.min.js';
 import { createTravelProjector } from './score-travel-geometry.js';
 import { readingFocus } from './score-focus-profile.js';
-import { buildRibbonGeometry } from './score-gpu-ribbon-geometry.js?v=score-voices-2026-11-08';
+import { buildRibbonGeometry } from './score-gpu-ribbon-geometry.js?v=score-playback-window-2';
 
 const BACKGROUND = [6 / 255, 6 / 255, 9 / 255];
 const TABLE_SIZE = 2048;
@@ -30,7 +30,7 @@ const vertexShader = `
   uniform vec2 sourceRange, viewport;
   attribute vec2 sourceUV, glyphOffset, segmentEnd, stroke;
   attribute float remap, segmentRemap, kind, gold, frontHead, arrivalBar, voice;
-  varying float vDistance, vGold, vHead, vKind, vArrival, vVoice;
+  varying float vDistance, vGold, vHead, vKind, vArrival, vVoice, vSourceX;
   vec3 frameAt(float f, float row){
     float lo=floor(f),hi=min(${TABLE_SIZE - 1}.,lo+1.);
     return mix(texture2D(frames,vec2((lo+.5)/${TABLE_SIZE}.,row)).xyz,
@@ -50,6 +50,7 @@ const vertexShader = `
     vec2 source=sourceUV;
     if(kind>4.5&&kind<5.5)source+=glyphOffset*vec2(aspect,1.);
     vec4 view=projectUV(source,remap);
+    vSourceX=source.x+remap*aspect;
     float scale=unit*focal/(-view.z);
     vDistance=-view.z;vGold=gold;vHead=frontHead;vKind=kind;vArrival=arrivalBar;vVoice=voice;
     if(kind<3.5||(kind>4.5&&kind<5.5))view.xyz*=(-view.z-1.)/(-view.z);
@@ -65,6 +66,7 @@ const vertexShader = `
       vec4 startClip=clip;
       clip=mix(startClip,endClip,t);
       float depth=mix(-view.z,-endView.z,t);
+      vSourceX=mix(sourceUV.x+remap*aspect,segmentEnd.x+segmentRemap*aspect,t);
       vDistance=depth+1.;
       clip.xy+=normal*stroke.x*stroke.y*.5*(unit*focal/depth)*2./viewport*clip.w;
     }
@@ -73,9 +75,10 @@ const vertexShader = `
 
 const fragmentShader = `
   uniform float focus, viewportWidth, fade, halo, pose, pixelRatio;
-  uniform vec2 viewport;
-  varying float vDistance,vGold,vHead,vKind,vArrival,vVoice;
+  uniform vec2 viewport, sourceRange;
+  varying float vDistance,vGold,vHead,vKind,vArrival,vVoice,vSourceX;
   void main(){
+    if(vSourceX<sourceRange.x||vSourceX>sourceRange.y)discard;
     if(vArrival>.5&&pose<.85)discard;
     if(vKind>3.5&&vKind<4.5){if(halo<.5)discard;gl_FragColor=vec4(${BACKGROUND.join(',')},0.);return;}
     vec3 source=mix(vec3(.811764706,.760784314,.886274510),vec3(1.,.862745098,.513725490),vGold);
@@ -132,7 +135,7 @@ export async function mountGpuRibbon(host, { score, view, points, groups, engrav
   const table = createRibbonFrameTable(initial.samples);
   const frames = new THREE.DataTexture(table.data, TABLE_SIZE, 2, THREE.RGBAFormat, THREE.FloatType);
   frames.needsUpdate = true;
-  const geometry = buildRibbonGeometry(score, view, groups, engraving, voicePaths);
+  let geometry = buildRibbonGeometry(score, view, groups, engraving, voicePaths);
   const focal = width * 1.45, near = width * .01, far = width * 20;
   const camera = new THREE.PerspectiveCamera(2 * Math.atan(height / (2 * focal)) * 180 / Math.PI, width / height, near, far);
   // The reference's world uses screen-down Y. Flip only the projection Y so
@@ -205,13 +208,16 @@ export async function mountGpuRibbon(host, { score, view, points, groups, engrav
   setPixelRatio(pixelRatio);
 
   function updatePose(pose, cameraZoom = 1) {
-    const project = createTravelProjector(width, height, score, pose, view, .2, true, projectorScratch, cameraZoom);
+    const range = uniforms.sourceRange.value;
+    const readingView = { x0: range.x, x1: range.y };
+    const project = createTravelProjector(width, height, score, pose, readingView, .2, true, projectorScratch, cameraZoom);
     uniforms.arcStart.value = pose * .65 * table.length;
     uniforms.arcSpan.value = project.arcLength;
     const arrive = Math.max(0, Math.min(1, (pose - .65) / .2));
-    uniforms.unit.value = (width * 1.5 * (1 - arrive) + project.arcLength * arrive) / (view.x1 - view.x0);
+    const sourceWidth = readingView.x1 - readingView.x0;
+    uniforms.unit.value = (width * 1.5 * (1 - arrive) + project.arcLength * arrive) / sourceWidth;
     uniforms.aspect.value = project.uvAspect;
-    uniforms.focus.value = readingFocus(project, view, width, height, marker, pose, focusScratch).distance;
+    uniforms.focus.value = readingFocus(project, readingView, width, height, marker, pose, focusScratch).distance;
     uniforms.pose.value = pose;
     camera.position.fromArray(project.camera.position);
     targetPosition.fromArray(project.camera.target);camera.lookAt(targetPosition);camera.updateMatrixWorld();
@@ -233,6 +239,28 @@ export async function mountGpuRibbon(host, { score, view, points, groups, engrav
       sample.gpuStatus = disjoint ? 'disjoint' : 'available';
       gl.deleteQuery(query);pending.splice(i, 1);
     }
+  }
+
+  function setNotation(notation) {
+    if (disposed) throw new Error('GPU ribbon is disposed.');
+    const next = buildRibbonGeometry(score, notation.view, notation.groups, notation.engraving, notation.voicePaths ?? []);
+    const previous = geometry;
+    geometry = next;
+    mesh.geometry = next;
+    previous.dispose();
+    metrics.geometryBuilds++;
+    metrics.geometryBytes = Object.values(next.attributes).reduce((sum, attr) => sum + attr.array.byteLength, 0);
+    metrics.vertices = next.attributes.position.count;
+    lastSample = null;
+  }
+
+  function setSourceRange(startX, endX) {
+    if (!Number.isFinite(startX) || !Number.isFinite(endX) || endX <= startX) throw new RangeError('Source range must be finite and increasing.');
+    const range = uniforms.sourceRange.value;
+    if (range.x === startX && range.y === endX) return false;
+    range.set(startX, endX);
+    lastSample = null;
+    return true;
   }
 
   function draw(pose, variant = 'C', captureSample = diagnostics, cameraZoom = 1) {
@@ -317,5 +345,5 @@ export async function mountGpuRibbon(host, { score, view, points, groups, engrav
     target.depthTexture.dispose();target.dispose();output.dispose();renderer.dispose();renderer.forceContextLoss();canvas.remove();
     for(const [method,original] of originalGL)gl[method]=original;
   }
-  return { canvas, draw, pollGPU, metrics, dispose, setPixelRatio, readPixels,loseContext,restoreContext };
+  return { canvas, draw, pollGPU, metrics, dispose, setPixelRatio, setNotation, setSourceRange, readPixels,loseContext,restoreContext };
 }

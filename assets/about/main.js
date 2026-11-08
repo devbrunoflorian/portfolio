@@ -474,14 +474,24 @@ function paintScenes(timestamp) {
       }
     }
   } else if (visible && scoreGpuScrollMode && updateGpuScroll) {
-    updateGpuScroll({
+    const result = updateGpuScroll({
       chapter: root.dataset.activeMovement ?? "opening",
       pose: scoreGpuPose,
       zoom: scoreGpuZoom,
       motionEnabled: !motionPaused && !reduceMotion.matches,
       reducedMotion: reduceMotion.matches,
+      playbackSnapshot: snapshot,
       timestamp,
     });
+    if (root.dataset.activeMovement === "music" && result) {
+      const excerptElement = root.querySelector("[data-score-excerpt]");
+      if (excerptElement) {
+        const excerptText = result.firstBar === result.lastBar
+          ? `${labels.bar} ${result.firstBar}` : `${labels.bars} ${result.firstBar}–${result.lastBar}`;
+        const label = result.playbackActive ? excerptText : `${labels.preview} · ${excerptText}`;
+        if (excerptElement.textContent !== label) excerptElement.textContent = label;
+      }
+    }
   } else if (visible && scoreRibbonTransitionMode && updateRibbonTransition) {
     updateRibbonTransition({
       progress: scoreTransitionProgress,
@@ -494,7 +504,7 @@ function paintScenes(timestamp) {
     lastDisplaySecond = Math.floor(snapshot.seconds);
     syncMixer(snapshot);
   }
-  if (visible && !scoreRibbonStoryboardMode && !scoreGpuScrollMode && audio.playing && !motionPaused && !reduceMotion.matches) requestScene();
+  if (visible && !scoreRibbonStoryboardMode && audio.playing && !motionPaused && !reduceMotion.matches) requestScene();
 }
 function requestScene() {
   if (!sceneFrame && !document.hidden) sceneFrame = requestAnimationFrame(timestamp => paintScenes(timestamp));
@@ -608,7 +618,7 @@ if (scoreRibbonTransitionMode) {
 }
 
 if (scoreGpuScrollMode) {
-  import("./score-gpu-scroll.js?v=score-voices-2026-11-08").then(module => module.mountAboutGpuScroll(root)).then(runtime => {
+  import("./score-gpu-scroll.js?v=score-playback-window-2").then(module => module.mountAboutGpuScroll(root)).then(runtime => {
     updateGpuScroll = runtime.update;
     disposeGpuScroll = runtime.dispose;
     invalidateScoreLayout();

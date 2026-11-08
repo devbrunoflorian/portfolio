@@ -8,9 +8,9 @@ import {buildCompoundGroups} from '../assets/about/score-compound-groups.js';
 import {scoreRibbonTimeline as score} from '../assets/about/score-ribbon-timeline.js';
 import {scoreRibbonData} from '../assets/about/score-ribbon-data.js';
 import {createAdaptiveDpr, initialGpuPixelRatio, poseBetweenDocumentCenters} from '../assets/about/score-gpu-budget.js';
-import {selectedNotation} from '../assets/about/score-gpu-scroll.js';
+import {playbackNotationAtBeat,selectedNotation} from '../assets/about/score-gpu-scroll.js';
 import {staffYForMidi} from '../assets/about/score-ribbon-renderer.js';
-import {scorePositionAtBeat} from '../assets/about/score-ribbon-timeline.js';
+import {scorePlaybackWindowAtBeat,scorePositionAtBeat} from '../assets/about/score-ribbon-timeline.js';
 
 const view={x0:score.bars[30].xStart,x1:score.bars[32].xEnd},width=1142,height=width/1.8;
 const step=[0,0,1,1,2,3,3,4,4,5,5,6];
@@ -37,11 +37,12 @@ test('static UV attributes have equal finite lengths, explicit gold coverage and
 
 test('GPU score keeps both melody contours on the guitar score timeline and staff map',()=>{
   const notation=selectedNotation();
+  assert.deepEqual([notation.firstBar,notation.lastBar],[33,35]);
   assert.deepEqual(notation.voicePaths.map(path=>path.track),[1,2]);
   for(const path of notation.voicePaths){
     assert.ok(path.points.length>path.notes.length);
     const visibleNotes=path.notes.filter(note=>note.x>=notation.view.x0&&note.x<=notation.view.x1);
-    assert.equal(visibleNotes.length,6);
+    assert.equal(visibleNotes.length,11);
     for(const note of path.notes){
       assert.ok(Math.abs(note.x-scorePositionAtBeat(note.beat))<.0001);
       assert.equal(note.y,staffYForMidi(note.writtenMidi,score));
@@ -55,6 +56,45 @@ test('GPU score keeps both melody contours on the guitar score timeline and staf
     assert.ok(voices.some((value,index)=>value===track&&kind[index]===1),`voice ${track} has attack markers`);
   }
   geometry.dispose();
+});
+
+test('playback windows follow the beat continuously and retain the silent 33–35 preview scale',()=>{
+  const preview=selectedNotation();
+  const silent=scorePlaybackWindowAtBeat(134,1280,preview.view.x1-preview.view.x0);
+  assert.deepEqual([preview.firstBar,preview.lastBar],[33,35]);
+  assert.ok(Math.abs((silent.endX-silent.startX)-(preview.view.x1-preview.view.x0))<1e-8);
+  const a=scorePlaybackWindowAtBeat(394,1280,preview.view.x1-preview.view.x0);
+  const b=scorePlaybackWindowAtBeat(395,1280,preview.view.x1-preview.view.x0);
+  assert.ok(Math.abs((a.endX-a.startX)-(preview.view.x1-preview.view.x0))<1e-8);
+  assert.ok(b.startX>a.startX&&b.startX-a.startX<20,'playhead window should slide smoothly between adjacent beats');
+  const front=createTravelProjector(width,height,score,1,{x0:a.startX,x1:a.endX});
+  assert.ok(Math.abs(front.uvAspect-1)<1e-10,'front-frame spacing uses the moving reading window, not the larger notation buffer');
+  for(const beat of [0,134,394,422,423.999]){
+    const notation=playbackNotationAtBeat(beat);
+    assert.ok(notation.firstBar>=1&&notation.lastBar<=score.bars.length);
+    assert.ok(notation.sourceRange.x1>notation.sourceRange.x0);
+    assert.ok(notation.groups.every(group=>group.heads.length>=1));
+  }
+});
+
+test('notation windows build from Intro through the final open-note system',()=>{
+  const windows=[];
+  for(let bar=1;bar<=score.bars.length;bar++){
+    const notation=playbackNotationAtBeat((bar-.5)*scoreRibbonData.beatsPerBar);
+    windows.push(notation);
+  }
+  assert.equal(windows.length,106);
+  assert.ok(windows.some(notation=>notation.groups.some(group=>group.number)),'tuplet groups remain represented');
+  assert.ok(windows.some(notation=>notation.groups.some(group=>group.stems.length===0)),'stemless whole notes remain valid');
+  assert.ok(windows.some(notation=>notation.engraving.beams.some(beam=>beam.members.length>3)),
+    'multi-beat shared beams are retained as a single source shape');
+  for(const index of [0,32,46,97,100,103,105]){
+    const notation=windows[index];
+    const geometry=buildRibbonGeometry(score,notation.view,notation.groups,notation.engraving,notation.voicePaths);
+    assert.ok(geometry.attributes.position.array.every(Number.isFinite),`finite GPU geometry at bar ${index+1}`);
+    assert.ok(geometry.attributes.position.count>0);
+    geometry.dispose();
+  }
 });
 
 test('Float32 arc table reconstructs the reference projection across sixty camera poses',()=>{

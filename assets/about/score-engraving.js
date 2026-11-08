@@ -6,16 +6,17 @@ const inRange = (x, range) => x >= range.x0 && x <= range.x1;
 /** Preserve PDF beam groups; stem tips are the attachment anchors in perspective. */
 export function buildEngraving(study, notes, view) {
   const pairs = noteHeadStemPairs(study, notes);
-  const drawings = study.pdfDrawings.filter(d => d.minX >= view.x0 && d.maxX <= view.x1);
-  const beams = drawings.filter(d => d.fill).map(drawing => {
-    const members = pairs.filter(pair => pair.stem.end[0] >= drawing.minX - .3
+  const drawings = study.pdfDrawings.filter(d => d.maxX >= view.x0 && d.minX <= view.x1);
+  const containedDrawings = drawings.filter(d => d.minX >= view.x0 && d.maxX <= view.x1);
+  const beams = containedDrawings.filter(d => d.fill).map(drawing => {
+    const members = pairs.filter(pair => pair.stem && pair.stem.end[0] >= drawing.minX - .3
       && pair.stem.end[0] <= drawing.maxX + .3).sort((a, b) => a.stem.end[0] - b.stem.end[0]);
-    if (members.length !== 3) throw new Error('Expected three stems per source triplet beam');
     const vertices = drawing.commands.flatMap(c => c.points);
     return { drawing, members, vertices };
-  });
+  }).filter(beam => beam.members.length >= 2 && beam.drawing.maxX - beam.drawing.minX > 1.5);
   const nearestBeam = (x, y) => beams.reduce((best, beam) => {
-    const middle = beam.members[1].stem.end;
+    const centerX=(beam.drawing.minX+beam.drawing.maxX)/2;
+    const middle=beam.members.reduce((nearest,pair)=>Math.abs(pair.stem.end[0]-centerX)<Math.abs(nearest.stem.end[0]-centerX)?pair:nearest).stem.end;
     const distance = Math.hypot(x - middle[0], y - middle[1]);
     return !best || distance < best.distance ? { beam, distance } : best;
   }, null)?.beam;
@@ -30,7 +31,7 @@ export function buildEngraving(study, notes, view) {
       commands.set(key, { command, width: drawing.width, beam: nearestBeam(x, y) });
     }
   }
-  const glyphs = study.pdfGlyphs.filter(g => inRange(g.x, view) && !g.noteId && g.text !== '=')
+  const glyphs = study.pdfGlyphs.filter(g => inRange(g.x, view) && !g.noteId && g.text !== '=' && g.text.trim())
     .map(glyph => {
       if (glyph.text === '3') return { glyph, beam: nearestBeam(glyph.x, glyph.y) };
       const pair = pairs.reduce((best, pair) => {
@@ -40,8 +41,11 @@ export function buildEngraving(study, notes, view) {
       return { glyph, pair };
     });
   const bar = study.bars.find(b => b.number === 32);
-  const staffWidth=study.pdfDrawings.find(d=>d.minX<=view.x0&&d.maxX>=view.x1&&d.commands.length===1
-    &&d.commands[0].kind==='l'&&Math.abs(d.commands[0].points[0][1]-d.commands[0].points[1][1])<.03)?.width;
+  const staffWidths=study.pdfDrawings.filter(d=>d.maxX>=view.x0&&d.minX<=view.x1&&d.commands.length===1
+    &&d.commands[0].kind==='l'&&Math.abs(d.commands[0].points[0][1]-d.commands[0].points[1][1])<.03
+    &&study.staffLines.some(y=>Math.abs(d.commands[0].points[0][1]-y)<.04))
+    .map(d=>d.width).sort((a,b)=>a-b);
+  const staffWidth=staffWidths[Math.floor(staffWidths.length/2)];
   if(!staffWidth)throw new Error('Missing printed staff width');
   const barlines=[];
   const ledgerLines=[];
