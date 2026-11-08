@@ -1,7 +1,7 @@
 import * as THREE from './vendor/three-score.min.js';
 import { createTravelProjector } from './score-travel-geometry.js';
 import { readingFocus } from './score-focus-profile.js';
-import { buildRibbonGeometry } from './score-gpu-ribbon-geometry.js';
+import { buildRibbonGeometry } from './score-gpu-ribbon-geometry.js?v=triplet-number-curve-1';
 
 const BACKGROUND = [6 / 255, 6 / 255, 9 / 255];
 const TABLE_SIZE = 2048;
@@ -47,10 +47,12 @@ const vertexShader = `
     clip.xy+=offset*scale*vec2(2.,-2.)/viewport*clip.w;return clip;
   }
   void main(){
-    vec4 view=projectUV(sourceUV,remap);
+    vec2 source=sourceUV;
+    if(kind>4.5&&kind<5.5)source+=glyphOffset*vec2(aspect,1.);
+    vec4 view=projectUV(source,remap);
     float scale=unit*focal/(-view.z);
     vDistance=-view.z;vGold=gold;vHead=frontHead;vKind=kind;vArrival=arrivalBar;
-    if(kind<3.5)view.xyz*=(-view.z-1.)/(-view.z);
+    if(kind<3.5||(kind>4.5&&kind<5.5))view.xyz*=(-view.z-1.)/(-view.z);
     vec4 clip=projectionMatrix*view;
     if(kind>.5&&kind<1.5)clip=screenOffset(clip,glyphOffset,scale);
     if(kind>1.5&&kind<3.5){
@@ -75,7 +77,7 @@ const fragmentShader = `
   varying float vDistance,vGold,vHead,vKind,vArrival;
   void main(){
     if(vArrival>.5&&pose<.85)discard;
-    if(vKind>3.5){if(halo<.5)discard;gl_FragColor=vec4(${BACKGROUND.join(',')},0.);return;}
+    if(vKind>3.5&&vKind<4.5){if(halo<.5)discard;gl_FragColor=vec4(${BACKGROUND.join(',')},0.);return;}
     vec3 source=mix(vec3(.811764706,.760784314,.886274510),vec3(1.,.862745098,.513725490),vGold);
     float protect=max(vGold,vHead*step(vDistance/viewportWidth,focus+.001));
     float t=smoothstep(.04,.70,vDistance/viewportWidth-focus)*fade*(1.-protect);

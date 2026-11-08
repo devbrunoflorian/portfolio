@@ -26,6 +26,9 @@ test('static UV attributes have equal finite lengths, explicit gold coverage and
   assert.ok(gold.some(x=>x===1));assert.ok(gold.some(x=>x===0));
   gold.forEach((x,i)=>{if(x===1)assert.equal(head[i],1);});
   assert.ok(geometry.attributes.kind.array.some(x=>x===3));
+  const curvedGlyphs=[...geometry.attributes.kind.array.keys()].filter(i=>geometry.attributes.kind.array[i]===5);
+  assert.ok(curvedGlyphs.length>0,'triplet numbers use surface-deformed glyph geometry');
+  assert.ok(curvedGlyphs.some(i=>geometry.attributes.glyphOffset.array[i*2]!==0));
   geometry.dispose();
 });
 

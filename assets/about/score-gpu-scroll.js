@@ -134,7 +134,7 @@ export async function mountAboutGpuScroll(root, host = root.querySelector('[data
     if (disposed || gpu || gpuLoading || gpuFailed || state.reducedMotion) return;
     gpuLoading = true;
     try {
-      const { mountGpuRibbon } = await import('./score-gpu-ribbon.js?v=edge-fade-1');
+      const { mountGpuRibbon } = await import('./score-gpu-ribbon.js?v=triplet-number-curve-1');
       if (disposed) return;
       gpu = await mountGpuRibbon(host, {
         score,

@@ -527,7 +527,7 @@ if (scoreRibbonTransitionMode) {
 }
 
 if (scoreGpuScrollMode) {
-  import("./score-gpu-scroll.js?v=read-protection-1").then(module => module.mountAboutGpuScroll(root)).then(runtime => {
+  import("./score-gpu-scroll.js?v=triplet-number-curve-1").then(module => module.mountAboutGpuScroll(root)).then(runtime => {
     updateGpuScroll = runtime.update;
     disposeGpuScroll = runtime.dispose;
     requestScene();

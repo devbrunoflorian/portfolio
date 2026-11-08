@@ -106,9 +106,10 @@ export function buildRibbonGeometry(score, view, groups, engraving) {
     for (const path of group.bracket?.paths ?? []) stroke(path.map(mapped), group.bracket.width);
     if (group.number) {
       const n = group.number, a = mapped(n.anchor);
-      const contours = glyphContours(score.pdfGlyphPaths[n.glyph.glyph]).map(c => c.map(([x, y]) => point(x, y,
-        { u: a.u, v: a.v, remap: a.remap, kind: 1,
-          offset: [(x - n.centerX) * n.glyph.scaleX, (y - n.centerY) * n.glyph.scaleY] })));
+      const contours = glyphContours(score.pdfGlyphPaths[n.glyph.glyph]).map(c => c.map(([x, y]) => {
+        const offset = [(x - n.centerX) * n.glyph.scaleX, (y - n.centerY) * n.glyph.scaleY];
+        return point(a.u, a.v, { x: a.u + offset[0], y: a.v + offset[1], remap: a.remap, kind: 5, offset });
+      }));
       fill(contours, emit);
     }
   }
