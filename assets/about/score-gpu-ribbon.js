@@ -1,7 +1,7 @@
 import * as THREE from './vendor/three-score.min.js';
 import { createTravelProjector } from './score-travel-geometry.js';
 import { readingFocus } from './score-focus-profile.js';
-import { buildRibbonGeometry } from './score-gpu-ribbon-geometry.js?v=triplet-number-curve-1';
+import { buildRibbonGeometry } from './score-gpu-ribbon-geometry.js?v=score-voices-2026-11-08';
 
 const BACKGROUND = [6 / 255, 6 / 255, 9 / 255];
 const TABLE_SIZE = 2048;
@@ -29,8 +29,8 @@ const vertexShader = `
   uniform float ribbonLength, arcStart, arcSpan, unit, aspect, middle, focal, viewportWidth;
   uniform vec2 sourceRange, viewport;
   attribute vec2 sourceUV, glyphOffset, segmentEnd, stroke;
-  attribute float remap, segmentRemap, kind, gold, frontHead, arrivalBar;
-  varying float vDistance, vGold, vHead, vKind, vArrival;
+  attribute float remap, segmentRemap, kind, gold, frontHead, arrivalBar, voice;
+  varying float vDistance, vGold, vHead, vKind, vArrival, vVoice;
   vec3 frameAt(float f, float row){
     float lo=floor(f),hi=min(${TABLE_SIZE - 1}.,lo+1.);
     return mix(texture2D(frames,vec2((lo+.5)/${TABLE_SIZE}.,row)).xyz,
@@ -51,7 +51,7 @@ const vertexShader = `
     if(kind>4.5&&kind<5.5)source+=glyphOffset*vec2(aspect,1.);
     vec4 view=projectUV(source,remap);
     float scale=unit*focal/(-view.z);
-    vDistance=-view.z;vGold=gold;vHead=frontHead;vKind=kind;vArrival=arrivalBar;
+    vDistance=-view.z;vGold=gold;vHead=frontHead;vKind=kind;vArrival=arrivalBar;vVoice=voice;
     if(kind<3.5||(kind>4.5&&kind<5.5))view.xyz*=(-view.z-1.)/(-view.z);
     vec4 clip=projectionMatrix*view;
     if(kind>.5&&kind<1.5)clip=screenOffset(clip,glyphOffset,scale);
@@ -74,11 +74,12 @@ const vertexShader = `
 const fragmentShader = `
   uniform float focus, viewportWidth, fade, halo, pose, pixelRatio;
   uniform vec2 viewport;
-  varying float vDistance,vGold,vHead,vKind,vArrival;
+  varying float vDistance,vGold,vHead,vKind,vArrival,vVoice;
   void main(){
     if(vArrival>.5&&pose<.85)discard;
     if(vKind>3.5&&vKind<4.5){if(halo<.5)discard;gl_FragColor=vec4(${BACKGROUND.join(',')},0.);return;}
     vec3 source=mix(vec3(.811764706,.760784314,.886274510),vec3(1.,.862745098,.513725490),vGold);
+    if(vVoice>.5)source=vVoice<1.5?vec3(.439215686,.658823529,1.):vec3(.764705882,.603921569,1.);
     float protect=max(vGold,vHead*step(vDistance/viewportWidth,focus+.001));
     float t=smoothstep(.04,.70,vDistance/viewportWidth-focus)*fade*(1.-protect);
     float gray=dot(source,vec3(.2126,.7152,.0722));
@@ -113,7 +114,7 @@ const postFragment = `
     gl_FragColor=vec4(total/weights,1.);
   }`;
 
-export async function mountGpuRibbon(host, { score, view, points, groups, engraving, width, height, pixelRatio = 1, diagnostics = true }) {
+export async function mountGpuRibbon(host, { score, view, points, groups, engraving, voicePaths = [], width, height, pixelRatio = 1, diagnostics = true }) {
   width ||= host.clientWidth;
   height ||= width / 1.8;
   if (!(width > 0 && height > 0)) throw new RangeError('GPU ribbon requires a positive viewport.');
@@ -131,7 +132,7 @@ export async function mountGpuRibbon(host, { score, view, points, groups, engrav
   const table = createRibbonFrameTable(initial.samples);
   const frames = new THREE.DataTexture(table.data, TABLE_SIZE, 2, THREE.RGBAFormat, THREE.FloatType);
   frames.needsUpdate = true;
-  const geometry = buildRibbonGeometry(score, view, groups, engraving);
+  const geometry = buildRibbonGeometry(score, view, groups, engraving, voicePaths);
   const focal = width * 1.45, near = width * .01, far = width * 20;
   const camera = new THREE.PerspectiveCamera(2 * Math.atan(height / (2 * focal)) * 180 / Math.PI, width / height, near, far);
   // The reference's world uses screen-down Y. Flip only the projection Y so

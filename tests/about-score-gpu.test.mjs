@@ -8,6 +8,9 @@ import {buildCompoundGroups} from '../assets/about/score-compound-groups.js';
 import {scoreRibbonTimeline as score} from '../assets/about/score-ribbon-timeline.js';
 import {scoreRibbonData} from '../assets/about/score-ribbon-data.js';
 import {createAdaptiveDpr, initialGpuPixelRatio, poseBetweenDocumentCenters} from '../assets/about/score-gpu-budget.js';
+import {selectedNotation} from '../assets/about/score-gpu-scroll.js';
+import {staffYForMidi} from '../assets/about/score-ribbon-renderer.js';
+import {scorePositionAtBeat} from '../assets/about/score-ribbon-timeline.js';
 
 const view={x0:score.bars[30].xStart,x1:score.bars[32].xEnd},width=1142,height=width/1.8;
 const step=[0,0,1,1,2,3,3,4,4,5,5,6];
@@ -29,6 +32,28 @@ test('static UV attributes have equal finite lengths, explicit gold coverage and
   const curvedGlyphs=[...geometry.attributes.kind.array.keys()].filter(i=>geometry.attributes.kind.array[i]===5);
   assert.ok(curvedGlyphs.length>0,'triplet numbers use surface-deformed glyph geometry');
   assert.ok(curvedGlyphs.some(i=>geometry.attributes.glyphOffset.array[i*2]!==0));
+  geometry.dispose();
+});
+
+test('GPU score keeps both melody contours on the guitar score timeline and staff map',()=>{
+  const notation=selectedNotation();
+  assert.deepEqual(notation.voicePaths.map(path=>path.track),[1,2]);
+  for(const path of notation.voicePaths){
+    assert.ok(path.points.length>path.notes.length);
+    const visibleNotes=path.notes.filter(note=>note.x>=notation.view.x0&&note.x<=notation.view.x1);
+    assert.equal(visibleNotes.length,6);
+    for(const note of path.notes){
+      assert.ok(Math.abs(note.x-scorePositionAtBeat(note.beat))<.0001);
+      assert.equal(note.y,staffYForMidi(note.writtenMidi,score));
+    }
+  }
+
+  const geometry=buildRibbonGeometry(score,notation.view,notation.groups,notation.engraving,notation.voicePaths);
+  const voices=geometry.attributes.voice.array,kind=geometry.attributes.kind.array;
+  for(const track of [1,2]){
+    assert.ok(voices.some((value,index)=>value===track&&kind[index]===2),`voice ${track} has a curved trail`);
+    assert.ok(voices.some((value,index)=>value===track&&kind[index]===1),`voice ${track} has attack markers`);
+  }
   geometry.dispose();
 });
 

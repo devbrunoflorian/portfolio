@@ -31,9 +31,9 @@ function fill(contours, emit) {
 }
 
 /** Immutable source UVs, glyph offsets and attachment parameters; never rebuilt per pose. */
-export function buildRibbonGeometry(score, view, groups, engraving) {
+export function buildRibbonGeometry(score, view, groups, engraving, voicePaths = []) {
   const attributes = { position: [], sourceUV: [], remap: [], glyphOffset: [], segmentEnd: [],
-    segmentRemap: [], stroke: [], kind: [], gold: [], frontHead: [], arrivalBar: [] };
+    segmentRemap: [], stroke: [], kind: [], gold: [], frontHead: [], arrivalBar: [], voice: [] };
   const point = (u, v, extra = {}) => ({ x: u, y: v, u, v, ...extra });
   function emit(a, b, c) {
     for (const p of [a, b, c]) {
@@ -48,6 +48,7 @@ export function buildRibbonGeometry(score, view, groups, engraving) {
       attributes.gold.push(p.gold ?? 0);
       attributes.frontHead.push(p.head ?? 0);
       attributes.arrivalBar.push(p.arrivalBar ?? 0);
+      attributes.voice.push(p.voice ?? 0);
     }
   }
   function stroke(path, width, extra = {}) {
@@ -64,6 +65,19 @@ export function buildRibbonGeometry(score, view, groups, engraving) {
       const a = { ...top[i - 1], ...extra }, b = { ...top[i], ...extra };
       const c = { ...bottom[i], ...extra }, d = { ...bottom[i - 1], ...extra };
       emit(a, b, c); emit(a, c, d);
+    }
+  }
+  function noteDot(note, track) {
+    const center = point(note.x, note.y, { kind: 1, voice: track });
+    const segments = 16, radiusX = .4, radiusY = .32;
+    for (let index = 0; index < segments; index += 1) {
+      const angleA = index / segments * Math.PI * 2;
+      const angleB = (index + 1) / segments * Math.PI * 2;
+      const a = point(note.x, note.y, { kind: 1, voice: track,
+        offset: [Math.cos(angleA) * radiusX, Math.sin(angleA) * radiusY] });
+      const b = point(note.x, note.y, { kind: 1, voice: track,
+        offset: [Math.cos(angleB) * radiusX, Math.sin(angleB) * radiusY] });
+      emit(center, a, b);
     }
   }
   const along = v => Array.from({ length: 561 }, (_, i) => point(view.x0 + (view.x1 - view.x0) * i / 560, v));
@@ -113,13 +127,20 @@ export function buildRibbonGeometry(score, view, groups, engraving) {
       fill(contours, emit);
     }
   }
+  for (const { track, notes, points } of voicePaths) {
+    const contour = points.map(p => point(p.x, p.y));
+    if (contour.length > 1) stroke(contour, .28, { voice: track });
+    for (const note of notes) {
+      if (note.x >= view.x0 && note.x <= view.x1) noteDot(note, track);
+    }
+  }
   const r = engraving.rest, a = point(r.x, r.y, { kind: 1 });
   const rest = [[-r.width / 2, 0], [r.width / 2, 0], [r.width / 2, r.height], [-r.width / 2, r.height]]
     .map(offset => ({ ...a, offset }));
   emit(rest[0], rest[1], rest[2]); emit(rest[0], rest[2], rest[3]);
   const geometry = new THREE.BufferGeometry();
   const sizes = { position: 3, sourceUV: 2, remap: 1, glyphOffset: 2, segmentEnd: 2,
-    segmentRemap: 1, stroke: 2, kind: 1, gold: 1, frontHead: 1, arrivalBar: 1 };
+    segmentRemap: 1, stroke: 2, kind: 1, gold: 1, frontHead: 1, arrivalBar: 1, voice: 1 };
   for (const [name, values] of Object.entries(attributes)) geometry.setAttribute(name,
     new THREE.BufferAttribute(new Float32Array(values), sizes[name]).setUsage(THREE.StaticDrawUsage));
   return geometry;

@@ -1,7 +1,7 @@
 import { scoreRibbonData } from './score-ribbon-data.js';
 import { scoreRibbonTimeline as score, STATIC_SCORE_BEAT } from './score-ribbon-timeline.js';
 import { scorePositionAtBeat } from './score-ribbon-timeline.js';
-import { drawScoreRibbon } from './score-ribbon-renderer.js';
+import { drawScoreRibbon, staffYForMidi, visualVoiceSegments, voiceRibbonPoints } from './score-ribbon-renderer.js';
 import { buildEngraving } from './score-engraving.js';
 import { buildCompoundGroups } from './score-compound-groups.js';
 import { createAdaptiveDpr, initialGpuPixelRatio } from './score-gpu-budget.js';
@@ -9,7 +9,7 @@ import { createAdaptiveDpr, initialGpuPixelRatio } from './score-gpu-budget.js';
 const CHAPTER_POSES = { opening: 0, code: 0, music: 1, art: .52, games: .78, closing: 1 };
 const PITCH_STEP = [0, 0, 1, 1, 2, 3, 3, 4, 4, 5, 5, 6];
 
-function selectedNotation() {
+export function selectedNotation() {
   const bars = score.bars.slice(30, 33);
   const view = { x0: bars[0].xStart, x1: bars.at(-1).xEnd };
   const glyphs = new Map(score.pdfGlyphs.filter(glyph => glyph.noteId).map(glyph => [glyph.noteId, glyph]));
@@ -23,14 +23,18 @@ function selectedNotation() {
   }));
   const engraving = buildEngraving(score, points, view);
   const groups = buildCompoundGroups(engraving, score);
-  return { view, points, engraving, groups };
+  const voicePaths = [1, 2].flatMap(track => visualVoiceSegments(score.voices, track, view).map(segment => {
+    const notes = segment.map(note => ({ ...note, y: staffYForMidi(note.writtenMidi, score) }));
+    return { track, notes, points: voiceRibbonPoints(notes, (x, y) => ({ x, y })) };
+  }));
+  return { view, points, engraving, groups, voicePaths };
 }
 
 function loadTransitionStylesheet() {
   if (document.querySelector('[data-score-ribbon-transition-style]')) return null;
   const stylesheet = document.createElement('link');
   stylesheet.rel = 'stylesheet';
-  stylesheet.href = new URL('./score-ribbon-transition.css?gpu-scroll-read-1', import.meta.url);
+  stylesheet.href = new URL('./score-ribbon-transition.css?gpu-scroll-score-voices-1', import.meta.url);
   stylesheet.dataset.scoreRibbonTransitionStyle = '';
   document.head.append(stylesheet);
   return stylesheet;
@@ -132,7 +136,7 @@ export async function mountAboutGpuScroll(root, host = root.querySelector('[data
     if (disposed || gpu || gpuLoading || gpuFailed || state.reducedMotion) return;
     gpuLoading = true;
     try {
-      const { mountGpuRibbon } = await import('./score-gpu-ribbon.js?v=triplet-number-curve-1');
+      const { mountGpuRibbon } = await import('./score-gpu-ribbon.js?v=score-voices-2026-11-08');
       if (disposed) return;
       gpu = await mountGpuRibbon(host, {
         score,

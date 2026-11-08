@@ -47,9 +47,9 @@ body[data-score-gpu-scroll="true"] :is(.music-tools, .music-explore) {
 }
 
 body[data-score-gpu-scroll="true"] .score-gpu-scroll-canvas {
-  transform: translate3d(var(--thread-x, 0px), var(--thread-y, 0px), 0)
-    scale(var(--thread-scale, 1)) rotate(var(--thread-rotate, 0deg));
-  transform-origin: center;
+  /* Three owns the camera in this route; applying the editorial CSS transform
+     here would offset and scale the same camera move a second time. */
+  transform: none;
   opacity: var(--thread-opacity, 1);
 }
 

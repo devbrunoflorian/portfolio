@@ -172,7 +172,7 @@ function drawPdfRibbon(context, project, study, depthAware, view, queue) {
   }
 }
 
-function staffYForMidi(midi, study) {
+export function staffYForMidi(midi, study) {
   const naturalStep = [0, 0, 1, 1, 2, 3, 3, 4, 4, 5, 5, 6];
   const pitchClass = ((midi % 12) + 12) % 12;
   const octave = Math.floor(midi / 12) - 1;
@@ -181,7 +181,7 @@ function staffYForMidi(midi, study) {
   return study.staffBottom - (diatonic - e4) * study.halfStep;
 }
 
-function voiceRibbonPoints(notes, project) {
+export function voiceRibbonPoints(notes, project) {
   const points = [];
   for (let index = 0; index < notes.length - 1; index += 1) {
     const before = notes[Math.max(0, index - 1)];
