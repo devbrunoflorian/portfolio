@@ -53,6 +53,7 @@ const scoreGpuMusicIndex = chapters.findIndex(chapter => chapter.dataset.movemen
 const mobileScoreScale = { opening: 1.12, code: .68, music: .95, art: .76, games: .58, closing: .66 };
 let scoreGpuPose = 0;
 let scoreGpuZoom = 1;
+let gpuEditorialFrame = { offset: { x: 0, y: 0 }, zoom: 1 };
 let scoreChapterBounds = [];
 let scoreChapterCenters = [];
 let scoreGpuOffsetStops = [];
@@ -224,7 +225,7 @@ function updateScoreThread(force = false) {
     y = values.y * window.innerHeight + startOffset.y + (endOffset.y - startOffset.y) * progress + verticalArc;
   }
   const target = { x, y, scale: values.scale, opacity: values.opacity, lead: values.lead, rotate: values.rotate };
-  let gpuEditorialFrame = { offset: { x: 0, y: 0 }, zoom: scoreGpuZoom };
+  gpuEditorialFrame = { offset: { x: 0, y: 0 }, zoom: scoreGpuZoom };
   if (scoreGpuScrollMode && scoreGpuMusicIndex >= 0 && scoreGpuCurves) {
     const musicReadingLine = chapterCenters[scoreGpuMusicIndex];
     const musicScale = window.innerWidth <= 700
@@ -238,6 +239,11 @@ function updateScoreThread(force = false) {
       scale: musicScale,
     };
     gpuEditorialFrame = createGpuEditorialFrame({ x, y, scale: values.scale }, musicFrame, scoreGpuZoom);
+    if (window.innerWidth <= 700 && index === 0) {
+      const openingProgress = progress * progress * (3 - 2 * progress);
+      const openingLift = 128 + 22 * clamp((window.innerWidth - 320) / 70, 0, 1);
+      gpuEditorialFrame.offset.y -= openingLift * (1 - openingProgress);
+    }
   }
   const now = performance.now();
   const elapsed = scoreCameraLastTime ? Math.min(64, now - scoreCameraLastTime) : 16;
@@ -636,7 +642,7 @@ if (scoreRibbonTransitionMode) {
 }
 
 if (scoreGpuScrollMode) {
-  import("./score-gpu-scroll.js?v=study-marker-hidden-1").then(module => module.mountAboutGpuScroll(root)).then(runtime => {
+  import("./score-gpu-scroll.js?v=mobile-clef-scale-3").then(module => module.mountAboutGpuScroll(root)).then(runtime => {
     updateGpuScroll = runtime.update;
     disposeGpuScroll = runtime.dispose;
     invalidateScoreLayout();

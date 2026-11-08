@@ -227,6 +227,14 @@ test('existing treble clef is converted to ribbon-space contours and triangulate
   const clefVertices=[...kinds.keys()].filter(index=>kinds[index]===5&&Math.abs(uvs[index*2]-clefAnchor)<1e-3);
   assert.ok(clefVertices.length>100);
   assert.ok(clefVertices.some(index=>offsets[index*2]!==0||offsets[index*2+1]!==0));
+  const mobileGeometry=buildRibbonGeometry(score,view,groups,engraving,[],undefined,clef,4);
+  const mobileKinds=mobileGeometry.attributes.kind.array,mobileOffsets=mobileGeometry.attributes.glyphOffset.array;
+  const mobileClefVertices=[...mobileKinds.keys()].filter(index=>mobileKinds[index]===5);
+  assert.equal(Math.max(...mobileClefVertices.map(index=>Math.abs(mobileOffsets[index*2+1]))),
+    4*Math.max(...clefVertices.map(index=>Math.abs(offsets[index*2+1]))),
+    'the narrow-screen clef grows around its staff-bottom anchor');
+  mobileGeometry.dispose();
+  assert.throws(()=>buildRibbonGeometry(score,view,groups,engraving,[],undefined,clef,0),/positive finite/);
   geometry.dispose();
 });
 

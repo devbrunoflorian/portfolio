@@ -1,7 +1,7 @@
 import * as THREE from './vendor/three-score.min.js';
 import { createTravelProjector } from './score-travel-geometry.js';
 import { readingFocus } from './score-focus-profile.js';
-import { buildRibbonGeometry, loadTrebleClefContours } from './score-gpu-ribbon-geometry.js?v=editorial-clef-5';
+import { buildRibbonGeometry, loadTrebleClefContours } from './score-gpu-ribbon-geometry.js?v=mobile-clef-scale-1';
 
 const BACKGROUND = [6 / 255, 6 / 255, 9 / 255];
 const TABLE_SIZE = 2048;
@@ -84,7 +84,8 @@ const fragmentShader = `
     if(vKind>3.5&&vKind<4.5){if(halo<.5)discard;gl_FragColor=vec4(${BACKGROUND.join(',')},0.);return;}
     vec3 source=mix(vec3(.811764706,.760784314,.886274510),vec3(1.,.862745098,.513725490),vGold);
     if(vVoice>.5)source=vVoice<1.5?vec3(.439215686,.658823529,1.):vec3(.764705882,.603921569,1.);
-    float protect=max(vGold,vHead*step(vDistance/viewportWidth,focus+.001));
+    float clef=step(4.5,vKind);
+    float protect=max(max(vGold,vHead*step(vDistance/viewportWidth,focus+.001)),clef);
     float t=smoothstep(.04,.70,vDistance/viewportWidth-focus)*fade*(1.-protect);
     float gray=dot(source,vec3(.2126,.7152,.0722));
     vec3 ink=mix(vec3(gray),source,mix(1.,.20,t))*mix(1.,.72,t);
@@ -93,8 +94,8 @@ const fragmentShader = `
     float edgeY=min(pixel.y,viewport.y-pixel.y);
     float edgeOpacity=smoothstep(0.,min(viewport.x*.16,180.),edgeX)*smoothstep(0.,min(viewport.y*.09,72.),edgeY);
     ink=mix(vec3(${BACKGROUND.join(',')}),ink,edgeOpacity);
-    // Alpha is an explicit gold mask, independent of the RGB ink color.
-    gl_FragColor=vec4(mix(vec3(${BACKGROUND.join(',')}),ink,mix(1.,.32,t)),vGold);
+    // Alpha carries explicit gold and clef focus masks, independent of ink color.
+    gl_FragColor=vec4(mix(vec3(${BACKGROUND.join(',')}),ink,mix(1.,.32,t)),max(vGold,clef));
   }`;
 
 const postFragment = `
@@ -135,9 +136,10 @@ export async function mountGpuRibbon(host, { score, view, points, groups, engrav
   const initial = createTravelProjector(width, height, score, 0, view, .2);
   const table = createRibbonFrameTable(initial.samples);
   const trebleClefContours = await loadTrebleClefContours();
+  const trebleClefScale = width <= 700 ? 4 : 1;
   const frames = new THREE.DataTexture(table.data, TABLE_SIZE, 2, THREE.RGBAFormat, THREE.FloatType);
   frames.needsUpdate = true;
-  let geometry = buildRibbonGeometry(score, view, groups, engraving, voicePaths, markerId, trebleClefContours);
+  let geometry = buildRibbonGeometry(score, view, groups, engraving, voicePaths, markerId, trebleClefContours, trebleClefScale);
   const focal = width * 1.45, near = width * .01, far = width * 20;
   const camera = new THREE.PerspectiveCamera(2 * Math.atan(height / (2 * focal)) * 180 / Math.PI, width / height, near, far);
   // The reference's world uses screen-down Y. Flip only the projection Y so
@@ -250,7 +252,7 @@ export async function mountGpuRibbon(host, { score, view, points, groups, engrav
   function setNotation(notation) {
     if (disposed) throw new Error('GPU ribbon is disposed.');
     const next = buildRibbonGeometry(score, notation.view, notation.groups, notation.engraving,
-      notation.voicePaths ?? [], markerId, trebleClefContours);
+      notation.voicePaths ?? [], markerId, trebleClefContours, trebleClefScale);
     const previous = geometry;
     geometry = next;
     mesh.geometry = next;

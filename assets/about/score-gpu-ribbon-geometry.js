@@ -56,7 +56,10 @@ function fill(contours, emit) {
 }
 
 /** Immutable source UVs, glyph offsets and attachment parameters; never rebuilt per pose. */
-export function buildRibbonGeometry(score, view, groups, engraving, voicePaths = [], markerId = DEFAULT_MARKER, trebleClefContours = []) {
+export function buildRibbonGeometry(score, view, groups, engraving, voicePaths = [], markerId = DEFAULT_MARKER, trebleClefContours = [], trebleClefScale = 1) {
+  if (!Number.isFinite(trebleClefScale) || trebleClefScale <= 0) {
+    throw new RangeError('Treble clef scale must be a positive finite number.');
+  }
   const attributes = { position: [], sourceUV: [], remap: [], glyphOffset: [], segmentEnd: [],
     segmentRemap: [], stroke: [], kind: [], gold: [], frontHead: [], arrivalBar: [], voice: [] };
   const point = (u, v, extra = {}) => ({ x: u, y: v, u, v, ...extra });
@@ -116,9 +119,10 @@ export function buildRibbonGeometry(score, view, groups, engraving, voicePaths =
   if (trebleClefContours.length) {
     const anchorU = view.x0 + (view.x1 - view.x0) * .12;
     const anchorV = score.staffBottom ?? score.staffLines.at(-1);
-    const contours = trebleClefContours.map(contour => contour.map(([x, y]) => point(anchorU, anchorV, {
-      x, y, kind: 5, offset: [x, y],
-    })));
+    const contours = trebleClefContours.map(contour => contour.map(([x, y]) => {
+      const offset = [x * trebleClefScale, y * trebleClefScale];
+      return point(anchorU, anchorV, { x: offset[0], y: offset[1], kind: 5, offset });
+    }));
     fill(contours, emit);
   }
 

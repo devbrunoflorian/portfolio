@@ -163,7 +163,7 @@ export async function mountAboutGpuScroll(root, host = root.querySelector('[data
     if (disposed || gpu || gpuLoading || gpuFailed || state.reducedMotion) return;
     gpuLoading = true;
     try {
-      const { mountGpuRibbon } = await import('./score-gpu-ribbon.js?v=editorial-frame-3');
+      const { mountGpuRibbon } = await import('./score-gpu-ribbon.js?v=mobile-clef-scale-2');
       if (disposed) return;
       gpu = await mountGpuRibbon(host, {
         score,
