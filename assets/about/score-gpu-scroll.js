@@ -4,7 +4,7 @@ import { scorePositionAtBeat } from './score-ribbon-timeline.js';
 import { drawScoreRibbon } from './score-ribbon-renderer.js';
 import { buildEngraving } from './score-engraving.js';
 import { buildCompoundGroups } from './score-compound-groups.js';
-import { createAdaptiveDpr, initialGpuPixelRatio, poseBetweenDocumentCenters } from './score-gpu-budget.js';
+import { createAdaptiveDpr, initialGpuPixelRatio } from './score-gpu-budget.js';
 
 const CHAPTER_POSES = { opening: 0, code: 0, music: 1, art: .52, games: .78, closing: 1 };
 const PITCH_STEP = [0, 0, 1, 1, 2, 3, 3, 4, 4, 5, 5, 6];
@@ -59,8 +59,6 @@ export async function mountAboutGpuScroll(root, host = root.querySelector('[data
   Object.assign(fallback.style, { position: 'absolute', inset: '0', display: 'block', width: '100%', height: '100%', pointerEvents: 'none' });
   host.append(fallback);
 
-  const codeReading = root.querySelector('.code-chapter .chapter-copy');
-  const musicStage = root.querySelector('.music-chapter .score-stage-spacer');
   const notation = selectedNotation();
   const state = { pose: 0, chapter: 'opening', motionEnabled: true, reducedMotion: false, timestamp: null };
   const dprBudget = createAdaptiveDpr(initialGpuPixelRatio(window.devicePixelRatio));
@@ -183,14 +181,6 @@ export async function mountAboutGpuScroll(root, host = root.querySelector('[data
     renderPose(state.pose, state.timestamp);
   }
 
-  function updateFromAnchors(timestamp) {
-    if (!codeReading || !musicStage) return 0;
-    const start = codeReading.getBoundingClientRect();
-    const end = musicStage.getBoundingClientRect();
-    return poseBetweenDocumentCenters(window.scrollY, window.innerHeight,
-      start.top + window.scrollY, start.height, end.top + window.scrollY, end.height);
-  }
-
   resizeFallback();
   const visibilityObserver = new IntersectionObserver(entries => {
     pageVisible = Boolean(entries[0]?.isIntersecting);
@@ -199,7 +189,6 @@ export async function mountAboutGpuScroll(root, host = root.querySelector('[data
       drawFallback(state.chapter);
       mountGpu();
     } else if (pageVisible && state.motionEnabled) {
-      state.pose = updateFromAnchors(performance.now());
       renderPose(state.pose, performance.now());
     }
   }, { threshold: 0 });
@@ -207,7 +196,6 @@ export async function mountAboutGpuScroll(root, host = root.querySelector('[data
   const onVisibility = () => {
     if (document.hidden) return;
     if (pageVisible && state.motionEnabled && !state.reducedMotion) {
-      state.pose = updateFromAnchors(performance.now());
       renderPose(state.pose, performance.now());
     } else if (pageVisible) drawFallback(state.chapter, true);
   };
@@ -227,10 +215,8 @@ export async function mountAboutGpuScroll(root, host = root.querySelector('[data
   return {
     update(nextState) {
       if (Number.isFinite(nextState.pose)) {
-        // Anchor-derived pose is authoritative and does not use camera easing.
+        // The main page supplies a pure, chapter-keyed pose from global scroll progress.
         state.pose = nextState.pose;
-      } else {
-        state.pose = updateFromAnchors(nextState.timestamp);
       }
       update({ ...nextState, pose: state.pose });
     },

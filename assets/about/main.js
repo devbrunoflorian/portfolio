@@ -2,6 +2,7 @@ import { score } from "./score.js?v=a1c14c40";
 import { createJourneyAudio, playbackPositionForDisplay } from "./audio.js";
 import { mountExperiments } from "./experiments.js";
 import { createScoreVisual, scoreStageOffsets } from "./score-visual.js";
+import { SCORE_CAMERA_POSE_STOPS, scoreJourneyAtReadingLine, scorePoseAtReadingLine } from "./score-camera-journey.js";
 
 const root = document.querySelector(".about-main");
 const query = new URLSearchParams(window.location.search);
@@ -27,6 +28,14 @@ const scoreCameraStops = [
   { x: -.035, y: -.030, scale: .60, opacity: .44, lead: .50, rotate: 0 },
   { x: 0, y: .04, scale: .68, opacity: .28, lead: .28, rotate: 0 },
 ];
+const scoreGpuCameraStops = [
+  { x: -.11, y: .02, scale: .62, opacity: .58, lead: .82, rotate: 0 },
+  { x: -.02, y: .02, scale: .60, opacity: .50, lead: .62, rotate: 0 },
+  { x: 0, y: .01, scale: .96, opacity: .78, lead: .98, rotate: 0 },
+  { x: -.01, y: .06, scale: .70, opacity: .58, lead: .56, rotate: 0 },
+  { x: 0, y: .16, scale: .50, opacity: .48, lead: .50, rotate: 0 },
+  { x: 0, y: .18, scale: .54, opacity: .38, lead: .28, rotate: 0 },
+];
 const scoreCameraAnchors = {
   opening: ".hero-field",
   code: ".code-score-anchor",
@@ -36,6 +45,7 @@ const scoreCameraAnchors = {
   closing: ".closing-links",
 };
 const mobileScoreScale = { opening: .72, code: .66, music: .95, art: .65, games: .56, closing: .66 };
+let scoreGpuPose = 0;
 let scoreChapterBounds = [];
 let scoreThreadNeedsMeasure = true;
 let scoreThreadLastScrollY = Number.NaN;
@@ -44,10 +54,6 @@ let scoreTransitionProgress = 0;
 let scoreTransitionTarget = 0;
 let scoreCameraCurrent = null;
 let scoreCameraLastTime = 0;
-// Each chapter enters on the previous frame, then holds its own composition for reading.
-// Let the score keep traveling while each chapter is read; it should not settle
-// after a brief camera move at the top of every section.
-const cameraTransitionPortion = scoreRibbonTransitionMode ? .42 : .18;
 function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
 function scoreAnchorFor(chapter) {
   const selector = scoreCameraAnchors[chapter?.dataset.movement];
@@ -75,10 +81,11 @@ const revealObserver = supportsViewTimeline ? null : new IntersectionObserver(en
 }, { rootMargin: "-12% 0px -18% 0px", threshold: 0 });
 if (revealObserver) revealTargets.forEach(element => revealObserver.observe(element));
 function cameraValue(key, index, progress) {
-  const before = scoreCameraStops[Math.max(0, index - 1)][key];
-  const start = scoreCameraStops[index][key];
-  const end = scoreCameraStops[index + 1][key];
-  const after = scoreCameraStops[Math.min(scoreCameraStops.length - 1, index + 2)][key];
+  const stops = scoreGpuScrollMode ? scoreGpuCameraStops : scoreCameraStops;
+  const before = stops[Math.max(0, index - 1)][key];
+  const start = stops[index][key];
+  const end = stops[index + 1][key];
+  const after = stops[Math.min(stops.length - 1, index + 2)][key];
   const squared = progress * progress;
   const cubed = squared * progress;
   const value = .5 * (2 * start + (-before + end) * progress + (2 * before - 5 * start + 4 * end - after) * squared + (-before + 3 * start - 3 * end + after) * cubed);
@@ -101,21 +108,22 @@ function updateScoreThread(force = false) {
     chapterIndex = scoreChapterBounds.findIndex(bounds => storyPoint < bounds.top);
     chapterIndex = chapterIndex < 0 ? scoreChapterBounds.length - 1 : Math.max(0, chapterIndex - 1);
   }
-  const chapterBounds = scoreChapterBounds[chapterIndex];
-  const chapterProgress = clamp((storyPoint - chapterBounds.top) / Math.max(1, chapterBounds.height), 0, 1);
-  scoreTransitionTarget = reduceMotion.matches
-    ? chapterIndex / Math.max(1, chapters.length - 1)
-    : clamp((chapterIndex + chapterProgress) / Math.max(1, chapters.length), 0, 1);
-  let index = chapterIndex;
-  let progress = 0;
-  if (chapterIndex > 0 && chapterProgress < cameraTransitionPortion) {
-    index = chapterIndex - 1;
-    progress = chapterProgress / cameraTransitionPortion;
-  } else if (chapterIndex === scoreCameraStops.length - 1) {
-    index = chapterIndex - 1;
-    progress = 1;
+  const chapterCenters = scoreChapterBounds.map(bounds => bounds.top + bounds.height / 2);
+  const journey = scoreJourneyAtReadingLine(storyPoint, chapterCenters);
+  if (scoreGpuScrollMode) {
+    const poseStops = window.innerWidth <= 700 ? SCORE_CAMERA_POSE_STOPS.mobile : SCORE_CAMERA_POSE_STOPS.desktop;
+    scoreGpuPose = scorePoseAtReadingLine(storyPoint, chapterCenters, poseStops).pose;
   }
-  progress = progress * progress * (3 - 2 * progress);
+  let index = journey.index;
+  let progress = journey.progress;
+  if (reduceMotion.matches) {
+    const settledIndex = clamp(chapterIndex, 0, scoreCameraStops.length - 1);
+    scoreTransitionTarget = settledIndex / Math.max(1, scoreCameraStops.length - 1);
+    index = Math.min(settledIndex, scoreCameraStops.length - 2);
+    progress = settledIndex === scoreCameraStops.length - 1 ? 1 : 0;
+  } else {
+    scoreTransitionTarget = journey.normalizedProgress;
+  }
   const mainBounds = root.getBoundingClientRect();
   const enter = clamp((window.innerHeight - mainBounds.top) / (window.innerHeight * .42), 0, 1);
   const leave = clamp(mainBounds.bottom / (window.innerHeight * .42), 0, 1);
@@ -147,7 +155,7 @@ function updateScoreThread(force = false) {
   const now = performance.now();
   const elapsed = scoreCameraLastTime ? Math.min(64, now - scoreCameraLastTime) : 16;
   scoreCameraLastTime = now;
-  if (!scoreCameraCurrent || force || reduceMotion.matches) {
+  if (!scoreCameraCurrent || force || reduceMotion.matches || scoreGpuScrollMode) {
     scoreCameraCurrent = { ...target };
     scoreTransitionProgress = scoreTransitionTarget;
   } else {
@@ -398,6 +406,7 @@ function paintScenes(timestamp) {
   } else if (visible && scoreGpuScrollMode && updateGpuScroll) {
     updateGpuScroll({
       chapter: root.dataset.activeMovement ?? "opening",
+      pose: scoreGpuPose,
       motionEnabled: !motionPaused && !reduceMotion.matches,
       reducedMotion: reduceMotion.matches,
       timestamp,
