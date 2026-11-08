@@ -175,7 +175,7 @@ export async function mountGpuRibbon(host, { score, view, points, groups, engrav
     frameTextureBytes: table.data.byteLength, vertices: geometry.attributes.position.count,
     hardwareAcceleration: 'Unknown; renderer string does not prove hardware acceleration.',
     presentation: 'Not measured; next RAF is scheduling latency only.', contextLost: false };
-  let disposed = false, cachedPose = null, lastVariant = 'C';
+  let disposed = false, cachedPose = null, cachedZoom = null, lastVariant = 'C';
   const projectorScratch = {}, focusScratch = {}, reusableSample = {};
   let lastSample = null;
   const originalGL=new Map();metrics.bufferUploadCalls=0;metrics.bufferUploadBytes=0;metrics.actualFrameUploads=0;
@@ -204,8 +204,8 @@ export async function mountGpuRibbon(host, { score, view, points, groups, engrav
   }
   setPixelRatio(pixelRatio);
 
-  function updatePose(pose) {
-    const project = createTravelProjector(width, height, score, pose, view, .2, true, projectorScratch);
+  function updatePose(pose, cameraZoom = 1) {
+    const project = createTravelProjector(width, height, score, pose, view, .2, true, projectorScratch, cameraZoom);
     uniforms.arcStart.value = pose * .65 * table.length;
     uniforms.arcSpan.value = project.arcLength;
     const arrive = Math.max(0, Math.min(1, (pose - .65) / .2));
@@ -220,6 +220,7 @@ export async function mountGpuRibbon(host, { score, view, points, groups, engrav
       canvas.dataset.marker = JSON.stringify(project(marker.x, marker.y));
     }
     cachedPose = pose;
+    cachedZoom = cameraZoom;
   }
 
   function pollGPU() {
@@ -234,16 +235,17 @@ export async function mountGpuRibbon(host, { score, view, points, groups, engrav
     }
   }
 
-  function draw(pose, variant = 'C', captureSample = diagnostics) {
+  function draw(pose, variant = 'C', captureSample = diagnostics, cameraZoom = 1) {
     if (disposed) throw new Error('GPU ribbon is disposed.');
     if (metrics.contextLost) return { pose, variant, cpuMs: 0, gpuMs: null, gpuStatus: 'context-lost' };
     if (!Number.isFinite(pose) || pose < 0 || pose > 1) throw new RangeError('Pose must be in [0,1].');
-    if (cachedPose === pose && lastVariant === variant && lastSample) return lastSample;
+    if (!Number.isFinite(cameraZoom) || cameraZoom <= 0) throw new RangeError('Camera zoom must be a positive finite number.');
+    if (cachedPose === pose && cachedZoom === cameraZoom && lastVariant === variant && lastSample) return lastSample;
     const started = performance.now();
     if (diagnostics || pending.length) pollGPU();
     const uploadStart=metrics.bufferUploadCalls,textureStart=metrics.actualFrameUploads;
-    const poseCached = cachedPose === pose;
-    if (!poseCached) updatePose(pose);
+    const poseCached = cachedPose === pose && cachedZoom === cameraZoom;
+    if (!poseCached) updatePose(pose, cameraZoom);
     uniforms.halo.value = pose < .85 && variant !== 'A' ? 1 : 0;
     uniforms.fade.value = pose < .4 && variant !== 'A' ? 1 : 0;
     postMaterial.uniforms.blur.value = variant === 'C' && pose < .85 ? 1 : 0;

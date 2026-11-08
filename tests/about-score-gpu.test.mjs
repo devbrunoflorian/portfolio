@@ -100,6 +100,15 @@ test('reused projector scratch preserves coordinates and object identity across 
   }
 });
 
+test('camera zoom moves the front pose closer without changing its target',()=>{
+  const base=createTravelProjector(width,height,score,1,view);
+  const zoomed=createTravelProjector(width,height,score,1,view,.2,true,null,2.5);
+  const distance=project=>Math.hypot(...project.camera.position.map((value,index)=>value-project.camera.target[index]));
+  assert.deepEqual(zoomed.camera.target,base.camera.target);
+  assert.ok(Math.abs(distance(base)/distance(zoomed)-2.5)<1e-10);
+  assert.throws(()=>createTravelProjector(width,height,score,1,view,.2,true,null,0),RangeError);
+});
+
 test('adaptive DPR starts at 1.5, only steps down after 60 consecutive frames above 20ms p95',()=>{
   assert.equal(initialGpuPixelRatio(3),1.5);
   assert.equal(initialGpuPixelRatio(1),1);

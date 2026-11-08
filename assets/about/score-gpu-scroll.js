@@ -64,10 +64,10 @@ export async function mountAboutGpuScroll(root, host = root.querySelector('[data
   host.append(fallback);
 
   const notation = selectedNotation();
-  const state = { pose: 0, chapter: 'opening', motionEnabled: true, reducedMotion: false, timestamp: null };
+  const state = { pose: 0, zoom: 1, chapter: 'opening', motionEnabled: true, reducedMotion: false, timestamp: null };
   const dprBudget = createAdaptiveDpr(initialGpuPixelRatio(window.devicePixelRatio));
   let width = 0, height = 0, pixelRatio = initialGpuPixelRatio(window.devicePixelRatio);
-  let gpu = null, gpuLoading = false, gpuFailed = false, pageVisible = false, disposed = false, lastPose = null;
+  let gpu = null, gpuLoading = false, gpuFailed = false, pageVisible = false, disposed = false, lastPose = null, lastZoom = null;
   let lastFallbackChapter = '', fallbackDirty = true, resizeFrame = 0;
 
   function resizeFallback() {
@@ -92,12 +92,13 @@ export async function mountAboutGpuScroll(root, host = root.querySelector('[data
     context.setTransform(ratio, 0, 0, ratio, 0, 0);
     const beat = STATIC_SCORE_BEAT;
     const pose = fallbackPose(chapter);
+    const mobileCrop = width <= 700 ? (notation.view.x1 - notation.view.x0) * .25 : 0;
     drawScoreRibbon(context, width, height, score, {
       progress: pose,
       foldProgress: pose,
       motionEnabled: false,
-      viewStart: notation.view.x0,
-      viewEnd: notation.view.x1,
+      viewStart: notation.view.x0 + mobileCrop,
+      viewEnd: notation.view.x1 - mobileCrop,
       playbackBeat: null,
       playbackX: scorePositionAtBeat(beat),
     });
@@ -119,15 +120,16 @@ export async function mountAboutGpuScroll(root, host = root.querySelector('[data
 
   function renderPose(pose, timestamp) {
     if (!gpu || gpuFailed || !pageVisible || document.hidden || state.reducedMotion || !state.motionEnabled) return;
-    if (lastPose === pose) return;
+    if (lastPose === pose && lastZoom === state.zoom) return;
     const decision = Number.isFinite(timestamp) ? dprBudget.observe(timestamp) : null;
     if (decision?.lowered) {
       pixelRatio = decision.pixelRatio;
       gpu.setPixelRatio(pixelRatio);
     }
-    gpu.draw(pose, 'C', false);
+    gpu.draw(pose, 'C', false, state.zoom);
     exposeGpu();
     lastPose = pose;
+    lastZoom = state.zoom;
     host.dataset.scoreGpuPose = pose.toFixed(6);
     host.dataset.scoreGpuDpr = String(pixelRatio);
   }
@@ -208,7 +210,7 @@ export async function mountAboutGpuScroll(root, host = root.querySelector('[data
     resizeFrame = requestAnimationFrame(async () => {
       resizeFrame = 0;
       resizeFallback();
-      if (gpu) { gpu.canvas.removeEventListener('webglcontextlost', onContextLost);gpu.dispose();gpu = null;lastPose = null; }
+      if (gpu) { gpu.canvas.removeEventListener('webglcontextlost', onContextLost);gpu.dispose();gpu = null;lastPose = null;lastZoom = null; }
       if (state.reducedMotion) drawFallback(state.chapter, true);
       else if (pageVisible) await mountGpu();
     });

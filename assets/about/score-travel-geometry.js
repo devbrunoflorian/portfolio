@@ -33,7 +33,8 @@ function ribbonSamples(width,height,cache){
   if(worldCache.size>=8)worldCache.delete(worldCache.keys().next().value);
   if(cache)worldCache.set(key,world);return world;
 }
-export function createTravelProjector(width,height,study,progress,view=study,minimumDistance=.2,cache=true,scratch=null){
+export function createTravelProjector(width,height,study,progress,view=study,minimumDistance=.2,cache=true,scratch=null,cameraZoom=1){
+  if(!Number.isFinite(cameraZoom)||cameraZoom<=0)throw new RangeError('Camera zoom must be a positive finite number.');
   const p=Math.max(0,Math.min(1,progress));
   const {samples,positions,normals,distances,length}=ribbonSamples(width,height,cache);
   const reuse=scratch!==null;
@@ -89,7 +90,7 @@ export function createTravelProjector(width,height,study,progress,view=study,min
   }
   const zoomOut=Math.max(0,Math.min(1,(p-.6)/.4));
   const zoomEase=zoomOut*zoomOut*(3-2*zoomOut);
-  const focal=width*1.45,distance=focal*span/(width*.94)*(minimumDistance+(1-minimumDistance)*zoomEase);
+  const focal=width*1.45,distance=focal*span/(width*.94)*(minimumDistance+(1-minimumDistance)*zoomEase)/cameraZoom;
   const orbit=Math.sin(Math.PI*p);
   if(reuse){
     cameraPosition[0]=center[0]+Math.sin(p*Math.PI*2)*distance*.15*orbit;

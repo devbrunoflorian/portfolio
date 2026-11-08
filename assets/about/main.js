@@ -50,6 +50,7 @@ const scoreCameraAnchors = {
 };
 const mobileScoreScale = { opening: .72, code: .66, music: .95, art: .65, games: .56, closing: .66 };
 let scoreGpuPose = 0;
+let scoreGpuZoom = 1;
 let scoreChapterBounds = [];
 let scoreChapterCenters = [];
 let scoreGpuOffsetStops = [];
@@ -139,6 +140,7 @@ function updateScoreThread(force = false) {
         chapterCenters,
         chapters.map(chapter => mobileScoreScale[chapter.dataset.movement]),
       ),
+      mobileZoom: createScoreCurve(chapterCenters, [1, 1, 2.5, 1, 1, 1], .74),
       offsetX: createScoreCurve(chapterCenters, scoreGpuOffsetStops.map(stop => stop.x)),
       offsetY: createScoreCurve(chapterCenters, scoreGpuOffsetStops.map(stop => stop.y)),
     };
@@ -197,6 +199,9 @@ function updateScoreThread(force = false) {
     const endScale = mobileScoreScale[chapters[Math.min(chapters.length - 1, index + 1)].dataset.movement];
     values.scale = startScale + (endScale - startScale) * progress;
   }
+  scoreGpuZoom = scoreGpuScrollMode && window.innerWidth <= 700
+    ? scoreGpuCurves.mobileZoom(cameraReadingLine).value
+    : 1;
   let x;
   let y;
   if (scoreGpuScrollMode) {
@@ -472,6 +477,7 @@ function paintScenes(timestamp) {
     updateGpuScroll({
       chapter: root.dataset.activeMovement ?? "opening",
       pose: scoreGpuPose,
+      zoom: scoreGpuZoom,
       motionEnabled: !motionPaused && !reduceMotion.matches,
       reducedMotion: reduceMotion.matches,
       timestamp,
