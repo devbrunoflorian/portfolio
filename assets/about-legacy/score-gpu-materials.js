@@ -11,6 +11,9 @@ export const SCORE_MATERIAL = Object.freeze({
   SPATTER: 9,
   HEAD_WASH: 10,
   BEAM_WASH: 11,
+  CODE_CONTACT: 12,
+  CODE_TRACE: 13,
+  CODE_TERMINAL: 14,
 });
 
 const SPRITE_SIZE = 8;

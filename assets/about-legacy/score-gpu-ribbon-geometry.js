@@ -136,6 +136,20 @@ export function buildRibbonGeometry(score, view, groups, engraving, voicePaths =
       emit(center, a, b);
     }
   }
+  function circuitContact(anchor, width, height, withTrace) {
+    const rx=width*.78, ry=height*.78;
+    const center=point(anchor.u,anchor.v,{kind:1,materialType:SCORE_MATERIAL.CODE_CONTACT,spriteUV:[.5,.5]});
+    const corners=[[-1,0],[-.5,-1],[.5,-1],[1,0],[.5,1],[-.5,1]];
+    const face=([x,y])=>({...center,offset:[x*rx,y*ry],spriteUV:[(x+1)/2,(y+1)/2]});
+    for(let i=0;i<corners.length;i++)emit(center,face(corners[i]),face(corners[(i+1)%corners.length]));
+    if(!withTrace)return;
+    const offsets=[[0,0],[2,0],[4,-2],[4,-6],[8,-6]];
+    const path=offsets.map(([du,dv])=>point(anchor.u,anchor.v+dv,{remap:du}));
+    stroke(path,.10,{materialType:SCORE_MATERIAL.CODE_TRACE});
+    const end=path.at(-1), terminal={...end,kind:1,materialType:SCORE_MATERIAL.CODE_TERMINAL};
+    const q=[[-.35,-.35],[.35,-.35],[.35,.35],[-.35,.35]].map(([x,y])=>({...terminal,offset:[x,y],spriteUV:[x/.7+.5,y/.7+.5]}));
+    emit(q[0],q[1],q[2]);emit(q[0],q[2],q[3]);
+  }
   function pigmentDabs(anchor, seed, radius) {
     let hash = 0;
     for (const character of String(seed ?? '')) hash = (hash * 31 + character.charCodeAt(0)) >>> 0;
@@ -240,6 +254,7 @@ export function buildRibbonGeometry(score, view, groups, engraving, voicePaths =
       const width = Math.max(...contours.map(p => p.u)) - Math.min(...contours.map(p => p.u));
       const height = Math.max(...contours.map(p => p.v)) - Math.min(...contours.map(p => p.v));
       pigmentDabs(h.anchor, h.noteId, Math.max(width, height));
+      circuitContact(h.anchor,width,height,h===group.heads[0]);
     }
     for (const a of group.accidents) glyph(a, SCORE_MATERIAL.ACCIDENTAL);
     const tuplets = group.tuplets ?? (group.number ? [group.number] : []);

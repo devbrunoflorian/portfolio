@@ -112,6 +112,17 @@ const fragmentShader = `
     float clef=step(${(SCORE_MATERIAL.CLEF - 0.5).toFixed(1)},vMaterialType)*(1.-step(${(SCORE_MATERIAL.CLEF + 0.5).toFixed(1)},vMaterialType));
     float triplet=step(${(SCORE_MATERIAL.TRIPLET - 0.5).toFixed(1)},vMaterialType)*(1.-step(${(SCORE_MATERIAL.TRIPLET + 0.5).toFixed(1)},vMaterialType));
     float splatter=(1.-step(9.5,vMaterialType))*step(${(SCORE_MATERIAL.SPATTER - 0.5).toFixed(1)},vMaterialType);
+    if(vMaterialType>11.5){
+      if(codeWeight<.001||glowPass>.5)discard;
+      vec2 local=clamp(vSpriteUV,vec2(0.),vec2(1.));
+      float rim=smoothstep(.55,.87,max(abs(local.x-.5),abs(local.y-.5))*2.);
+      vec3 circuit=mix(vec3(.045,.065,.13),vec3(.30,.68,.94),rim);
+      if(vMaterialType>12.5)circuit=vec3(.22,.52,.78);
+      if(vMaterialType>13.5)circuit=mix(vec3(.12,.22,.40),vec3(.61,.44,.92),rim);
+      vec2 screen=gl_FragCoord.xy/pixelRatio;
+      float edge=smoothstep(0.,min(viewport.x*.16,180.),min(screen.x,viewport.x-screen.x));
+      gl_FragColor=vec4(mix(vec3(${BACKGROUND.join(',')}),circuit,codeWeight*edge),0.);return;
+    }
     if(vMaterialType>9.5){
       if(artWeight<.001||pigmentReady<.5||glowPass>.5)discard;
       vec2 paintUV=clamp(vSpriteUV,vec2(.015),vec2(.985));
