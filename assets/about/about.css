@@ -84,6 +84,25 @@ body { background: var(--about-bg); color: var(--about-ink); }
 .hero-movements small { grid-column: 2; color: #a49aad; font-size: 12px; line-height: 1.5; }
 .movement-arrow { position: absolute; right: 20px; top: 22px; color: #9d80bd; }
 .hero-movements a:hover { color: var(--about-violet); }
+.about-hero { min-height: calc(100svh - 64px); padding-top: clamp(24px, 4vh, 42px); }
+.about-hero .page-index { position: relative; z-index: 2; }
+.hero-composition { grid-template-columns: minmax(0, 1.14fr) minmax(390px, .86fr); gap: clamp(24px, 4vw, 72px); min-height: clamp(500px, 68svh, 680px); }
+.hero-field { isolation: isolate; }
+.hero-field::before { inset: 12% -8% 4% -20%; background: radial-gradient(ellipse at 48% 55%, #7f45a22b, transparent 54%), radial-gradient(ellipse at 78% 62%, #1a63ad25, transparent 49%); }
+.hero-field::after { content: ""; position: absolute; z-index: -1; inset: 18% -24% 12% -32%; border: 1px solid #7f63a01b; border-radius: 50%; transform: rotate(-13deg) scaleY(.48); box-shadow: 0 0 0 34px #7f63a00b, 0 0 0 72px #7f63a008; pointer-events: none; }
+.hero-copy { justify-self: end; width: min(100%, 580px); padding-left: 0; }
+.hero-copy .section-kicker { margin-bottom: clamp(24px, 4vh, 42px) !important; color: #bba2d2; }
+.hero-copy h1 { max-width: 590px; margin-left: auto; font-size: clamp(58px, 5.4vw, 92px); line-height: .98; }
+.hero-intro { max-width: 365px; margin-left: auto !important; }
+.hero-actions { margin-left: auto; justify-content: flex-start; max-width: 365px; }
+.hero-movements { position: relative; z-index: 2; }
+.hero-movements a { transition: color .2s ease, padding-left .25s ease; }
+.hero-movements a + a { border-left: 1px solid #35273f; }
+.hero-movements a:hover { padding-left: 30px; }
+@media (max-width: 900px) {
+  .hero-composition { grid-template-columns: minmax(0, 1fr) minmax(340px, .95fr); gap: 20px; }
+  .hero-copy h1 { font-size: clamp(54px, 7vw, 72px); }
+}
 .about-score-thread, .about-score-leads[data-score-leads-global] { position: fixed; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; user-select: none; }
 .about-score-thread { z-index: 0; }
 .about-score-leads[data-score-leads-global] { z-index: 1; opacity: var(--lead-opacity, .76); }
@@ -347,7 +366,8 @@ body[data-score-ribbon-transition="true"] .score-figure :is(.score-scene-fallbac
   .explore-link { font-size: 12px; }
   .hero-field { height: 220px; width: 100%; margin-top: 3px; }
   .hero-movements { grid-template-columns: 1fr 1fr; }
-  .hero-movements a { padding: 19px 8px 21px 0; grid-template-columns: 22px 1fr; gap: 5px; font-size: 13px; }
+  .hero-movements a { min-width: 0; padding: 19px 8px 21px 0; grid-template-columns: 22px minmax(0, 1fr); gap: 5px; font-size: 13px; }
+  .hero-movements small { display: none; }
   .hero-movements a + a { padding-left: 0; }
   .hero-movements small { font-size: 11px; }
   .journey-bar { left: 0; right: 0; padding: 5px 12px; gap: 6px; min-height: 56px; bottom: 0; }
