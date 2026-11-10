@@ -162,9 +162,9 @@ body[data-score-gpu-scroll="true"] .about-rebuild .opening-clef,
 body[data-score-gpu-scroll="true"] .about-rebuild .opening-note { visibility: hidden; }
 body[data-score-gpu-scroll="true"] .about-rebuild .opening-scene { background: none; }
 body[data-score-gpu-scroll="true"] .about-rebuild .opening-scene::after { content: none; }
-body[data-score-gpu-scroll="true"] .about-rebuild :is(.chapter-copy, .opening-copy, .chapter-heading, .art-copy, .games-copy, .closing-links, .stack-panel, .music-controls, .score-frame figcaption) { isolation: isolate; }
-body[data-score-gpu-scroll="true"] .about-rebuild :is(.chapter-copy, .opening-copy, .chapter-heading > div, .chapter-heading > p, .art-copy, .games-copy, .closing-links, .music-controls > p, .about-mixer, .score-frame figcaption) { position: relative; isolation: isolate; }
-body[data-score-gpu-scroll="true"] .about-rebuild :is(.chapter-copy, .opening-copy, .chapter-heading > div, .chapter-heading > p, .art-copy, .games-copy, .closing-links, .music-controls > p, .about-mixer, .score-frame figcaption)::before {
+body[data-score-gpu-scroll="true"] .about-rebuild :is(.chapter-copy, .opening-copy h1, .opening-intro, .opening-actions, .chapter-heading, .art-copy, .games-copy, .closing-links, .stack-panel, .music-controls, .score-frame figcaption) { isolation: isolate; }
+body[data-score-gpu-scroll="true"] .about-rebuild :is(.chapter-copy, .opening-copy h1, .opening-intro, .opening-actions, .chapter-heading > div, .chapter-heading > p, .art-copy, .games-copy, .closing-links, .music-controls > p, .about-mixer, .score-frame figcaption) { position: relative; isolation: isolate; }
+body[data-score-gpu-scroll="true"] .about-rebuild :is(.chapter-copy, .opening-copy h1, .opening-intro, .opening-actions, .chapter-heading > div, .chapter-heading > p, .art-copy, .games-copy, .closing-links, .music-controls > p, .about-mixer, .score-frame figcaption)::before {
   content: "";
   position: absolute;
   z-index: -1;
@@ -230,7 +230,7 @@ body[data-score-gpu-scroll="true"] .about-rebuild .stack-panel::before { content
   .world-dialog { padding: 10px; }
   .world-dialog-scene { inset: 62px 8px 54px; }
   .world-dialog-label { right: 12px; bottom: 12px; }
-  body[data-score-gpu-scroll="true"] .about-rebuild :is(.chapter-copy, .opening-copy, .chapter-heading > div, .chapter-heading > p, .art-copy, .games-copy, .closing-links, .music-controls > p, .about-mixer, .score-frame figcaption)::before { inset: -20px -22px; }
+  body[data-score-gpu-scroll="true"] .about-rebuild :is(.chapter-copy, .opening-copy h1, .opening-intro, .opening-actions, .chapter-heading > div, .chapter-heading > p, .art-copy, .games-copy, .closing-links, .music-controls > p, .about-mixer, .score-frame figcaption)::before { inset: -20px -22px; }
 }
 
 @media (max-width: 360px) {

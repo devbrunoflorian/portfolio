@@ -49,6 +49,8 @@ export function createAboutCamera(root) {
       ? MOBILE_ZOOM
       : [1.06, .82, Math.min(.96, 1630 / (window.innerWidth * .94)), 1.12, .69, .66];
     const frames = measureJourneyFrames(anchors, poses, zooms, mobile);
+    // The decorative mobile anchor overflows the viewport; frame the visible stage.
+    if (mobile) frames[0] = { x: window.innerWidth * .10, y: -window.innerHeight * .36 };
     const curve = values => createScoreCurve(centers, values, .65);
 
     layout = {

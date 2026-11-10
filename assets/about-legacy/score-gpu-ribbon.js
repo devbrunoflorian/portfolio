@@ -50,6 +50,15 @@ const vertexShader = `
     vec3 world=frameAt(f,.25)+normalize(frameAt(f,.75))*(uv.y-middle)*unit;
     return resolutionView(modelViewMatrix*vec4(world,1.),u,(uv.y-middle)*unit,journey,viewport,focal);
   }
+  float entryGlyphAspect(float sourceX){
+    if(journey<0.||journey>=1.)return aspect;
+    float u=clamp((sourceX-sourceRange.x)/(sourceRange.y-sourceRange.x),0.,1.);
+    float portrait=1.-smoothstep(.85,1.24,viewport.x/viewport.y);
+    float tangent=(.48+.25*3.14*cos(3.14*u)+.14*6.28*cos(6.28*u))*mix(1.,1.52,portrait);
+    float depth=mix(.48,2.45,smoothstep(0.,1.,u));
+    float entry=unit*(sourceRange.y-sourceRange.x)/max(abs(tangent)*viewport.x*depth,viewport.x*.08);
+    return mix(aspect,entry,1.-smoothstep(.14,.9,journey));
+  }
   vec4 screenOffset(vec4 clip, vec2 offset, float scale){
     clip.xy+=offset*scale*vec2(2.,-2.)/viewport*clip.w;return clip;
   }
@@ -58,7 +67,7 @@ const vertexShader = `
     float gold=protection.x,frontHead=protection.y;
     float arrivalBar=role.x,voice=role.y;
     vec2 source=sourceUV;
-    if(kind>4.5&&kind<5.5)source+=glyphOffset*vec2(aspect,1.);
+    if(kind>4.5&&kind<5.5)source+=glyphOffset*vec2(entryGlyphAspect(source.x),1.);
     vec4 view=projectUV(source,remap);
     vSourceX=source.x+remap*aspect;
     vSourceY=source.y;
