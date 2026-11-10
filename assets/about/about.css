@@ -150,6 +150,30 @@ html[data-content-id="about"] .site-footer { width: min(100% - 2 * var(--about-g
 .world-close { position: relative; z-index: 2; min-height: 46px; padding: 0 16px; border: 1px solid rgb(193 154 255 / 46%); border-radius: 999px; color: var(--about-ink); background: rgb(17 13 24 / 86%); font: inherit; cursor: pointer; }
 .world-dialog-label { position: absolute; z-index: 2; right: 22px; bottom: 22px; color: var(--about-muted); font-size: 11px; letter-spacing: .15em; text-transform: uppercase; }
 
+/* The score renderer is a single viewport layer; chapter copy stays in the DOM above it. */
+.about-rebuild > .about-score-thread { position: fixed; z-index: 0; inset: 0; overflow: hidden; pointer-events: none; user-select: none; }
+.about-rebuild > :is(.about-opening, .about-chapter, .score-transition, .about-closing) { position: relative; z-index: 1; }
+.about-score-thread canvas { display: block; width: 100%; height: 100%; pointer-events: none; }
+body[data-score-gpu-scroll="true"] .about-rebuild .score-frame .score-window,
+body[data-score-gpu-scroll="true"] .about-rebuild .score-transition,
+body[data-score-gpu-scroll="true"] .about-rebuild .opening-staff,
+body[data-score-gpu-scroll="true"] .about-rebuild .opening-clef,
+body[data-score-gpu-scroll="true"] .about-rebuild .opening-note { visibility: hidden; }
+body[data-score-gpu-scroll="true"] .about-rebuild .opening-scene { background: none; }
+body[data-score-gpu-scroll="true"] .about-rebuild .opening-scene::after { content: none; }
+body[data-score-gpu-scroll="true"] .about-rebuild :is(.chapter-copy, .opening-copy, .chapter-heading, .art-copy, .games-copy, .closing-links, .stack-panel, .music-controls, .score-frame figcaption) { isolation: isolate; }
+body[data-score-gpu-scroll="true"] .about-rebuild :is(.chapter-copy, .opening-copy, .chapter-heading > div, .chapter-heading > p, .art-copy, .games-copy, .closing-links, .music-controls > p, .about-mixer, .score-frame figcaption) { position: relative; isolation: isolate; }
+body[data-score-gpu-scroll="true"] .about-rebuild :is(.chapter-copy, .opening-copy, .chapter-heading > div, .chapter-heading > p, .art-copy, .games-copy, .closing-links, .music-controls > p, .about-mixer, .score-frame figcaption)::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: -30px -42px;
+  pointer-events: none;
+  background: radial-gradient(ellipse 62% 62% at center, #060609 0%, rgb(6 6 9 / 94%) 46%, rgb(6 6 9 / 72%) 69%, transparent 100%);
+}
+body[data-score-gpu-scroll="true"] .about-rebuild .art-copy::before { inset: -42px -62px; background: radial-gradient(ellipse 70% 65% at center, #060609 0%, rgb(6 6 9 / 96%) 48%, rgb(6 6 9 / 78%) 68%, transparent 100%); }
+body[data-score-gpu-scroll="true"] .about-rebuild .stack-panel::before { content: none; }
+
 @media (max-width: 900px) {
   .about-opening { grid-template-columns: minmax(0, .8fr) minmax(310px, 1fr); }
   .about-code { grid-template-columns: minmax(0, .72fr) minmax(0, 1.28fr); gap: 34px; }
@@ -205,6 +229,7 @@ html[data-content-id="about"] .site-footer { width: min(100% - 2 * var(--about-g
   .world-dialog { padding: 10px; }
   .world-dialog-scene { inset: 62px 8px 54px; }
   .world-dialog-label { right: 12px; bottom: 12px; }
+  body[data-score-gpu-scroll="true"] .about-rebuild :is(.chapter-copy, .opening-copy, .chapter-heading > div, .chapter-heading > p, .art-copy, .games-copy, .closing-links, .music-controls > p, .about-mixer, .score-frame figcaption)::before { inset: -20px -22px; }
 }
 
 @media (max-width: 360px) {

@@ -1,1 +1,1 @@
-import "./main.js?about-fresh-1";
+import "./main.js?about-scene-1";

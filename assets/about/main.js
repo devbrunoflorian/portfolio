@@ -1,5 +1,6 @@
 import { createJourneyAudio } from "../about-legacy/audio.js";
 import { score } from "../about-legacy/score.js";
+import { mountAboutScene } from "./scene/runtime.js?v=about-scene-1";
 
 const page = document.querySelector("[data-about-page]");
 if (!page) throw new Error("About root is missing");
@@ -17,6 +18,7 @@ let activeChapter = "opening";
 let framePending = false;
 let motionPaused = false;
 let restoreFocus = null;
+let sceneRuntime = null;
 
 function formatTime(seconds) {
   const value = Math.max(0, Math.floor(seconds));
@@ -38,6 +40,7 @@ function renderPlayback(state) {
       ? (english ? "Audio unavailable" : "Áudio indisponível")
       : initialStatus;
   statusLabels.forEach(label => { label.textContent = status; });
+  requestSceneFrame();
 }
 
 function togglePlayback() {
@@ -85,7 +88,6 @@ const chapterObserver = new IntersectionObserver(entries => {
   if (nextChapter === activeChapter) return;
   activeChapter = nextChapter;
   page.dataset.activeChapter = nextChapter;
-  audio.setMovement(nextChapter);
 }, { rootMargin: "-42% 0px -42% 0px", threshold: [0, .15, .35, .6] });
 chapters.forEach(chapter => chapterObserver.observe(chapter));
 
@@ -116,6 +118,13 @@ function updateScrollScene() {
     }
   }
   page.querySelector("[data-player-dock]")?.toggleAttribute("data-visible", scrollY > innerHeight * .58);
+  sceneRuntime?.update({
+    chapter: activeChapter,
+    motionEnabled: !motionPaused,
+    reducedMotion: reducedMotion.matches,
+    playbackSnapshot: audio.snapshot(),
+    timestamp: performance.now(),
+  });
 }
 
 function requestSceneFrame() {
@@ -124,7 +133,10 @@ function requestSceneFrame() {
   requestAnimationFrame(updateScrollScene);
 }
 window.addEventListener("scroll", requestSceneFrame, { passive: true });
-window.addEventListener("resize", requestSceneFrame, { passive: true });
+window.addEventListener("resize", () => {
+  sceneRuntime?.invalidate();
+  requestSceneFrame();
+}, { passive: true });
 reducedMotion.addEventListener?.("change", requestSceneFrame);
 
 const motionButton = page.querySelector("[data-motion-toggle]");
@@ -136,7 +148,7 @@ motionButton?.addEventListener("click", () => {
   motionButton.textContent = motionPaused
     ? (english ? "Resume movement" : "Retomar movimento")
     : (english ? "Pause movement" : "Pausar movimento");
-  if (!motionPaused) requestSceneFrame();
+  requestSceneFrame();
 });
 
 const worldDialog = page.querySelector("[data-world-dialog]");
@@ -154,15 +166,28 @@ worldDialog?.addEventListener("click", event => {
 worldDialog?.addEventListener("close", () => restoreFocus?.focus({ preventScroll: true }));
 
 for (const disclosure of page.querySelectorAll("details")) {
-  disclosure.addEventListener("toggle", requestSceneFrame);
+  disclosure.addEventListener("toggle", () => {
+    sceneRuntime?.invalidate();
+    requestSceneFrame();
+  });
 }
-new ResizeObserver(requestSceneFrame).observe(page);
+new ResizeObserver(() => {
+  sceneRuntime?.invalidate();
+  requestSceneFrame();
+}).observe(page);
 document.addEventListener("visibilitychange", () => {
   if (document.hidden) audio.pause();
   else requestSceneFrame();
 });
 window.addEventListener("pagehide", () => {
   chapterObserver.disconnect();
+  sceneRuntime?.dispose();
   audio.dispose();
 }, { once: true });
+mountAboutScene(page).then(runtime => {
+  sceneRuntime = runtime;
+  requestSceneFrame();
+}).catch(error => {
+  console.warn("The About score scene could not start; the chapter score remains available.", error);
+});
 requestSceneFrame();
