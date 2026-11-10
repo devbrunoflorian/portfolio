@@ -186,6 +186,14 @@ export function buildRibbonGeometry(score, view, groups, engraving, voicePaths =
   for (const bar of engraving.barlines) stroke(Array.from({ length: 33 }, (_, i) => point(bar.x, -8 + i / 4)),
     engraving.staffWidth, { arrivalBar: bar.x <= view.x0 + .01 ? 1 : 0, materialType: SCORE_MATERIAL.STAFF });
 
+  // Sprite rectangles use the same musical anchors, with their own stepped edge.
+  function pixelPiece(anchor, bounds, materialType, kind = 1, remap = 0) {
+    const corners = [[bounds.x0,bounds.y0,0,0],[bounds.x1,bounds.y0,1,0],
+      [bounds.x1,bounds.y1,1,1],[bounds.x0,bounds.y1,0,1]].map(([x,y,s,t]) =>
+      point(anchor.u,anchor.v,{kind,remap,offset:[x,y],spriteUV:[s,t],materialType}));
+    emit(corners[0],corners[1],corners[2]); emit(corners[0],corners[2],corners[3]);
+  }
+
   if (clefSource.contours.length) {
     const anchorU = clefAnchorU;
     // Pin the clef reference to the G line while preserving the original PDF
@@ -200,6 +208,9 @@ export function buildRibbonGeometry(score, view, groups, engraving, voicePaths =
       return point(anchorU, anchorV, { x: offset[0], y: offset[1], kind: 5, materialType: SCORE_MATERIAL.CLEF, offset, spriteUV });
     }));
     fill(contours, emit);
+    pixelPiece({u:anchorU,v:anchorV},{x0:bounds.x0*clefGlyph.scaleX,x1:bounds.x1*clefGlyph.scaleX,
+      y0:clefGlyph.y-anchorV+bounds.y0*clefGlyph.scaleY,
+      y1:clefGlyph.y-anchorV+bounds.y1*clefGlyph.scaleY},SCORE_MATERIAL.PIXEL_CLEF,5);
   }
 
   for (const group of groups) {
@@ -243,6 +254,10 @@ export function buildRibbonGeometry(score, view, groups, engraving, voicePaths =
       const flat = contours.flat();
       const x0 = Math.min(...flat.map(p => p.u)), x1 = Math.max(...flat.map(p => p.u));
       const y0 = Math.min(...flat.map(p => p.v)), y1 = Math.max(...flat.map(p => p.v));
+      if (materialType === SCORE_MATERIAL.HEAD || materialType === SCORE_MATERIAL.ACCIDENTAL) {
+        pixelPiece(anchor,{x0:x0-anchor.u,x1:x1-anchor.u,y0:y0-anchor.v,y1:y1-anchor.v},
+          materialType === SCORE_MATERIAL.HEAD ? SCORE_MATERIAL.PIXEL_HEAD : SCORE_MATERIAL.PIXEL_ACCIDENTAL);
+      }
       fill(contours.map(c => c.map(p => point(p.u, p.v, { u: anchor.u, v: anchor.v, kind: 1,
         offset: [(p.u - anchor.u) * outlineScale, (p.v - anchor.v) * outlineScale], spriteUV: [(p.u - x0) / (x1 - x0), (p.v - y0) / (y1 - y0)],
         materialType, gold: protect, head: g.noteId && materialType === SCORE_MATERIAL.HEAD ? 1 : 0 }))), emit);
@@ -272,6 +287,9 @@ export function buildRibbonGeometry(score, view, groups, engraving, voicePaths =
           spriteUV: [(x - x0) / (x1 - x0), (y - y0) / (y1 - y0)] });
       }));
       fill(contours, emit);
+      pixelPiece(a,{x0:(x0-n.centerX)*n.glyph.scaleX,x1:(x1-n.centerX)*n.glyph.scaleX,
+        y0:(y0-n.centerY)*n.glyph.scaleY,y1:(y1-n.centerY)*n.glyph.scaleY},
+        SCORE_MATERIAL.PIXEL_TRIPLET,5,a.remap);
     }
   }
   for (const { track, notes, points } of voicePaths) {

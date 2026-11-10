@@ -121,7 +121,13 @@ const fragmentShader = `
     float clef=step(${(SCORE_MATERIAL.CLEF - 0.5).toFixed(1)},vMaterialType)*(1.-step(${(SCORE_MATERIAL.CLEF + 0.5).toFixed(1)},vMaterialType));
     float triplet=step(${(SCORE_MATERIAL.TRIPLET - 0.5).toFixed(1)},vMaterialType)*(1.-step(${(SCORE_MATERIAL.TRIPLET + 0.5).toFixed(1)},vMaterialType));
     float splatter=(1.-step(9.5,vMaterialType))*step(${(SCORE_MATERIAL.SPATTER - 0.5).toFixed(1)},vMaterialType);
-    if(vMaterialType>11.5){
+    if(vMaterialType>14.5){
+      if(gameWeight<.001||glowPass>.5)discard;
+      vec4 pixel=scorePixelSprite(spriteAtlas,vMaterialType,vSpriteUV);
+      if(pixel.a<.5)discard;
+      gl_FragColor=vec4(mix(vec3(${BACKGROUND.join(',')}),pixel.rgb,gameWeight),0.);return;
+    }
+    if(vMaterialType>11.5&&vMaterialType<14.5){
       if(codeWeight<.001||glowPass>.5)discard;
       vec2 local=clamp(vSpriteUV,vec2(0.),vec2(1.));
       float rim=smoothstep(.55,.87,max(abs(local.x-.5),abs(local.y-.5))*2.);
@@ -209,8 +215,10 @@ const fragmentShader = `
     source=mix(source,pigment,artWeight*.96);
     source*=mix(1.,mix(.68,1.16,pool),artWeight*.65);
     vec4 sprite=scorePixelSprite(spriteAtlas,vMaterialType,local);
-    if(scoreSpriteSlot(vMaterialType)>=0.&&sprite.a<.5&&gameWeight>.999)discard;
-    source=mix(source,sprite.rgb,gameWeight*sprite.a);
+    if(scoreSpriteSlot(vMaterialType)>=0.&&vMaterialType<4.5){
+      if(gameWeight>.999)discard;
+      source=mix(source,vec3(${BACKGROUND.join(',')}),gameWeight);
+    } else source=mix(source,sprite.rgb,gameWeight*sprite.a);
     float nearFocus=1.-smoothstep(focus+.02,focus+.34,vDistance/viewportWidth);
     if(glowPass>.5){
       if(lighting<.5||lightMask<.5){gl_FragColor=vec4(0.);return;}
