@@ -281,6 +281,7 @@ export async function mountGpuRibbon(host, { score, view, points, groups, engrav
       width: surface.width, height: surface.height };
     pigmentAtlas.needsUpdate = true;
     uniforms.pigmentReady.value = 1;
+    metrics.pigmentReady = true;
   };
   pigmentImage.src = new URL('../about/materials/pigment-atlas.png', import.meta.url).href;
   const uniforms = {
@@ -319,7 +320,7 @@ export async function mountGpuRibbon(host, { score, view, points, groups, engrav
   const gl = renderer.getContext();
   let timer = gl.getExtension('EXT_disjoint_timer_query_webgl2');
   const debug = gl.getExtension('WEBGL_debug_renderer_info');
-  const pending = [], metrics = { samples: [], gpuTimer: Boolean(timer), revision: THREE.REVISION,
+  const pending = [], metrics = { pigmentReady: false, samples: [], gpuTimer: Boolean(timer), revision: THREE.REVISION,
     renderer: debug ? gl.getParameter(debug.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER),
     geometryPolicy: 'Source UV geometry and 2048 Float32 frames uploaded once; poses update camera and uniforms only.',
     maskPolicy: 'RGBA alpha stores gold coverage; no RGB threshold.',
