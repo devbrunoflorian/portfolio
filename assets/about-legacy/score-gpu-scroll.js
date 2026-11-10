@@ -285,7 +285,8 @@ export async function mountAboutGpuScroll(root, host = root.querySelector('[data
       return;
     }
     renderPose(state.pose, state.timestamp);
-    startFlow();
+    if (state.playbackSnapshot?.state === "playing") stopFlow();
+    else startFlow();
   }
 
   resizeFallback();

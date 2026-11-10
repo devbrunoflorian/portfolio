@@ -8,6 +8,9 @@ if (!page) throw new Error("About root is missing");
 const english = document.documentElement.lang.startsWith("en");
 const playLabel = page.querySelector("[data-play-label]")?.textContent.trim() ?? "Listen";
 const pauseLabel = page.querySelector("[data-play-toggle]")?.dataset.pauseLabel ?? "Pause";
+const continueLabel = english ? "Continue Dissonância" : "Continuar Dissonância";
+const scoreCaption = page.querySelector(".score-frame figcaption > span");
+const staticCaption = scoreCaption?.textContent;
 const initialStatus = page.querySelector("[data-audio-status]")?.textContent.trim() ?? "Sound is off";
 const playButtons = [...page.querySelectorAll("[data-play-toggle]")];
 const statusLabels = [...page.querySelectorAll("[data-audio-status]")];
@@ -29,14 +32,14 @@ function formatTime(seconds) {
 function renderPlayback(state) {
   const playing = state.state === "playing" || state.state === "starting";
   for (const button of playButtons) {
-    const label = playing ? pauseLabel : playLabel;
+    const label = playing ? pauseLabel : state.state === "paused" ? continueLabel : playLabel;
     button.setAttribute("aria-label", label);
     button.setAttribute("aria-pressed", String(playing));
     const text = button.querySelector("[data-play-label]");
     if (text) text.textContent = label;
   }
-  const status = state.state === "playing"
-    ? `${state.section} · ${formatTime(state.seconds)}`
+  const status = state.state === "playing" || state.state === "paused"
+    ? `${state.state === "paused" ? (english ? "Paused · " : "Pausado · ") : ""}${state.section} · ${formatTime(audio.snapshot().seconds)}`
     : state.state === "error" || state.state === "unavailable"
       ? (english ? "Audio unavailable" : "Áudio indisponível")
       : initialStatus;
@@ -119,13 +122,24 @@ function updateScrollScene() {
     }
   }
   page.querySelector("[data-player-dock]")?.toggleAttribute("data-visible", scrollY > innerHeight * .58);
+  const playbackSnapshot = audio.snapshot();
+  if (playbackSnapshot.state === "playing") {
+    const status = `${playbackSnapshot.section} · ${formatTime(playbackSnapshot.seconds)}`;
+    for (const label of statusLabels) if (label.textContent !== status) label.textContent = status;
+  }
+  if (scoreCaption) {
+    const caption = ["playing", "paused", "starting"].includes(playbackSnapshot.state)
+      ? `Dissonância · ${playbackSnapshot.section}` : staticCaption;
+    if (scoreCaption.textContent !== caption) scoreCaption.textContent = caption;
+  }
   sceneRuntime?.update({
     chapter: activeChapter,
     motionEnabled: !motionPaused,
     reducedMotion: reducedMotion.matches,
-    playbackSnapshot: audio.snapshot(),
+    playbackSnapshot,
     timestamp: performance.now(),
   });
+  if (audio.playing) requestSceneFrame();
 }
 
 function requestSceneFrame() {
