@@ -178,7 +178,7 @@ const fragmentShader = `
     source=mix(source,pigment,artWeight*.96);
     source*=mix(1.,mix(.68,1.16,pool),artWeight*.65);
     vec4 sprite=scorePixelSprite(spriteAtlas,vMaterialType,local);
-    if(gameWeight>.001&&sprite.a<.5&&gameWeight>.999)discard;
+    if(scoreSpriteSlot(vMaterialType)>=0.&&sprite.a<.5&&gameWeight>.999)discard;
     source=mix(source,sprite.rgb,gameWeight*sprite.a);
     float nearFocus=1.-smoothstep(focus+.02,focus+.34,vDistance/viewportWidth);
     if(glowPass>.5){

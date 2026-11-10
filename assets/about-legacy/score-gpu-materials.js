@@ -113,6 +113,7 @@ export const scoreMaterialShader = `
   }
   float scoreHash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453123);}
   float scoreSpriteSlot(float material){
+    if(material<.5||material>5.5)return -1.;
     if(material<1.5)return 0.;
     if(material<2.5)return 1.;
     if(material<3.5)return 2.;
