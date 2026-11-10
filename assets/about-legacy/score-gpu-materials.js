@@ -93,8 +93,8 @@ export function pixelSpriteAtlasData() {
 export function createPixelSpriteAtlas(THREE) {
   const source = pixelSpriteAtlasData();
   const texture = new THREE.DataTexture(source.data, source.width, source.height, THREE.RGBAFormat);
-  texture.magFilter = THREE.NearestFilter;
-  texture.minFilter = THREE.NearestFilter;
+  texture.magFilter = THREE.NearestFilter ?? texture.magFilter;
+  texture.minFilter = THREE.NearestFilter ?? texture.minFilter;
   texture.generateMipmaps = false;
   texture.colorSpace = THREE.LinearSRGBColorSpace;
   texture.needsUpdate = true;

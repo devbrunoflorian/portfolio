@@ -111,6 +111,12 @@ export function buildRibbonGeometry(score, view, groups, engraving, voicePaths =
     for (let i = 1; i < top.length; i++) {
       const a = { ...top[i - 1], ...extra }, b = { ...top[i], ...extra };
       const c = { ...bottom[i], ...extra }, d = { ...bottom[i - 1], ...extra };
+      if (extra.materialType === SCORE_MATERIAL.BEAM) {
+        const start = top[0].u, span = top.at(-1).u - start || 1;
+        for (const [p, across] of [[a, 0], [b, 0], [c, 1], [d, 1]]) {
+          p.spriteUV = [(p.u - start) / span, across];
+        }
+      }
       emit(a, b, c); emit(a, c, d);
     }
   }

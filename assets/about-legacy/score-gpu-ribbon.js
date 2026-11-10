@@ -65,7 +65,7 @@ const vertexShader = `
     float scale=unit*focal/(-view.z);
     vDistance=-view.z;vGold=gold;vHead=frontHead;vKind=kind;vArrival=arrivalBar;vVoice=voice;
     vMaterialType=materialType;vBeat=beat;vDuration=noteDuration;vSegmentProgress=position.z;
-    vSpriteUV=spriteUV;vGlyphOffset=glyphOffset;
+    vSpriteUV=materialType>5.5&&materialType<6.5?vec2(position.z,.5+stroke.x*.45):spriteUV;vGlyphOffset=glyphOffset;
     if(kind<3.5||(kind>4.5&&kind<5.5))view.xyz*=(-view.z-1.)/(-view.z);
     vec4 clip=projectionMatrix*view;
     if(kind>.5&&kind<1.5)clip=screenOffset(clip,glyphOffset,scale);
@@ -90,7 +90,8 @@ const vertexShader = `
   }`;
 
 const fragmentShader = `
-  uniform sampler2D spriteAtlas;
+  uniform sampler2D spriteAtlas, pigmentAtlas;
+  uniform float pigmentReady;
   uniform float focus, viewportWidth, fade, halo, pose, pixelRatio, lighting, musicScene, glowPass, flowPhase;
   uniform float journey, playbackBeat, playbackActive;
   uniform vec4 staffLinesA;
@@ -166,6 +167,14 @@ const fragmentShader = `
       dry=smoothstep(.58,.83,bristle)*.42;
       pigment=mix(pigment,vec3(.80,.72,.92),dry);
     }
+    float paintedCoverage=1.;
+    if(pigmentReady>.5 && ((vMaterialType>.5&&vMaterialType<1.5)||(vMaterialType>5.5&&vMaterialType<7.5))){
+      bool brush=vMaterialType>5.5;
+      vec2 cell=vec2(vVoice>1.5?1.:0.,brush?0.:1.);
+      vec4 paintSample=texture2D(pigmentAtlas,(cell+clamp(local,vec2(.02),vec2(.98)))*.5);
+      pigment=mix(pigment,paintSample.rgb*1.35,.78);
+      paintedCoverage=mix(.38,1.,paintSample.a);
+    }
     source=mix(source,pigment,artWeight*.96);
     source*=mix(1.,mix(.68,1.16,pool),artWeight*.65);
     vec4 sprite=scorePixelSprite(spriteAtlas,vMaterialType,local);
@@ -190,7 +199,7 @@ const fragmentShader = `
     edgeOpacity*=ribbonFade;
     // The same note mesh gets uneven pigment coverage instead of a separate
     // painted score image; the source geometry and event anchors stay intact.
-    edgeOpacity*=mix(1.,clamp(.74+.26*grain-dry,.38,1.),artWeight*.82);
+    edgeOpacity*=mix(1.,clamp((.74+.26*grain-dry)*paintedCoverage,.24,1.),artWeight*.82);
     edgeOpacity=mix(edgeOpacity,1.,clef);
     ink=mix(vec3(${BACKGROUND.join(',')}),ink,edgeOpacity);
     ink=min(vec3(1.),ink+source*beatAttack*musicWeight*.72);
@@ -255,7 +264,27 @@ export async function mountGpuRibbon(host, { score, view, points, groups, engrav
   // camera right, world positions and transported normals retain their signs.
   camera.projectionMatrix.elements[5] *= -1;
   camera.projectionMatrixInverse.copy(camera.projectionMatrix).invert();
+  const spriteAtlas = createPixelSpriteAtlas(THREE);
+  const pigmentAtlas = new THREE.DataTexture(new Uint8Array([255,255,255,255]), 1, 1);
+  pigmentAtlas.flipY = true;
+  pigmentAtlas.colorSpace = 'srgb';
+  pigmentAtlas.needsUpdate = true;
+  const pigmentImage = new Image();
+  pigmentImage.onload = () => {
+    if (disposed) return;
+    const surface = document.createElement('canvas');
+    surface.width = pigmentImage.naturalWidth; surface.height = pigmentImage.naturalHeight;
+    const context = surface.getContext('2d', { willReadFrequently: true });
+    if (!context) return;
+    context.drawImage(pigmentImage, 0, 0);
+    pigmentAtlas.image = { data: context.getImageData(0,0,surface.width,surface.height).data,
+      width: surface.width, height: surface.height };
+    pigmentAtlas.needsUpdate = true;
+    uniforms.pigmentReady.value = 1;
+  };
+  pigmentImage.src = new URL('../about/materials/pigment-atlas.png', import.meta.url).href;
   const uniforms = {
+    spriteAtlas: { value: spriteAtlas }, pigmentAtlas: { value: pigmentAtlas }, pigmentReady: { value: 0 },
     frames: { value: frames }, ribbonLength: { value: table.length }, arcStart: { value: 0 }, arcSpan: { value: 0 },
     unit: { value: 0 }, aspect: { value: 1 }, middle: { value: (score.staffLines[0] + score.staffLines.at(-1)) / 2 },
     focal: { value: focal }, viewportWidth: { value: width }, viewport: { value: new THREE.Vector2(width, height) },
@@ -503,7 +532,8 @@ export async function mountGpuRibbon(host, { score, view, points, groups, engrav
     if (disposed) return;disposed = true;
     canvas.removeEventListener('webglcontextlost', onLost);canvas.removeEventListener('webglcontextrestored', onRestored);
     for (const { query } of pending) gl.deleteQuery(query);pending.length = 0;
-    geometry.dispose();frames.dispose();material.dispose();quad.geometry.dispose();postMaterial.dispose();
+    pigmentImage.onload = null;
+    geometry.dispose();frames.dispose();spriteAtlas.dispose();pigmentAtlas.dispose();material.dispose();quad.geometry.dispose();postMaterial.dispose();
     target.depthTexture.dispose();target.dispose();glowTarget.dispose();output.dispose();renderer.dispose();renderer.forceContextLoss();canvas.remove();
     for(const [method,original] of originalGL)gl[method]=original;
   }
