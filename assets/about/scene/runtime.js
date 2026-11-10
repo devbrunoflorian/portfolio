@@ -1,4 +1,4 @@
-import { createAboutCamera } from "./camera.js";
+import { createAboutCamera } from "./camera.js?v=passage-framing-1";
 
 export async function mountAboutScene(root) {
   const host = root.querySelector("[data-score-thread]");

@@ -105,7 +105,7 @@ html[data-content-id="about"] .site-footer { width: min(100% - 2 * var(--about-g
 .about-mixer-row input { width: 100%; accent-color: var(--about-violet); }
 .about-mixer-row output { color: var(--about-ink); text-align: right; }
 
-.score-transition { position: relative; display: grid; place-items: center; min-height: 60svh; overflow: hidden; isolation: isolate; background: radial-gradient(ellipse at 55% 50%, rgb(42 43 103 / 18%), transparent 57%); }
+.score-transition { position: relative; display: grid; place-items: center; min-height: 32svh; overflow: hidden; isolation: isolate; background: radial-gradient(ellipse at 55% 50%, rgb(42 43 103 / 18%), transparent 57%); }
 .transition-score { position: absolute; inset: 0; display: grid; place-items: center; opacity: .94; transform: scale(var(--bridge-scale, 1.03)) rotate(var(--bridge-rotation, -4deg)); transform-origin: center; }
 .transition-score-base, .transition-score-ink { width: min(1320px, calc(100vw - 2 * var(--about-gutter))); }
 .transition-pigment { position: absolute; inset: 0; display: grid; place-items: center; overflow: hidden; clip-path: inset(0 calc(100% - var(--paint-reveal, 0%)) 0 0); filter: drop-shadow(0 0 14px rgb(130 78 202 / 22%)); }
@@ -208,7 +208,7 @@ body[data-score-gpu-scroll="true"] .about-rebuild .stack-panel::before { content
   .score-frame figcaption { flex-wrap: wrap; font-size: 10px; }
   .music-controls { display: flex; flex-direction: column; gap: 22px; margin-top: 22px; }
   .about-mixer { width: 100%; }
-  .score-transition { min-height: 43svh; }
+  .score-transition { min-height: 30svh; }
   .transition-score { transform: scale(var(--bridge-scale, 1.12)) rotate(var(--bridge-rotation, -4deg)); }
   .transition-score-base, .transition-score-ink { width: 144vw; }
   .about-art { display: flex; align-items: end; min-height: 92svh; padding-top: 42svh; background: linear-gradient(0deg, var(--about-bg) 0%, rgb(6 6 9 / 88%) 32%, transparent 75%); }

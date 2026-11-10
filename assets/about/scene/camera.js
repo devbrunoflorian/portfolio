@@ -12,6 +12,19 @@ const smooth = value => {
   return progress * progress * (3 - 2 * progress);
 };
 
+// Blend overlapping reading zones instead of switching to the nearest chapter.
+// A nearest-chapter switch reverses the offset abruptly at the midpoint.
+export function readingOffset(centers, readingLine, height) {
+  let offset = 0, total = 0;
+  for (const center of centers) {
+    const distance = center - readingLine;
+    const weight = 1 - smooth((Math.abs(distance) / height - .12) / .36);
+    offset += clamp(distance, -height * .12, height * .12) * weight;
+    total += weight;
+  }
+  return offset / Math.max(1, total);
+}
+
 function cameraAnchors(root) {
   const chapters = [...root.querySelectorAll("[data-chapter]")];
   if (chapters.length !== SCORE_CAMERA_POSE_STOPS.desktop.length) {
@@ -61,16 +74,18 @@ export function createAboutCamera(root) {
     const zoom = current.zoom(readingLine).value;
     const offsetX = current.offsetX(readingLine).value;
     const offsetY = current.offsetY(readingLine).value;
-    const closest = Math.round(journey.normalizedProgress * (current.chapters.length - 1));
-    const distanceToChapter = current.centers[closest] - readingLine;
-    const readingLock = 1 - smooth((Math.abs(distanceToChapter) / window.innerHeight - .17) / .45);
+    const readingShift = readingOffset(current.centers, readingLine, window.innerHeight);
+    const artProgress = clamp((readingLine - current.centers[2])
+      / (current.centers[3] - current.centers[2]), 0, 1);
+    const passage = Math.sin(Math.PI * artProgress) ** 2;
+
 
     return {
       chapter: chapterName,
       journey: journey.normalizedProgress * (current.chapters.length - 1),
       pose,
-      zoom,
-      frameOffset: { x: offsetX, y: offsetY + distanceToChapter * readingLock },
+      zoom: zoom * (1 + passage * .14),
+      frameOffset: { x: offsetX, y: offsetY + readingShift + passage * window.innerHeight * .16 },
       settledPose: current.poses[chapterIndex],
       settledZoom: current.zooms[chapterIndex],
       settledFrameOffset: {
