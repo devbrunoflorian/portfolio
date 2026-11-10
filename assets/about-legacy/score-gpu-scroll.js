@@ -271,7 +271,7 @@ export async function mountAboutGpuScroll(root, host = root.querySelector('[data
       activeSourceRange = scoreSourceRange(notation.view, score.bars, score.staffLines, true, clefGlyph);
     }
     if (!pageVisible || document.hidden) { stopFlow();return; }
-    if (state.reducedMotion) {
+    if (state.reducedMotion || gpuFailed) {
       stopFlow();
       drawFallback(state.chapter);
       return;

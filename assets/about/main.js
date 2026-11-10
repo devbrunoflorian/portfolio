@@ -111,6 +111,7 @@ const chapterObserver = new IntersectionObserver(entries => {
   if (nextChapter === activeChapter) return;
   activeChapter = nextChapter;
   page.dataset.activeChapter = nextChapter;
+  requestSceneFrame();
 }, { rootMargin: "-42% 0px -42% 0px", threshold: [0, .15, .35, .6] });
 chapters.forEach(chapter => chapterObserver.observe(chapter));
 
