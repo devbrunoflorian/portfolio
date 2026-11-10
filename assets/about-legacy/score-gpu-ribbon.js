@@ -265,27 +265,28 @@ export async function mountGpuRibbon(host, { score, view, points, groups, engrav
   camera.projectionMatrix.elements[5] *= -1;
   camera.projectionMatrixInverse.copy(camera.projectionMatrix).invert();
   const spriteAtlas = createPixelSpriteAtlas(THREE);
-  const pigmentAtlas = new THREE.DataTexture(new Uint8Array([255,255,255,255]), 1, 1);
-  pigmentAtlas.flipY = true;
-  pigmentAtlas.colorSpace = 'srgb';
-  pigmentAtlas.needsUpdate = true;
   const pigmentImage = new Image();
-  pigmentImage.onload = () => {
-    if (disposed) return;
+  pigmentImage.src = new URL('../about/materials/pigment-atlas.png', import.meta.url).href;
+  let pigmentPixels = new Uint8Array([255,255,255,255]), pigmentWidth = 1, pigmentHeight = 1;
+  let pigmentLoaded = false;
+  try {
+    await pigmentImage.decode();
     const surface = document.createElement('canvas');
     surface.width = pigmentImage.naturalWidth; surface.height = pigmentImage.naturalHeight;
     const context = surface.getContext('2d', { willReadFrequently: true });
-    if (!context) return;
+    if (!context) throw new Error('No 2D context for the pigment atlas.');
     context.drawImage(pigmentImage, 0, 0);
-    pigmentAtlas.image = { data: context.getImageData(0,0,surface.width,surface.height).data,
-      width: surface.width, height: surface.height };
-    pigmentAtlas.needsUpdate = true;
-    uniforms.pigmentReady.value = 1;
-    metrics.pigmentReady = true;
-  };
-  pigmentImage.src = new URL('../about/materials/pigment-atlas.png', import.meta.url).href;
+    pigmentPixels = new Uint8Array(context.getImageData(0,0,surface.width,surface.height).data);
+    pigmentWidth = surface.width; pigmentHeight = surface.height; pigmentLoaded = true;
+  } catch (error) {
+    console.warn('The pigment atlas is unavailable; using the procedural material.', error);
+  }
+  const pigmentAtlas = new THREE.DataTexture(pigmentPixels, pigmentWidth, pigmentHeight);
+  pigmentAtlas.flipY = true;
+  pigmentAtlas.colorSpace = THREE.LinearSRGBColorSpace;
+  pigmentAtlas.needsUpdate = true;
   const uniforms = {
-    spriteAtlas: { value: spriteAtlas }, pigmentAtlas: { value: pigmentAtlas }, pigmentReady: { value: 0 },
+    spriteAtlas: { value: spriteAtlas }, pigmentAtlas: { value: pigmentAtlas }, pigmentReady: { value: pigmentLoaded ? 1 : 0 },
     frames: { value: frames }, ribbonLength: { value: table.length }, arcStart: { value: 0 }, arcSpan: { value: 0 },
     unit: { value: 0 }, aspect: { value: 1 }, middle: { value: (score.staffLines[0] + score.staffLines.at(-1)) / 2 },
     focal: { value: focal }, viewportWidth: { value: width }, viewport: { value: new THREE.Vector2(width, height) },
@@ -320,7 +321,7 @@ export async function mountGpuRibbon(host, { score, view, points, groups, engrav
   const gl = renderer.getContext();
   let timer = gl.getExtension('EXT_disjoint_timer_query_webgl2');
   const debug = gl.getExtension('WEBGL_debug_renderer_info');
-  const pending = [], metrics = { pigmentReady: false, samples: [], gpuTimer: Boolean(timer), revision: THREE.REVISION,
+  const pending = [], metrics = { pigmentReady: pigmentLoaded, samples: [], gpuTimer: Boolean(timer), revision: THREE.REVISION,
     renderer: debug ? gl.getParameter(debug.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER),
     geometryPolicy: 'Source UV geometry and 2048 Float32 frames uploaded once; poses update camera and uniforms only.',
     maskPolicy: 'RGBA alpha stores gold coverage; no RGB threshold.',
@@ -533,7 +534,6 @@ export async function mountGpuRibbon(host, { score, view, points, groups, engrav
     if (disposed) return;disposed = true;
     canvas.removeEventListener('webglcontextlost', onLost);canvas.removeEventListener('webglcontextrestored', onRestored);
     for (const { query } of pending) gl.deleteQuery(query);pending.length = 0;
-    pigmentImage.onload = null;
     geometry.dispose();frames.dispose();spriteAtlas.dispose();pigmentAtlas.dispose();material.dispose();quad.geometry.dispose();postMaterial.dispose();
     target.depthTexture.dispose();target.dispose();glowTarget.dispose();output.dispose();renderer.dispose();renderer.forceContextLoss();canvas.remove();
     for(const [method,original] of originalGL)gl[method]=original;
