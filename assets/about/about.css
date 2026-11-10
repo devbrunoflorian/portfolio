@@ -100,7 +100,7 @@ html[data-content-id="about"] .site-footer { width: min(100% - 2 * var(--about-g
 .music-controls > p { max-width: 45ch; font-size: 14px; }
 .about-mixer { width: min(100%, 560px); }
 .about-mixer summary { width: 100%; padding: 0 16px; border-radius: 6px; background: rgb(255 255 255 / 4%); }
-.mixer-content { padding: 14px 4px 4px; }
+.mixer-content { position: relative; isolation: isolate; padding: 14px 4px 4px; }
 .mixer-content > p { margin-bottom: 14px; font-size: 12px; }
 .about-mixer-row { display: grid; grid-template-columns: minmax(88px, .8fr) minmax(120px, 1fr) 42px; align-items: center; gap: 12px; min-height: 36px; color: var(--about-muted); font-size: 11px; }
 .about-mixer-row input { width: 100%; accent-color: var(--about-violet); }
@@ -267,12 +267,20 @@ html[data-motion-paused="true"] .knight-sprite { animation: none; }
   .art-image-layer img { animation: none; transform: none; will-change: auto; }
 }
 
-.mixer-adjustments { display: grid; gap: 14px; margin-top: 18px; padding-top: 16px; border-top: 1px solid rgb(193 154 255 / 20%); }
+.mixer-adjustments { position: relative; isolation: isolate; display: grid; gap: 14px; margin-top: 18px; padding-top: 16px; border-top: 1px solid rgb(193 154 255 / 20%); }
 .mixer-master { display: grid; grid-template-columns: minmax(88px, .8fr) minmax(120px, 1fr) 42px; align-items: center; gap: 12px; color: var(--about-muted); font-size: 14px; min-height: 44px; }
 .mixer-master input { width: 100%; accent-color: var(--about-violet); }
 .mixer-repeat { display: flex; gap: 12px; align-items: center; min-height: 44px; color: var(--about-muted); font-size: 14px; }
 .mixer-repeat input { width: 18px; height: 18px; accent-color: var(--about-violet); }
 .mixer-actions { display: flex; flex-wrap: wrap; gap: 10px; }
-.mixer-actions button { min-height: 44px; padding: 10px 16px; border: 1px solid rgb(193 154 255 / 35%); border-radius: 999px; background: rgb(193 154 255 / 8%); color: var(--about-ink); font: inherit; font-size: 13px; cursor: pointer; }
+.mixer-actions button { min-height: 44px; padding: 10px 16px; border: 1px solid rgb(193 154 255 / 35%); border-radius: 999px; background: #12101a; color: var(--about-ink); font: inherit; font-size: 13px; cursor: pointer; }
 .mixer-actions button:hover { background: rgb(193 154 255 / 16%); }
 .mixer-feedback { min-height: 20px; color: var(--about-violet); font-size: 13px; }
+
+/* Local reading veil follows expanded controls instead of the whole scene. */
+.mixer-content::before { content: ""; position: absolute; z-index: -1; inset: 0 -60px -36px; pointer-events: none; background: radial-gradient(ellipse 50% 50% at center, #060609 0%, rgb(6 6 9 / 98%) 48%, rgb(6 6 9 / 85%) 75%, transparent 100%); }
+
+body[data-score-gpu-scroll="true"] .about-rebuild .about-mixer::before { content: none; }
+.about-mixer summary { position: relative; z-index: 1; }
+
+.mixer-adjustments::before { content: ""; position: absolute; z-index: -1; inset: -34px -64px; pointer-events: none; background: radial-gradient(ellipse 50% 50% at center, #060609 0%, rgb(6 6 9 / 97%) 58%, rgb(6 6 9 / 75%) 78%, transparent 100%); }
