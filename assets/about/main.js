@@ -23,6 +23,9 @@ let framePending = false;
 let motionPaused = false;
 let restoreFocus = null;
 let sceneRuntime = null;
+let pageDisposed = false;
+const initialMix = new Map(score.tracks.map(track => [track.id, audio.getTrackVolume(track.id)]));
+const mixerRows = new Map();
 
 function formatTime(seconds) {
   const value = Math.max(0, Math.floor(seconds));
@@ -72,16 +75,32 @@ if (mixer) {
     control.addEventListener("input", () => {
       const value = Number(control.value);
       audio.setTrackVolume(track.id, value);
+      const feedback = page.querySelector("[data-mixer-feedback]");
+      if (feedback) feedback.textContent = "";
       output.value = `${Math.round(value * 100)}%`;
     });
     row.append(name, control, output);
     mixer.append(row);
+    mixerRows.set(track.id, { control, output });
   }
 }
 
-page.querySelector("[data-main-volume]")?.addEventListener("input", event => {
-  audio.setVolume(Number(event.currentTarget.value));
+const masterVolumes = [...page.querySelectorAll("[data-main-volume]")];
+for (const control of masterVolumes) control.addEventListener("input", () => {
+  const value = Number(control.value);
+  audio.setVolume(value);
+  for (const other of masterVolumes) other.value = String(value);
 });
+page.querySelector("[data-mix-reset]")?.addEventListener("click", () => {
+  for (const [id, value] of initialMix) {
+    audio.setTrackVolume(id, value);
+    const row = mixerRows.get(id);
+    if (row) { row.control.value = String(value); row.output.value = `${Math.round(value * 100)}%`; }
+  }
+  page.querySelector("[data-mixer-feedback]").textContent = english ? "Mix restored." : "Mix restaurada.";
+});
+page.querySelector("[data-repeat]")?.addEventListener("change", event => audio.setRepeat(event.currentTarget.checked));
+page.querySelector("[data-audio-restart]")?.addEventListener("click", () => { audio.restart(); requestSceneFrame(); });
 
 const chapterObserver = new IntersectionObserver(entries => {
   const current = entries
@@ -101,6 +120,7 @@ function clamp(value, minimum, maximum) {
 
 function updateScrollScene() {
   framePending = false;
+  if (pageDisposed) return;
   const bridge = page.querySelector("[data-material-bridge]");
   const artImage = page.querySelector("[data-art-image]");
   if (!motionPaused && !reducedMotion.matches) {
@@ -143,7 +163,7 @@ function updateScrollScene() {
 }
 
 function requestSceneFrame() {
-  if (framePending || document.hidden) return;
+  if (pageDisposed || framePending || document.hidden) return;
   framePending = true;
   requestAnimationFrame(updateScrollScene);
 }
@@ -186,20 +206,29 @@ for (const disclosure of page.querySelectorAll("details")) {
     requestSceneFrame();
   });
 }
-new ResizeObserver(() => {
+const layoutObserver = new ResizeObserver(() => {
   sceneRuntime?.invalidate();
   requestSceneFrame();
-}).observe(page);
+});
+layoutObserver.observe(page);
+document.fonts.ready.then(() => {
+  if (pageDisposed) return;
+  sceneRuntime?.invalidate();
+  requestSceneFrame();
+});
 document.addEventListener("visibilitychange", () => {
   if (document.hidden) audio.pause();
   else requestSceneFrame();
 });
 window.addEventListener("pagehide", () => {
+  pageDisposed = true;
+  layoutObserver.disconnect();
   chapterObserver.disconnect();
   sceneRuntime?.dispose();
   audio.dispose();
 }, { once: true });
 mountAboutScene(page).then(runtime => {
+  if (pageDisposed) { runtime.dispose(); return; }
   sceneRuntime = runtime;
   requestSceneFrame();
 }).catch(error => {

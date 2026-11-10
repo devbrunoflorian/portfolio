@@ -266,3 +266,13 @@ html[data-motion-paused="true"] .knight-sprite { animation: none; }
 @media (prefers-reduced-motion: reduce) {
   .art-image-layer img { animation: none; transform: none; will-change: auto; }
 }
+
+.mixer-adjustments { display: grid; gap: 14px; margin-top: 18px; padding-top: 16px; border-top: 1px solid rgb(193 154 255 / 20%); }
+.mixer-master { display: grid; grid-template-columns: minmax(88px, .8fr) minmax(120px, 1fr) 42px; align-items: center; gap: 12px; color: var(--about-muted); font-size: 14px; min-height: 44px; }
+.mixer-master input { width: 100%; accent-color: var(--about-violet); }
+.mixer-repeat { display: flex; gap: 12px; align-items: center; min-height: 44px; color: var(--about-muted); font-size: 14px; }
+.mixer-repeat input { width: 18px; height: 18px; accent-color: var(--about-violet); }
+.mixer-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.mixer-actions button { min-height: 44px; padding: 10px 16px; border: 1px solid rgb(193 154 255 / 35%); border-radius: 999px; background: rgb(193 154 255 / 8%); color: var(--about-ink); font: inherit; font-size: 13px; cursor: pointer; }
+.mixer-actions button:hover { background: rgb(193 154 255 / 16%); }
+.mixer-feedback { min-height: 20px; color: var(--about-violet); font-size: 13px; }
