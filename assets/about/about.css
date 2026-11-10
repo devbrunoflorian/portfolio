@@ -318,3 +318,14 @@ html.about-world-open { overflow: hidden; scroll-behavior: auto !important; }
 }
 html[data-motion-paused="true"] .forest-foreground { animation: none; transform: none; }
 @media (prefers-reduced-motion: reduce) { .forest-foreground { animation: none !important; transform: none; } }
+
+/* Compact windows need a readable stack before a mirrored editorial layout. */
+@media (min-width: 681px) and (max-width: 1099px) {
+  .about-code { display: flex; flex-direction: column; align-items: stretch; gap: 46px; }
+  .about-code .chapter-copy { max-width: 680px; }
+  .about-code .code-stage { width: 100%; min-height: 0; }
+  .about-code .stack-groups, .about-code .stack-more-groups { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; }
+  .about-code .stack-panel { padding: 30px 26px; }
+}
+
+.about-rebuild .score-frame { margin-inline: auto; }
