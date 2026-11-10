@@ -126,7 +126,7 @@ html[data-content-id="about"] .site-footer { width: min(100% - 2 * var(--about-g
 .games-scene { position: relative; min-height: clamp(350px, 45vw, 650px); margin: 0; overflow: hidden; border: 1px solid rgb(172 134 234 / 29%); border-radius: 4px; background: #101022; box-shadow: 0 20px 75px rgb(0 0 0 / 42%); }
 .games-landscape { width: 100%; height: 100%; position: absolute; inset: 0; object-fit: cover; }
 .knight-sprite { position: absolute; left: 53%; bottom: 12%; width: clamp(86px, 12vw, 158px); aspect-ratio: 1; transform: translateX(-50%); background-image: url("/assets/about-legacy/forest/knight_idle_8dirs_6frames_96px.png"); background-repeat: no-repeat; background-position: 0% 0%; background-size: 600% 800%; image-rendering: pixelated; filter: drop-shadow(0 7px 0 rgb(4 5 13 / 80%)) drop-shadow(0 0 20px rgb(178 117 255 / 38%)); animation: about-knight-idle 1.8s steps(6, end) infinite; }
-@keyframes about-knight-idle { to { background-position: 100% 0%; } }
+@keyframes about-knight-idle { to { background-position: 120% 0%; } }
 .world-open { margin-top: 28px; padding: 0 18px; }
 
 .about-closing { display: flex; align-items: end; justify-content: space-between; gap: 44px; min-height: 63svh; padding: 92px var(--about-gutter) calc(100px + var(--about-dock-height) + env(safe-area-inset-bottom)); background: radial-gradient(ellipse at 50% 110%, rgb(77 47 137 / 16%), transparent 58%); }
@@ -284,3 +284,19 @@ body[data-score-gpu-scroll="true"] .about-rebuild .about-mixer::before { content
 .about-mixer summary { position: relative; z-index: 1; }
 
 .mixer-adjustments::before { content: ""; position: absolute; z-index: -1; inset: -34px -64px; pointer-events: none; background: radial-gradient(ellipse 50% 50% at center, #060609 0%, rgb(6 6 9 / 97%) 58%, rgb(6 6 9 / 75%) 78%, transparent 100%); }
+
+html.about-world-open { overflow: hidden; scroll-behavior: auto !important; }
+.world-dialog-scene {
+  inset: auto; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  width: min(calc(100vw - 36px), calc((100dvh - 144px) * 1672 / 941));
+  aspect-ratio: 1672 / 941;
+}
+.world-dialog-scene img { object-fit: cover; }
+.world-dialog-scene .knight-sprite { width: clamp(72px, 11vw, 158px); bottom: 8%; }
+.world-close { margin-top: env(safe-area-inset-top); }
+.world-dialog-label { bottom: max(18px, env(safe-area-inset-bottom)); }
+@media (max-width: 680px) {
+  .world-dialog-scene { width: min(calc(100vw - 16px), calc((100dvh - 140px) * 2 / 3)); aspect-ratio: 2 / 3; }
+  .world-dialog-scene .knight-sprite { width: clamp(72px, 24vw, 112px); left: 50%; bottom: 10%; }
+  .world-dialog-label { left: 16px; right: 16px; text-align: center; font-size: 10px; }
+}

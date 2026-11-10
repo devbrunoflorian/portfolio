@@ -188,9 +188,13 @@ motionButton?.addEventListener("click", () => {
 
 const worldDialog = page.querySelector("[data-world-dialog]");
 const worldButton = page.querySelector("[data-world-open]");
+let worldScroll = null;
 worldButton?.addEventListener("click", () => {
+  if (!worldDialog || worldDialog.open) return;
   restoreFocus = worldButton;
-  worldDialog?.showModal();
+  worldScroll = { x: window.scrollX, y: window.scrollY };
+  document.documentElement.classList.add("about-world-open");
+  worldDialog.showModal();
 });
 page.querySelectorAll("[data-world-close]").forEach(button => {
   button.addEventListener("click", () => worldDialog?.close());
@@ -198,7 +202,11 @@ page.querySelectorAll("[data-world-close]").forEach(button => {
 worldDialog?.addEventListener("click", event => {
   if (event.target === worldDialog) worldDialog.close();
 });
-worldDialog?.addEventListener("close", () => restoreFocus?.focus({ preventScroll: true }));
+worldDialog?.addEventListener("close", () => {
+  if (worldScroll) window.scrollTo(worldScroll.x, worldScroll.y);
+  document.documentElement.classList.remove("about-world-open");
+  restoreFocus?.focus({ preventScroll: true });
+});
 
 for (const disclosure of page.querySelectorAll("details")) {
   disclosure.addEventListener("toggle", () => {
@@ -222,6 +230,7 @@ document.addEventListener("visibilitychange", () => {
 });
 window.addEventListener("pagehide", () => {
   pageDisposed = true;
+  document.documentElement.classList.remove("about-world-open");
   layoutObserver.disconnect();
   chapterObserver.disconnect();
   sceneRuntime?.dispose();
