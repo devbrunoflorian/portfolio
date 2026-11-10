@@ -1,55 +1,51 @@
 import { createJourneyAudio } from "../about-legacy/audio.js";
 import { score } from "../about-legacy/score.js";
 
-const root = document.querySelector(".about-main");
-if (!root) throw new Error("About content is missing");
+const root = document.querySelector("[data-about-page]");
+if (!root) throw new Error("About page root is missing");
 
-root.classList.add("about-v4");
-
-const copy = {
-  listen: root.querySelector("[data-play-label]")?.textContent.trim() ?? "Listen to Dissonância",
-  pause: root.querySelector("[data-play-toggle]")?.dataset.pauseLabel ?? "Pause Dissonância",
-  off: root.querySelector("[data-audio-status]")?.textContent.trim() ?? "Sound is off",
-};
+const isEnglish = document.documentElement.lang.startsWith("en");
+const playLabel = root.querySelector("[data-play-label]")?.textContent.trim() ?? "Listen to Dissonância";
+const pauseLabel = root.querySelector("[data-play-toggle]")?.dataset.pauseLabel ?? "Pause Dissonância";
+const initialStatus = root.querySelector("[data-audio-status]")?.textContent.trim() ?? "Sound is off";
 const playButtons = [...root.querySelectorAll("[data-play-toggle]")];
-const audioStatuses = [...root.querySelectorAll("[data-audio-status]")];
+const statusNodes = [...root.querySelectorAll("[data-audio-status]")];
 const audio = createJourneyAudio(score, updateAudioState);
+const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
+const chapters = [...root.querySelectorAll("[data-chapter]")];
 let activeChapter = "opening";
 let frame = 0;
 let visualPaused = false;
-let audioSnapshot = audio.snapshot();
 let focusReturn = null;
-
-function updateAudioState(state) {
-  audioSnapshot = state;
-  const playing = state.state === "playing" || state.state === "starting";
-  for (const button of playButtons) {
-    const label = playing ? copy.pause : copy.listen;
-    button.setAttribute("aria-label", label);
-    button.setAttribute("aria-pressed", String(playing));
-    const text = button.querySelector("[data-play-label]");
-    if (text) text.textContent = label;
-  }
-  const status = state.state === "playing"
-      ? `${state.section} · ${formatTime(state.seconds)}`
-      : state.state === "error" || state.state === "unavailable"
-        ? (document.documentElement.lang.startsWith("en") ? "Audio unavailable" : "Áudio indisponível")
-        : copy.off;
-  audioStatuses.forEach(node => { node.textContent = status; });
-  if (state.state === "playing") requestFrame();
-}
 
 function formatTime(seconds) {
   const total = Math.max(0, Math.floor(seconds));
   return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`;
 }
 
-for (const button of playButtons) {
-  button.addEventListener("click", () => {
-    if (audio.playing) audio.pause();
-    else audio.start();
-  });
+function updateAudioState(state) {
+  const playing = state.state === "playing" || state.state === "starting";
+  for (const button of playButtons) {
+    const label = playing ? pauseLabel : playLabel;
+    button.setAttribute("aria-label", label);
+    button.setAttribute("aria-pressed", String(playing));
+    const text = button.querySelector("[data-play-label]");
+    if (text) text.textContent = label;
+  }
+
+  const status = state.state === "playing"
+    ? `${state.section} · ${formatTime(state.seconds)}`
+    : state.state === "error" || state.state === "unavailable"
+      ? (isEnglish ? "Audio unavailable" : "Áudio indisponível")
+      : initialStatus;
+  statusNodes.forEach(node => { node.textContent = status; });
+  if (playing) requestFrame();
 }
+
+playButtons.forEach(button => button.addEventListener("click", () => {
+  if (audio.playing) audio.pause();
+  else audio.start();
+}));
 
 const mixer = root.querySelector("[data-track-mixer]");
 if (mixer) {
@@ -78,9 +74,8 @@ if (mixer) {
 }
 
 const globalVolume = root.querySelector("[data-main-volume]");
-if (globalVolume) globalVolume.addEventListener("input", () => audio.setVolume(Number(globalVolume.value)));
+globalVolume?.addEventListener("input", () => audio.setVolume(Number(globalVolume.value)));
 
-const chapterNodes = [...root.querySelectorAll("[data-chapter]")];
 const chapterObserver = new IntersectionObserver(entries => {
   const active = entries
     .filter(entry => entry.isIntersecting)
@@ -92,22 +87,33 @@ const chapterObserver = new IntersectionObserver(entries => {
   root.dataset.activeChapter = chapter;
   audio.setMovement(chapter);
 }, { rootMargin: "-42% 0px -42% 0px", threshold: [0, .15, .35, .6] });
+chapters.forEach(chapter => chapterObserver.observe(chapter));
 
-chapterNodes.forEach(chapter => chapterObserver.observe(chapter));
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
+}
 
-const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
 function updateScrollState() {
   frame = 0;
-  const art = root.querySelector("[data-art-image]");
-  if (art && !visualPaused && !reducedMotion.matches) {
-    const section = art.closest("[data-chapter]");
-    const bounds = section.getBoundingClientRect();
-    const progress = (innerHeight * .5 - (bounds.top + bounds.height * .5)) / Math.max(1, innerHeight);
-    art.style.setProperty("--art-parallax", `${Math.max(-1, Math.min(1, progress)) * 34}px`);
+  const bridge = root.querySelector("[data-material-bridge]");
+  const artImage = root.querySelector("[data-art-image]");
+  if (!visualPaused && !reducedMotion.matches) {
+    if (bridge) {
+      const bounds = bridge.getBoundingClientRect();
+      const progress = clamp((innerHeight * .82 - bounds.top) / (bounds.height + innerHeight * .64), 0, 1);
+      bridge.style.setProperty("--material-progress", progress.toFixed(4));
+    }
+    if (artImage) {
+      const bounds = artImage.closest("[data-chapter]").getBoundingClientRect();
+      const progress = (innerHeight * .5 - (bounds.top + bounds.height * .5)) / Math.max(1, innerHeight);
+      artImage.style.setProperty("--art-parallax", `${clamp(progress, -1, 1) * 28}px`);
+    }
   }
-  const dock = root.querySelector("[data-player-dock]");
-  dock?.toggleAttribute("data-visible", scrollY > innerHeight * .6);
-  if (audio.playing && !document.hidden) frame = requestAnimationFrame(updateScrollState);
+
+  root.querySelector("[data-player-dock]")?.toggleAttribute("data-visible", scrollY > innerHeight * .6);
+  if (audio.playing && !document.hidden) {
+    frame = requestAnimationFrame(updateScrollState);
+  }
 }
 
 function requestFrame() {
@@ -125,10 +131,12 @@ document.addEventListener("visibilitychange", () => {
 const motionButton = root.querySelector("[data-motion-toggle]");
 motionButton?.addEventListener("click", () => {
   visualPaused = !visualPaused;
+  document.documentElement.dataset.motionPaused = String(visualPaused);
+  root.dataset.visualPaused = String(visualPaused);
   motionButton.setAttribute("aria-pressed", String(visualPaused));
   motionButton.textContent = visualPaused
-    ? (document.documentElement.lang.startsWith("en") ? "Resume visual movement" : "Retomar movimento visual")
-    : (document.documentElement.lang.startsWith("en") ? "Pause visual movement" : "Pausar movimento visual");
+    ? (isEnglish ? "Resume visual movement" : "Retomar movimento visual")
+    : (isEnglish ? "Pause visual movement" : "Pausar movimento visual");
   if (!visualPaused) requestFrame();
 });
 
@@ -142,13 +150,8 @@ root.querySelectorAll("[data-world-close]").forEach(button => button.addEventLis
 world?.addEventListener("click", event => { if (event.target === world) world.close(); });
 world?.addEventListener("close", () => focusReturn?.focus({ preventScroll: true }));
 
-root.querySelectorAll("[data-visual-pause]").forEach(button => button.addEventListener("click", () => {
-  visualPaused = !visualPaused;
-  root.dataset.visualPaused = String(visualPaused);
-  button.setAttribute("aria-pressed", String(visualPaused));
-  if (!visualPaused) requestFrame();
-}));
-
+const firstWindow = root.querySelector("#music-mixer");
+firstWindow?.addEventListener("toggle", requestFrame);
 requestFrame();
 
 window.addEventListener("pagehide", () => {
