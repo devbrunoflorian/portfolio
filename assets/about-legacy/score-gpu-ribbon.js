@@ -111,7 +111,18 @@ const fragmentShader = `
     float chapterGlow=clamp(1.-artWeight*.68-gameWeight*.82,.18,1.);
     float clef=step(${(SCORE_MATERIAL.CLEF - 0.5).toFixed(1)},vMaterialType)*(1.-step(${(SCORE_MATERIAL.CLEF + 0.5).toFixed(1)},vMaterialType));
     float triplet=step(${(SCORE_MATERIAL.TRIPLET - 0.5).toFixed(1)},vMaterialType)*(1.-step(${(SCORE_MATERIAL.TRIPLET + 0.5).toFixed(1)},vMaterialType));
-    float splatter=step(${(SCORE_MATERIAL.SPATTER - 0.5).toFixed(1)},vMaterialType);
+    float splatter=(1.-step(9.5,vMaterialType))*step(${(SCORE_MATERIAL.SPATTER - 0.5).toFixed(1)},vMaterialType);
+    if(vMaterialType>9.5){
+      if(artWeight<.001||pigmentReady<.5||glowPass>.5)discard;
+      vec2 paintUV=clamp(vSpriteUV,vec2(.015),vec2(.985));
+      bool headWash=vMaterialType<10.5;
+      vec4 wash=texture2D(pigmentAtlas,vec2(paintUV.x*.5,paintUV.y*.5+(headWash?.5:0.)));
+      if(wash.a<.10)discard;
+      vec2 screen=gl_FragCoord.xy/pixelRatio;
+      float edge=smoothstep(0.,min(viewport.x*.16,180.),min(screen.x,viewport.x-screen.x));
+      float opacity=artWeight*wash.a*.70*edge;
+      gl_FragColor=vec4(mix(vec3(${BACKGROUND.join(',')}),wash.rgb,opacity),0.);return;
+    }
     if(splatter>.5){
       if(artWeight<.001||scoreHash(floor(vGlyphOffset*42.))<.18)discard;
       vec3 pigment=mix(vec3(.20,.12,.48),vec3(.47,.31,.82),scoreHash(floor(vGlyphOffset*27.)));

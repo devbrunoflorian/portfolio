@@ -111,7 +111,7 @@ export function buildRibbonGeometry(score, view, groups, engraving, voicePaths =
     for (let i = 1; i < top.length; i++) {
       const a = { ...top[i - 1], ...extra }, b = { ...top[i], ...extra };
       const c = { ...bottom[i], ...extra }, d = { ...bottom[i - 1], ...extra };
-      if (extra.materialType === SCORE_MATERIAL.BEAM) {
+      if (extra.materialType === SCORE_MATERIAL.BEAM || extra.materialType === SCORE_MATERIAL.BEAM_WASH) {
         const start = top[0].u, span = top.at(-1).u - start || 1;
         for (const [p, across] of [[a, 0], [b, 0], [c, 1], [d, 1]]) {
           p.spriteUV = [(p.u - start) / span, across];
@@ -202,9 +202,16 @@ export function buildRibbonGeometry(score, view, groups, engraving, voicePaths =
       const t=Math.abs(span)<1e-7?0:(p.u-a.from)/span;
       return point(a.base+(b.base-a.base)*t,p.v,{remap:a.offset+(b.offset-a.offset)*t});
     };
+    const paintedBeam = (upper, lower) => {
+      const expand = (edge, opposite) => edge.map((p, i) => ({ ...p,
+        v: (p.v + opposite[i].v) / 2 + (p.v - opposite[i].v) * .9 }));
+      strip(expand(upper, lower).map(mapped), expand(lower, upper).map(mapped),
+        { materialType: SCORE_MATERIAL.BEAM_WASH });
+      strip(upper.map(mapped), lower.map(mapped), { materialType: SCORE_MATERIAL.BEAM });
+    };
     if (group.beamBands) {
-      for (const band of group.beamBands) strip(band.upper.map(mapped), band.lower.map(mapped), { materialType: SCORE_MATERIAL.BEAM });
-    } else if (group.upper) strip(group.upper.map(mapped), group.lower.map(mapped), { materialType: SCORE_MATERIAL.BEAM });
+      for (const band of group.beamBands) paintedBeam(band.upper, band.lower);
+    } else if (group.upper) paintedBeam(group.upper, group.lower);
     for (let i = 0; i < group.stems.length; i++) {
       const s = group.stems[i], h = group.heads[i], tip = mapped(s.tip);
       // Head contact and beam tip are projected independently; the connecting stem
@@ -216,17 +223,18 @@ export function buildRibbonGeometry(score, view, groups, engraving, voicePaths =
       emit({ ...p, side: -1 }, { ...p, side: 1, t: 1 }, { ...p, side: -1, t: 1 });
     }
     for (const l of group.ledgerLines) stroke(l.points.map(mapped), l.width, { materialType: SCORE_MATERIAL.STAFF });
-    const glyph = (g, materialType, protect = 0, anchor = g.anchor, center = [0, 0]) => {
+    const glyph = (g, materialType, protect = 0, anchor = g.anchor, center = [0, 0], outlineScale = 1) => {
       const contours = g.contours ?? glyphContours(score.pdfGlyphPaths[g.glyph.glyph]).map(c => c.map(([x, y]) =>
         ({ u: anchor.u + (x - center[0]) * g.glyph.scaleX, v: anchor.v + (y - center[1]) * g.glyph.scaleY })));
       const flat = contours.flat();
       const x0 = Math.min(...flat.map(p => p.u)), x1 = Math.max(...flat.map(p => p.u));
       const y0 = Math.min(...flat.map(p => p.v)), y1 = Math.max(...flat.map(p => p.v));
       fill(contours.map(c => c.map(p => point(p.u, p.v, { u: anchor.u, v: anchor.v, kind: 1,
-        offset: [p.u - anchor.u, p.v - anchor.v], spriteUV: [(p.u - x0) / (x1 - x0), (p.v - y0) / (y1 - y0)],
-        materialType, gold: protect, head: g.noteId ? 1 : 0 }))), emit);
+        offset: [(p.u - anchor.u) * outlineScale, (p.v - anchor.v) * outlineScale], spriteUV: [(p.u - x0) / (x1 - x0), (p.v - y0) / (y1 - y0)],
+        materialType, gold: protect, head: g.noteId && materialType === SCORE_MATERIAL.HEAD ? 1 : 0 }))), emit);
     };
     for (const h of group.heads) {
+      glyph(h, SCORE_MATERIAL.HEAD_WASH, 0, h.anchor, [0, 0], 1.3);
       glyph(h, SCORE_MATERIAL.HEAD, h.noteId === markerId ? 1 : 0);
       const contours = h.contours.flat();
       const width = Math.max(...contours.map(p => p.u)) - Math.min(...contours.map(p => p.u));
