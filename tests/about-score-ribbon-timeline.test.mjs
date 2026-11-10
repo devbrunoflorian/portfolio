@@ -1,14 +1,14 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { scoreRibbonData } from "../assets/about/score-ribbon-data.js";
+import { scoreRibbonData } from "../assets/about-legacy/score-ribbon-data.js";
 import {
   scorePlaybackWindowAtBeat,
   scorePositionAtBeat,
   scoreRibbonTimeline,
   scoreWindowAtBeat,
   STATIC_SCORE_BEAT,
-} from "../assets/about/score-ribbon-timeline.js";
-import { visualVoiceSegments } from "../assets/about/score-ribbon-renderer.js";
+} from "../assets/about-legacy/score-ribbon-timeline.js";
+import { visualVoiceSegments } from "../assets/about-legacy/score-ribbon-renderer.js";
 
 test("the continuous ribbon preserves the complete guitar score and both melodies", () => {
   const bars = scoreRibbonData.systems.flatMap(system => system.bars);

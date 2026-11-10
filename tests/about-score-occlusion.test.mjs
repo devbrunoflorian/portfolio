@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {rasterDepth,paintDepthQueue,SCORE_BACKGROUND} from '../assets/about/score-occlusion.js';
+import {rasterDepth,paintDepthQueue,SCORE_BACKGROUND} from '../assets/about-legacy/score-occlusion.js';
 
 const triangle=depth=>[{x:0,y:0,depth,u:.1},{x:4,y:0,depth,u:.2},{x:0,y:4,depth,u:.1}];
 test('depth rasterization retains the near surface regardless of insertion order',()=>{

@@ -1,10 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {depthAppearance,DEPTH_BANDS} from '../assets/about/score-occlusion.js';
-import {enqueueStaffLine,HALO_HALF_WIDTH,staffInk} from '../assets/about/score-depth-cues.js';
-import {createTravelProjector} from '../assets/about/score-travel-geometry.js';
-import {scoreRibbonTimeline as score} from '../assets/about/score-ribbon-timeline.js';
-import {readingFocus,focusWeights} from '../assets/about/score-focus-profile.js';
+import {depthAppearance,DEPTH_BANDS} from '../assets/about-legacy/score-occlusion.js';
+import {enqueueStaffLine,HALO_HALF_WIDTH,staffInk} from '../assets/about-legacy/score-depth-cues.js';
+import {createTravelProjector} from '../assets/about-legacy/score-travel-geometry.js';
+import {scoreRibbonTimeline as score} from '../assets/about-legacy/score-ribbon-timeline.js';
+import {readingFocus,focusWeights} from '../assets/about-legacy/score-focus-profile.js';
 const view={x0:score.bars[30].xStart,x1:score.bars[32].xEnd};
 
 test('near/far bands are independent of viewport scale and decrease all three cues monotonically',()=>{

@@ -2,9 +2,9 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { scoreGridStudy } from "../assets/about/score-grid-study-data.js";
+import { scoreGridStudy } from "../assets/about-legacy/score-grid-study-data.js";
 
-const scoreDirectory = fileURLToPath(new URL("../assets/about/guitar-score/", import.meta.url));
+const scoreDirectory = fileURLToPath(new URL("../assets/about-legacy/guitar-score/", import.meta.url));
 const systemStarts = Array.from({ length: 36 }, (_, index) => index * 3 + 1);
 
 test("the 36 generated systems match the current source and cover all 106 bars", () => {
@@ -13,7 +13,7 @@ test("the 36 generated systems match the current source and cover all 106 bars",
 
   for (const firstBar of systemStarts) {
     const fileName = `system-${String(firstBar).padStart(3, "0")}.svg`;
-    const svg = readFileSync(new URL(`../assets/about/guitar-score/${fileName}`, import.meta.url), "utf8");
+    const svg = readFileSync(new URL(`../assets/about-legacy/guitar-score/${fileName}`, import.meta.url), "utf8");
     const metadata = svg.match(/<metadata>(.*?)<\/metadata>/)?.[1];
     assert.ok(metadata, `${fileName} has source metadata`);
     const details = JSON.parse(metadata);

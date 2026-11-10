@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { scoreGridRowLayout } from "../assets/about/score-grid-study-layout.js";
+import { scoreGridRowLayout } from "../assets/about-legacy/score-grid-study-layout.js";
 
 const system = { headerWidth: 150, barsPerSystem: 3, barWidth: 320 };
 

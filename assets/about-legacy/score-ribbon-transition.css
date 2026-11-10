@@ -1,0 +1,236 @@
+body[data-score-ribbon-transition="true"] .about-score-thread :is(.score-scene-fallback, .score-score-svg),
+body[data-score-ribbon-transition="true"] .about-score-leads[data-score-leads-global],
+body[data-score-ribbon-transition="true"] .score-figure :is(.score-scene-fallback, .score-score-svg, .about-score-leads) {
+  visibility: hidden;
+}
+
+body[data-score-ribbon-transition="true"] .score-ribbon-transition__canvas {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  transform: translate3d(var(--thread-x, 28vw), var(--thread-y, 1.5vh), 0) scale(var(--thread-scale, .94)) rotate(var(--thread-rotate, 0deg));
+  transform-origin: center;
+  opacity: var(--thread-opacity, .34);
+  will-change: transform, opacity;
+}
+
+@media (min-width: 701px) {
+  body[data-score-ribbon-transition="true"] .score-stage-spacer {
+    height: clamp(220px, 29vh, 270px);
+  }
+}
+
+/* The score belongs above chapter atmosphere, but every reading surface stays above it. */
+body[data-score-ribbon-transition="true"] .about-score-thread {
+  z-index: 1;
+}
+
+body[data-score-ribbon-transition="true"] :is(.hero-copy, .chapter-copy, .code-stack, .music-heading, .art-experiment, .games-experiment, .about-closing h2, .closing-links, .back-to-top) {
+  position: relative;
+  z-index: 2;
+}
+
+body[data-score-gpu-scroll="true"] :is(.code-chapter .chapter-copy, .music-heading .chapter-copy, .music-intro) {
+  position: relative;
+  z-index: 2;
+  isolation: isolate;
+}
+
+body[data-score-gpu-scroll="true"] :is(.music-tools, .music-explore) {
+  position: relative;
+  z-index: 2;
+  isolation: isolate;
+}
+
+body[data-score-gpu-scroll="true"] .score-gpu-scroll-canvas {
+  /* Three owns the camera in this route; applying the editorial CSS transform
+     here would offset and scale the same camera move a second time. */
+  transform: none;
+  opacity: clamp(0, calc(var(--thread-opacity, 1) + .2), 1);
+}
+
+body[data-score-gpu-scroll="true"] .about-score-thread {
+  isolation: isolate;
+  mask-image: linear-gradient(to right, transparent, black min(3.5vw, 52px), black calc(100% - min(3.5vw, 52px)), transparent),
+    linear-gradient(to bottom, transparent, black 9%, black 92%, transparent), var(--reading-veils, linear-gradient(black,black));
+  mask-composite: intersect;
+}
+
+body[data-score-gpu-scroll="true"] .about-score-thread::before {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  inset: -18%;
+  pointer-events: none;
+  opacity: .72;
+  filter: blur(28px);
+  background:
+    radial-gradient(ellipse at 28% 44%, rgb(111 57 177 / 21%), transparent 38%),
+    radial-gradient(ellipse at 72% 54%, rgb(45 111 214 / 17%), transparent 43%);
+  transform: translate3d(-1%, 0, 0) scale(.99);
+  animation: score-atmosphere-drift 18s ease-in-out infinite alternate;
+}
+
+@keyframes score-atmosphere-drift {
+  from { transform: translate3d(-1.2%, .4%, 0) scale(.99); }
+  to { transform: translate3d(1.4%, -1%, 0) scale(1.035); }
+}
+
+body[data-score-gpu-scroll="true"] .about-hero .hero-copy {
+  position: relative;
+  z-index: 2;
+  isolation: isolate;
+}
+
+body[data-score-gpu-scroll="true"] .about-hero .hero-copy::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: -34px -48px;
+  pointer-events: none;
+  background: radial-gradient(ellipse at 58% 48%, #060609 0 46%, rgb(6 6 9 / 96%) 66%, transparent 100%);
+}
+
+body[data-score-gpu-scroll="true"] .art-experiment .rhythm-keys {
+  position: relative;
+  z-index: 2;
+  isolation: isolate;
+}
+
+body[data-score-gpu-scroll="true"] .art-experiment .rhythm-keys::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: -10px -18px;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, #060609 0 38%, rgb(6 6 9 / 90%) 68%, transparent 100%);
+}
+
+body[data-score-gpu-scroll="true"] :is(.code-chapter .chapter-copy, .music-heading .chapter-copy, .music-intro)::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: -30px -42px;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, #060609 0 58%, rgb(6 6 9 / 96%) 74%, transparent 100%);
+}
+
+body[data-score-gpu-scroll="true"] :is(.music-tools, .music-explore)::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: -24px -30px;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, #060609 0 52%, rgb(6 6 9 / 95%) 72%, transparent 100%);
+}
+
+body[data-score-ribbon-transition="true"] .code-score-anchor {
+  isolation: isolate;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(90deg, #000 0%, #000 86%, transparent 100%);
+  mask-image: linear-gradient(90deg, #000 0%, #000 86%, transparent 100%);
+}
+
+body[data-score-ribbon-transition="true"] .code-score-anchor::after {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  inset: 5% -3% 5% 0;
+  pointer-events: none;
+  opacity: .58;
+  background-image:
+    linear-gradient(rgb(87 139 255 / 11%) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(87 139 255 / 11%) 1px, transparent 1px),
+    radial-gradient(circle at 72% 27%, rgb(74 153 255 / 44%) 0 1px, transparent 2px),
+    radial-gradient(circle at 54% 72%, rgb(190 119 255 / 34%) 0 1px, transparent 2px);
+  background-size: 28px 28px, 28px 28px, 100% 100%, 100% 100%;
+  -webkit-mask-image: radial-gradient(ellipse at 58% 50%, #000 0%, rgb(0 0 0 / 60%) 44%, transparent 83%);
+  mask-image: radial-gradient(ellipse at 58% 50%, #000 0%, rgb(0 0 0 / 60%) 44%, transparent 83%);
+}
+
+body[data-score-ribbon-transition="true"] .code-stack {
+  isolation: isolate;
+}
+
+body[data-score-ribbon-transition="true"] .code-stack::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: -72px -16px 0;
+  pointer-events: none;
+  background: linear-gradient(180deg, transparent, #060609f0 96px, #060609 180px);
+}
+
+/* Reading surfaces stay visually open while the score keeps travelling behind them. */
+body[data-score-ribbon-transition="true"] :is(.poem, .music-heading, .score-figure figcaption, .games-chapter .chapter-copy, .about-closing h2, .closing-links) {
+  isolation: isolate;
+  position: relative;
+  z-index: 2;
+}
+
+body[data-score-ribbon-transition="true"] :is(.poem, .music-heading, .score-figure figcaption, .games-chapter .chapter-copy, .about-closing h2, .closing-links)::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: -38px -58px;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, #060609 0 40%, rgb(6 6 9 / 88%) 58%, transparent 82%);
+}
+
+body[data-score-gpu-scroll="true"] .games-chapter .chapter-copy::before {
+  inset: -42px -68px;
+  background: radial-gradient(ellipse 92% 118% at center, #060609 0 56%, rgb(6 6 9 / 97%) 74%, rgb(6 6 9 / 72%) 90%, transparent 100%);
+}
+
+@media (max-width: 700px) {
+  body[data-score-gpu-scroll="true"] :is(.code-chapter .chapter-copy, .music-heading .chapter-copy, .music-intro)::before {
+    inset: -22px -24px;
+  }
+
+  body[data-score-gpu-scroll="true"] :is(.music-tools, .music-explore)::before {
+    inset: -18px -20px;
+  }
+
+  body[data-score-gpu-scroll="true"] .about-hero .hero-copy::before {
+    inset: -22px -24px;
+  }
+
+  body[data-score-ribbon-transition="true"] :is(.poem, .games-chapter .chapter-copy, .about-closing h2, .closing-links)::before {
+    inset: -26px -20px;
+  }
+
+  body[data-score-gpu-scroll="true"] .games-chapter .chapter-copy::before {
+    inset: -32px -24px;
+    background: radial-gradient(ellipse 108% 124% at center, #060609 0 58%, rgb(6 6 9 / 97%) 76%, rgb(6 6 9 / 70%) 92%, transparent 100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body[data-score-gpu-scroll="true"] .about-score-thread::before {
+    animation: none;
+  }
+}
+
+html[data-motion-paused="true"] body[data-score-gpu-scroll="true"] .about-score-thread::before {
+  animation: none;
+}
+
+/* Bring the veil to zero before its own bounding box on every side. */
+body[data-score-gpu-scroll="true"] :is(.hero-copy, .code-chapter .chapter-copy, .music-heading .chapter-copy, .music-intro, .games-chapter .chapter-copy)::before {
+  inset: -28% -20%;
+  mask-image: radial-gradient(ellipse 50% 50% at center, black 54%, transparent);
+}
+body[data-score-gpu-scroll="true"] .code-stack::before {
+  inset-inline: calc(-1 * var(--about-gutter));
+  mask-image: linear-gradient(90deg, transparent, black var(--about-gutter), black calc(100% - var(--about-gutter)), transparent),
+    linear-gradient(transparent, black 15%, black 83%, transparent);
+  mask-composite: intersect;
+}
+body[data-score-gpu-scroll="true"] :is(.hero-copy, .chapter-copy, .music-heading, .music-intro, .poem, .rhythm-keys, .closing-links, .code-stack, .about-closing h2)::before {
+  background: none;
+}
+body[data-score-gpu-scroll="true"] .hero-field { overflow: visible; }

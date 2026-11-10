@@ -1,11 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { scoreRibbonTimeline as score } from '../assets/about/score-ribbon-timeline.js';
-import { scoreRibbonData } from '../assets/about/score-ribbon-data.js';
-import { buildEngraving,projectedRest } from '../assets/about/score-engraving.js';
-import {buildCompoundGroups,projectCompoundGroup,enqueueCompoundGroups} from '../assets/about/score-compound-groups.js';
-import { createTravelProjector } from '../assets/about/score-ribbon-geometry.js';
-import { projectHeadStem } from '../assets/about/score-head-stems.js';
+import { scoreRibbonTimeline as score } from '../assets/about-legacy/score-ribbon-timeline.js';
+import { scoreRibbonData } from '../assets/about-legacy/score-ribbon-data.js';
+import { buildEngraving,projectedRest } from '../assets/about-legacy/score-engraving.js';
+import {buildCompoundGroups,projectCompoundGroup,enqueueCompoundGroups} from '../assets/about-legacy/score-compound-groups.js';
+import { createTravelProjector } from '../assets/about-legacy/score-ribbon-geometry.js';
+import { projectHeadStem } from '../assets/about-legacy/score-head-stems.js';
 
 const view = { x0: score.bars[30].xStart, x1: score.bars[32].xEnd };
 const notes = score.pdfGlyphs.filter(g => g.noteId && g.x >= view.x0 && g.x <= view.x1)

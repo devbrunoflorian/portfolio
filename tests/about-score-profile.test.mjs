@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createDrawProfile,summarizeSamples} from '../assets/about/score-draw-profile.js';
-import {paintDepthQueue} from '../assets/about/score-occlusion.js';
+import {createDrawProfile,summarizeSamples} from '../assets/about-legacy/score-draw-profile.js';
+import {paintDepthQueue} from '../assets/about-legacy/score-occlusion.js';
 
 test('sample summaries use the median and nearest-rank p95 without dropping slow samples',()=>{
   const samples=Array.from({length:30},(_,i)=>({total:i+1}));

@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {indexSegments} from '../assets/about/score-segment-index.js';
-import {createTravelProjector} from '../assets/about/score-travel-geometry.js';
-import {scoreRibbonTimeline as score} from '../assets/about/score-ribbon-timeline.js';
+import {indexSegments} from '../assets/about-legacy/score-segment-index.js';
+import {createTravelProjector} from '../assets/about-legacy/score-travel-geometry.js';
+import {scoreRibbonTimeline as score} from '../assets/about-legacy/score-ribbon-timeline.js';
 const view={x0:score.bars[30].xStart,x1:score.bars[32].xEnd};
 function reference(points,x,y){
   let best=Infinity,result;

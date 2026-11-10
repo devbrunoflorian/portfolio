@@ -1,0 +1,57 @@
+body[data-score-ribbon-storyboard] .about-score-thread,
+body[data-score-ribbon-storyboard] .about-score-leads[data-score-leads-global] {
+  visibility: hidden;
+}
+
+body[data-score-ribbon-storyboard] .score-ribbon-storyboard__canvas {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  display: block;
+  max-width: none;
+  pointer-events: none;
+}
+
+body[data-score-ribbon-storyboard="music"] .score-stage-spacer {
+  height: clamp(224px, 30vh, 252px);
+}
+
+body[data-score-ribbon-storyboard="code"] .code-score-anchor {
+  isolation: isolate;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(90deg, #000 0%, #000 86%, transparent 100%);
+  mask-image: linear-gradient(90deg, #000 0%, #000 86%, transparent 100%);
+}
+
+body[data-score-ribbon-storyboard="code"] .code-score-anchor::after {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  inset: 5% -3% 5% 0;
+  pointer-events: none;
+  opacity: .58;
+  background-image:
+    linear-gradient(rgb(87 139 255 / 11%) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(87 139 255 / 11%) 1px, transparent 1px),
+    radial-gradient(circle at 72% 27%, rgb(74 153 255 / 44%) 0 1px, transparent 2px),
+    radial-gradient(circle at 54% 72%, rgb(190 119 255 / 34%) 0 1px, transparent 2px);
+  background-size: 28px 28px, 28px 28px, 100% 100%, 100% 100%;
+  -webkit-mask-image: radial-gradient(ellipse at 58% 50%, #000 0%, rgb(0 0 0 / 60%) 44%, transparent 83%);
+  mask-image: radial-gradient(ellipse at 58% 50%, #000 0%, rgb(0 0 0 / 60%) 44%, transparent 83%);
+}
+
+body[data-score-ribbon-storyboard="code"] .score-ribbon-storyboard__canvas {
+  opacity: .84;
+}
+
+@media (max-width: 700px) {
+  body[data-score-ribbon-storyboard="music"] .score-stage-spacer {
+    height: 154px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body[data-score-ribbon-storyboard] .score-ribbon-storyboard__canvas {
+    animation: none;
+  }
+}

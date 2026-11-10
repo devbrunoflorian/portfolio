@@ -7,7 +7,7 @@ import {
   scoreJourneyAtReadingLine,
   scorePoseAtReadingLine,
   scoreValueAtReadingLine,
-} from "../assets/about/score-camera-journey.js";
+} from "../assets/about-legacy/score-camera-journey.js";
 
 const centers = [120, 640, 1980, 2650, 3360, 4020];
 

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { score } from "../assets/about/score.js";
+import { score } from "../assets/about-legacy/score.js";
 import {
   contourPathForNotes,
   contourPoints,
@@ -8,7 +8,7 @@ import {
   scoreNotesInWindow,
   scoreVoiceNotesInRange,
   staffYForMidi,
-} from "../assets/about/score-visual.js";
+} from "../assets/about-legacy/score-visual.js";
 
 test("only the two melodies enter the rolling score window", () => {
   const notes = scoreNotesInWindow(score, 136);

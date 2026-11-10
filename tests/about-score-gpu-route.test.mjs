@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { shouldEnableScoreLight, shouldUseGpuScoreScroll } from '../assets/about/score-gpu-route.js';
+import { shouldEnableScoreLight, shouldUseGpuScoreScroll } from '../assets/about-legacy/score-gpu-route.js';
 
 test('About enables the GPU score journey on its normal route', () => {
   assert.equal(shouldUseGpuScoreScroll(new URLSearchParams()), true);

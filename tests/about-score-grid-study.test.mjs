@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { scoreGridStudy } from "../assets/about/score-grid-study-data.js";
+import { scoreGridStudy } from "../assets/about-legacy/score-grid-study-data.js";
 
 test("the guitar notation grid represents the complete 106-bar source", () => {
   assert.match(scoreGridStudy.sourceSha256, /^[a-f0-9]{64}$/);

@@ -1,9 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createProjector, createTravelProjector } from "../assets/about/score-ribbon-geometry.js";
-import {measureScreenCurvature,SCREEN_CURVATURE_LIMIT} from '../assets/about/score-screen-curvature.js';
-import {scoreRibbonTimeline} from '../assets/about/score-ribbon-timeline.js';
-import {noteHeadStemPairs,projectHeadStem} from '../assets/about/score-head-stems.js';
+import { createProjector, createTravelProjector } from "../assets/about-legacy/score-ribbon-geometry.js";
+import {measureScreenCurvature,SCREEN_CURVATURE_LIMIT} from '../assets/about-legacy/score-screen-curvature.js';
+import {scoreRibbonTimeline} from '../assets/about-legacy/score-ribbon-timeline.js';
+import {noteHeadStemPairs,projectHeadStem} from '../assets/about-legacy/score-head-stems.js';
 
 const study = { x0: 0, x1: 160, y0: -18, y1: 12, staffLines: [-8, -6, -4, -2, 0] };
 
