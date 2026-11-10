@@ -20,7 +20,8 @@ html:has(.about-rebuild-v2) .site-header { position: relative; z-index: 40; flex
   margin: 0;
   padding: 0 0 calc(var(--dock-space) + env(safe-area-inset-bottom));
   color: var(--ink);
-  overflow: clip;
+  overflow-x: clip;
+  overflow-y: visible;
   isolation: isolate;
   background: var(--paper);
   font-family: Inter, ui-sans-serif, system-ui, sans-serif;
@@ -257,6 +258,78 @@ html[data-motion-reduced="true"] .rebuild-scroll span { animation: none; }
   .dock-play { padding-inline: 7px; }
   .rebuild-index { margin-bottom: 20px; }
   .games-landscape { min-height: 320px; }
+}
+
+.score-transition {
+  --transition-progress: 0;
+  position: relative;
+  min-height: max(760px, 150svh);
+  padding-inline: var(--page-gutter, clamp(20px, 5vw, 84px));
+  background: radial-gradient(ellipse at 48% 46%, #171026 0, #09080e 48%, #060609 78%);
+}
+.score-filter-definitions { position: absolute; width: 0; height: 0; overflow: hidden; }
+.score-transition-stage {
+  position: relative;
+  z-index: 4;
+  width: 100%;
+  height: min(68svh, 610px);
+  min-height: 320px;
+  display: grid;
+  align-content: center;
+  overflow: visible;
+}
+.score-transition[data-pinned] .score-transition-stage {
+  position: fixed;
+  top: clamp(72px, 10vh, 108px);
+  left: 0;
+  width: 100vw;
+  box-sizing: border-box;
+  padding-inline: var(--page-gutter, clamp(20px, 5vw, 84px));
+}
+.score-transition[data-after] .score-transition-stage {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+.transition-score { position: relative; width: min(100%, 1580px); margin: 0 auto; aspect-ratio: 7.8; isolation: isolate; transform: translate3d(0, var(--score-y, 0px), 0) scale(var(--score-scale, 1)); transform-origin: center; will-change: transform; }
+.score-transition-stage::before { content: ""; position: absolute; inset: 5% 2%; z-index: 0; background: radial-gradient(ellipse at 20% 50%, #7042e7a6, transparent 52%), radial-gradient(ellipse at 56% 50%, #3867dda1, transparent 56%), radial-gradient(ellipse at 84% 50%, #bd4fbb8a, transparent 52%); filter: blur(44px); opacity: calc(var(--transition-progress) * .76); }
+.transition-score, .score-transition-caption { z-index: 1; }
+.transition-engraving { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: fill; opacity: calc(.86 - var(--transition-progress) * .82); filter: brightness(0) invert(.7); }
+.transition-watercolor {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  filter: url(#score-watercolor-edge);
+  opacity: var(--transition-progress);
+  mix-blend-mode: normal;
+  clip-path: inset(0 calc(100% - var(--watercolor-reveal, 0%)) 0 0);
+  will-change: clip-path, opacity;
+}
+.score-transition-caption { position: absolute; left: var(--page-gutter, clamp(20px, 5vw, 84px)); right: var(--page-gutter, clamp(20px, 5vw, 84px)); bottom: 3%; display: flex; justify-content: space-between; margin: 0; color: #c3a3f5; font: 10px/1 ui-monospace, monospace; letter-spacing: .22em; }
+.score-transition-caption span { transition: opacity .2s linear; }
+.score-transition-caption span:first-child { opacity: calc(1 - var(--transition-progress)); }
+.score-transition-caption span:last-child { opacity: var(--transition-progress); }
+
+@media (max-width: 700px) {
+  .score-transition { min-height: max(690px, 132svh); padding-inline: 12px; }
+  .score-transition-stage { height: 66svh; min-height: 270px; }
+  .score-transition[data-pinned] .score-transition-stage { top: 76px; padding-inline: 12px; }
+  .transition-score { width: 100%; aspect-ratio: 5.5; }
+  .score-transition-caption { left: 12px; right: 12px; bottom: 1%; font-size: 7px; letter-spacing: .14em; }
+}
+
+@media (max-width: 360px) {
+  .score-transition { min-height: max(620px, 128svh); }
+  .score-transition-stage { min-height: 250px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .transition-score { transform: none; will-change: auto; }
+  .transition-watercolor, .score-transition-caption span { transition: none; }
 }
 @media (prefers-reduced-motion: reduce) {
   html:has(.about-rebuild-v2) { scroll-behavior: auto; }

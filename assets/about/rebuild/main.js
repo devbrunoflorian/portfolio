@@ -3,7 +3,7 @@ import { score } from "../score.js";
 
 const stylesheet = document.createElement("link");
 stylesheet.rel = "stylesheet";
-stylesheet.href = new URL("./style.css?v=1", import.meta.url).href;
+stylesheet.href = new URL("./style.css?v=17", import.meta.url).href;
 document.head.append(stylesheet);
 
 const root = document.querySelector(".about-main");
@@ -143,6 +143,28 @@ const sections = `
     <figure class="music-score"><div class="music-score-glow" aria-hidden="true"></div><img src="/assets/about/guitar-score/score-ribbon-row-030-033.png" alt="" decoding="async"><figcaption><span>DISSONÂNCIA</span><span>31 — 33</span><span>${text(copy.scoreBy)}</span></figcaption></figure>
     <details class="rebuild-mixer"><summary>${text(copy.layers)} <span>＋</span></summary><div class="mixer-sliders"></div></details>
   </section>
+  <section class="score-transition" id="score-transition" aria-label="${isEnglish ? "The score changes into watercolor" : "A partitura se transforma em aquarela"}" data-score-transition>
+    <svg class="score-filter-definitions" aria-hidden="true" focusable="false">
+      <filter id="score-watercolor-edge" x="-8%" y="-45%" width="116%" height="190%" color-interpolation-filters="sRGB" primitiveUnits="userSpaceOnUse">
+        <feTurbulence type="fractalNoise" baseFrequency=".035 .12" numOctaves="2" seed="17" result="paperGrain" />
+        <feDisplacementMap in="SourceAlpha" in2="paperGrain" scale="1.25" xChannelSelector="R" yChannelSelector="B" result="wetEdge" />
+        <feMorphology in="wetEdge" operator="dilate" radius=".75" result="pigmentBleed" />
+        <feComposite in="pigmentBleed" in2="wetEdge" operator="out" result="outerWashMask" />
+        <feFlood flood-color="#397ee5" result="bluePigment" />
+        <feComposite in="bluePigment" in2="outerWashMask" operator="in" result="blueWash" />
+        <feFlood flood-color="#bb73e8" result="violetPigment" />
+        <feComposite in="violetPigment" in2="wetEdge" operator="in" result="violetCore" />
+        <feBlend in="blueWash" in2="violetCore" mode="normal" />
+      </filter>
+    </svg>
+    <div class="score-transition-stage">
+      <div class="transition-score" aria-hidden="true">
+        <img class="transition-engraving" src="/assets/about/guitar-score/score-ribbon-row-030-033.png" alt="" decoding="async">
+        <img class="transition-watercolor" src="/assets/about/guitar-score/score-ribbon-row-030-033.png" alt="" decoding="async">
+      </div>
+      <p class="score-transition-caption"><span>${isEnglish ? "THE SAME PHRASE" : "A MESMA FRASE"}</span><span>${isEnglish ? "ANOTHER MATERIAL" : "OUTRA MATÉRIA"}</span></p>
+    </div>
+  </section>
   <section class="rebuild-chapter rebuild-art" id="art" aria-labelledby="rebuild-art-title" data-rebuild-chapter="art">
     <div class="art-wash" aria-hidden="true"><svg viewBox="0 0 1000 720" preserveAspectRatio="xMidYMid slice"><defs><filter id="watercolor-blur"><feGaussianBlur stdDeviation="18"/></filter><linearGradient id="wash-purple" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#5041d7"/><stop offset=".5" stop-color="#b351df"/><stop offset="1" stop-color="#192c83"/></linearGradient></defs><path d="M-30 480C96 352 138 240 314 210s169 51 273-82 258-111 333 8 88 211 94 510H-22z" fill="url(#wash-purple)" opacity=".4" filter="url(#watercolor-blur)"/><path d="M-20 530C120 417 204 278 340 285s190 84 292-51 197-139 268-36" fill="none" stroke="#8f68ff" stroke-width="46" stroke-linecap="round" opacity=".32"/><path d="M-10 590C160 480 205 358 348 345s222 111 329-17 176-133 272-89" fill="none" stroke="#67adff" stroke-width="16" stroke-linecap="round" opacity=".42"/><g fill="#bb8aff" opacity=".68"><circle cx="185" cy="178" r="5"/><circle cx="230" cy="224" r="3"/><circle cx="760" cy="210" r="4"/><circle cx="826" cy="290" r="7"/><circle cx="668" cy="535" r="4"/><circle cx="340" cy="590" r="3"/></g><path d="M211 434c52-140 114-234 214-252-7 71-37 126-79 157 78-31 143-18 180 29-64 10-102 41-124 98-25 65-97 104-203 100 65-24 106-65 125-112-37 13-75 7-113-20z" fill="#d5bdff" opacity=".16"/></svg><span class="art-brush art-brush-one"></span><span class="art-brush art-brush-two"></span></div>
     <div class="art-poem"><p class="rebuild-kicker">${text(copy.artKicker)}</p><blockquote>${text(copy.poem)}</blockquote><span class="poem-rule"></span><h2 id="rebuild-art-title" class="rebuild-fill">${text(copy.artTitle)}</h2><p>${text(copy.artBody)}</p><small>${text(copy.artNote)}</small></div>
@@ -184,6 +206,7 @@ function mountTextFill() {
     }));
   }
   let pending = false;
+  let pausedTransitionProgress = null;
   const update = () => {
     if (pending) return;
     pending = true;
@@ -197,10 +220,34 @@ function mountTextFill() {
       }
       const pageProgress = scrollY / Math.max(1, document.documentElement.scrollHeight - innerHeight);
       root.style.setProperty("--page-progress", pageProgress);
+      const transition = root.querySelector("[data-score-transition]");
+      if (transition) {
+        const bounds = transition.getBoundingClientRect();
+        const stage = transition.querySelector(".score-transition-stage");
+        const stageTop = innerWidth <= 700 ? 76 : Math.min(108, Math.max(72, innerHeight * .1));
+        const stageHeight = stage.getBoundingClientRect().height;
+        const travel = Math.max(1, bounds.height - stageHeight);
+        const progress = Math.max(0, Math.min(1, (stageTop - bounds.top) / travel));
+        const sceneBottom = stageTop + stageHeight;
+        const pinned = bounds.top <= stageTop && bounds.bottom >= sceneBottom;
+        const after = bounds.bottom < sceneBottom;
+        transition.toggleAttribute("data-pinned", pinned);
+        transition.toggleAttribute("data-after", after);
+        const paused = document.documentElement.dataset.motionPaused === "true" || document.documentElement.dataset.motionReduced === "true";
+        if (paused && pausedTransitionProgress === null) pausedTransitionProgress = progress;
+        if (!paused) pausedTransitionProgress = null;
+        const rawProgress = paused ? (pausedTransitionProgress ?? progress) : progress;
+        const currentProgress = rawProgress * rawProgress * (3 - 2 * rawProgress);
+        transition.style.setProperty("--transition-progress", String(currentProgress));
+        transition.style.setProperty("--watercolor-reveal", `${currentProgress * 100}%`);
+        transition.style.setProperty("--score-y", `${(0.5 - currentProgress) * 18}px`);
+        transition.style.setProperty("--score-scale", String((innerWidth <= 700 ? 0.94 : 0.9) + currentProgress * (innerWidth <= 700 ? 0.12 : 0.17)));
+      }
     });
   };
   addEventListener("scroll", update, { passive: true });
   addEventListener("resize", update, { passive: true });
+  root.querySelector(".stack-more details")?.addEventListener("toggle", update);
   update();
 }
 mountTextFill();
@@ -252,6 +299,7 @@ motionButton.addEventListener("click", () => {
   document.documentElement.dataset.motionPaused = String(paused);
   motionButton.setAttribute("aria-pressed", String(paused));
   motionButton.setAttribute("aria-label", paused ? copy.movementOn : copy.movement);
+  dispatchEvent(new Event("scroll"));
 });
 const dialog = root.querySelector(".rebuild-world");
 const opener = root.querySelector("[data-open-world]");
