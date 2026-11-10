@@ -1,311 +1,433 @@
 import { createJourneyAudio } from "../audio.js";
+import { mountChapterIllustrations } from "../chapter-illustrations.js";
 import { score } from "../score.js";
-
-const stylesheet = document.createElement("link");
-stylesheet.rel = "stylesheet";
-stylesheet.href = new URL("./style.css?v=17", import.meta.url).href;
-document.head.append(stylesheet);
+import { SCORE_CAMERA_POSE_STOPS, createScoreCurve, createScoreJourneyCurve } from "../score-camera-journey.js";
 
 const root = document.querySelector(".about-main");
 if (!root) throw new Error("About mount point is missing");
 
-const isEnglish = document.documentElement.lang.toLowerCase().startsWith("en");
-const source = {
-  stack: root.querySelector(".stack-groups")?.cloneNode(true),
-  extras: root.querySelector(".stack-more")?.cloneNode(true),
-};
+const stylesheet = document.createElement("link");
+stylesheet.rel = "stylesheet";
+stylesheet.href = new URL("./style.css?clean-2", import.meta.url).href;
+document.head.append(stylesheet);
 
+const isEnglish = document.documentElement.lang.toLowerCase().startsWith("en");
 const copy = isEnglish ? {
-  index: "A personal score · 01—06",
-  openingKicker: "Different languages.\nThe same restless mind.",
+  index: "ABOUT · A PERSONAL SCORE",
   openingTitle: "The person behind the work.",
-  openingBody: "I’m Bruno Florian. Code, music, art — and a curiosity that connects them all.",
-  enter: "Follow the score",
-  openingNote: "A composition in motion",
-  codeKicker: "01 / Structure",
-  codeTitle: "Give an idea a structure.",
-  codeBody: "I turn product ideas into software across frontend, backend, data and AI.",
-  stackTitle: "Tools I build with",
-  stackBody: "A working stack, gathered around the problems I like to solve.",
-  codeAside: "Patterns become paths. Paths become something people can use.",
-  musicKicker: "02 / The piece",
-  musicTitle: "Some things have to be felt.",
-  musicBody: "Dissonância moves through verses, bridges and refrains while the page changes around it.",
+  openingBody: "I’m Bruno Florian — a software engineer and creative builder, drawn to the point where systems, music and expression meet.",
   listen: "Listen to Dissonância",
-  pause: "Pause",
-  continue: "Continue",
-  chapter: "Chapter",
-  volume: "Master volume",
-  layers: "Layers",
-  artKicker: "03 / Expression",
-  artTitle: "Between words, another world.",
-  artBody: "Poetry, literature and visual art share this space. The same words can breathe differently when the rhythm changes.",
-  poem: "Between one idea\nand the next,\nsilence creates too.",
-  artNote: "A replaceable image layer — the painting remains its own material.",
-  gamesKicker: "04 / Play",
-  gamesTitle: "Play is another way to think.",
-  gamesBody: "Games and chess belong here too: strategy, pattern reading and new perspectives.",
+  continue: "Follow the story",
+  codeEyebrow: "01 · CODE",
+  codeTitle: "Give ideas a structure.",
+  codeBody: "I turn product ideas and constraints into software people can use.",
+  codeNote: "Each technical choice begins with the experience it needs to support.",
+  stackTitle: "The tools I work with",
+  stackBody: "A practical stack, shaped by the problems I choose to solve.",
+  musicEyebrow: "02 · MUSIC",
+  musicTitle: "The piece keeps its own time.",
+  musicBody: "Dissonância moves through the whole page. Scrolling changes the frame; the music keeps playing in real time.",
+  artEyebrow: "03 · ART",
+  artTitle: "Structure can hold feeling.",
+  artBody: "Visual art, poetry and literature share this part of the page. The score stays recognizable while its material changes.",
+  artWords: "IMAGE · POETRY · LITERATURE",
+  gamesEyebrow: "04 · GAMES",
+  gamesTitle: "Play is another way to read a system.",
+  gamesBody: "Games and chess bring strategy, patterns and a different kind of attention into the same practice.",
   explore: "Explore the world",
   worldTitle: "The Ancient Forest",
-  worldBody: "A small window into the world of the purple knight. The game itself comes later.",
+  worldBody: "A first look at the world around the purple knight. The game itself is a separate project.",
   closeWorld: "Return to the story",
-  endingKicker: "05 / What comes next",
-  endingTitle: "Ideas become more interesting when they become real.",
+  endingEyebrow: "05 · NEXT",
+  endingTitle: "Ideas become real through the work.",
   projects: "Explore projects",
   contact: "Get in touch",
+  pause: "Pause",
+  resume: "Continue",
+  off: "Sound off",
   movement: "Pause visual movement",
   movementOn: "Resume visual movement",
-  soundOff: "Sound is off",
-  scoreBy: "Dissonância · original composition",
+  mixer: "Track volume",
+  bar: "bar",
+  bars: "bars",
+  preview: "Score preview",
+  unavailable: "Audio unavailable",
 } : {
-  index: "Uma partitura pessoal · 01—06",
-  openingKicker: "Linguagens diferentes.\nA mesma inquietude.",
+  index: "ABOUT · UMA PARTITURA PESSOAL",
   openingTitle: "A pessoa por trás do trabalho.",
-  openingBody: "Sou Bruno Florian. Código, música, arte e uma curiosidade que conecta tudo isso.",
-  enter: "Acompanhar a partitura",
-  openingNote: "Uma composição em movimento",
-  codeKicker: "01 / Estrutura",
-  codeTitle: "Dar estrutura a uma ideia.",
-  codeBody: "Transformo ideias de produto em software entre frontend, backend, dados e IA.",
-  stackTitle: "Ferramentas que uso",
-  stackBody: "Uma stack de trabalho reunida em torno dos problemas que gosto de resolver.",
-  codeAside: "Padrões viram caminhos. Caminhos viram algo que as pessoas podem usar.",
-  musicKicker: "02 / A peça",
-  musicTitle: "Tem coisa que precisa ser sentida.",
-  musicBody: "Dissonância percorre versos, pontes e refrões enquanto esta página muda ao seu redor.",
+  openingBody: "Sou Bruno Florian — engenheiro de software e criador, atraído pelo ponto em que sistemas, música e expressão se encontram.",
   listen: "Ouvir Dissonância",
-  pause: "Pausar",
-  continue: "Continuar",
-  chapter: "Parte",
-  volume: "Volume geral",
-  layers: "Camadas",
-  artKicker: "03 / Expressão",
-  artTitle: "Entre as palavras, outro mundo.",
-  artBody: "Poesia, literatura e arte visual dividem este espaço. As mesmas palavras podem respirar de outro jeito quando o ritmo muda.",
-  poem: "Entre uma ideia\ne outra,\no silêncio também cria.",
-  artNote: "Uma camada de imagem substituível — a pintura preserva sua própria matéria.",
-  gamesKicker: "04 / Jogo",
-  gamesTitle: "Jogar também é pensar.",
-  gamesBody: "Jogos e xadrez também têm seu lugar: estratégia, leitura de padrões e novas perspectivas.",
+  continue: "Acompanhar a história",
+  codeEyebrow: "01 · CÓDIGO",
+  codeTitle: "Dar estrutura a uma ideia.",
+  codeBody: "Transformo ideias de produto e restrições em software que as pessoas podem usar.",
+  codeNote: "Cada escolha técnica começa pela experiência que precisa existir.",
+  stackTitle: "As ferramentas que uso",
+  stackBody: "Uma stack de trabalho, formada pelos problemas que escolho resolver.",
+  musicEyebrow: "02 · MÚSICA",
+  musicTitle: "A peça segue o próprio tempo.",
+  musicBody: "Dissonância atravessa a página inteira. A rolagem muda o enquadramento; a música continua tocando em tempo real.",
+  artEyebrow: "03 · ARTE",
+  artTitle: "Estrutura também pode guardar sentimento.",
+  artBody: "Arte visual, poesia e literatura ocupam esta parte da página. A partitura continua reconhecível enquanto sua matéria muda.",
+  artWords: "IMAGEM · POESIA · LITERATURA",
+  gamesEyebrow: "04 · JOGOS",
+  gamesTitle: "Jogar também é ler um sistema.",
+  gamesBody: "Jogos e xadrez trazem estratégia, padrões e outro tipo de atenção para a mesma prática.",
   explore: "Explorar o mundo",
   worldTitle: "Floresta Antiga",
-  worldBody: "Uma janela para o mundo do cavaleiro roxo. O jogo em si vem depois.",
+  worldBody: "Um primeiro olhar para o mundo do cavaleiro roxo. O jogo em si é um projeto separado.",
   closeWorld: "Voltar à história",
-  endingKicker: "05 / O que vem depois",
-  endingTitle: "As ideias ficam mais interessantes quando se tornam reais.",
+  endingEyebrow: "05 · PRÓXIMOS PASSOS",
+  endingTitle: "Ideias ganham forma com trabalho.",
   projects: "Conheça os projetos",
-  contact: "Vamos conversar",
+  contact: "Entre em contato",
+  pause: "Pausar",
+  resume: "Continuar",
+  off: "Som desligado",
   movement: "Pausar movimento visual",
   movementOn: "Retomar movimento visual",
-  soundOff: "Som desligado",
-  scoreBy: "Dissonância · composição original",
+  mixer: "Volume das pistas",
+  bar: "compasso",
+  bars: "compassos",
+  preview: "Prévia da partitura",
+  unavailable: "Áudio indisponível",
 };
 
-function esc(value) {
-  return String(value).replace(/[&<>"']/g, character => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]);
-}
-
-const text = value => esc(value).replaceAll("\n", "<br>");
-const staffSvg = `
-  <svg class="rebuild-staff" viewBox="0 0 1200 320" preserveAspectRatio="none" aria-hidden="true">
-    <defs>
-      <linearGradient id="staff-ink" x1="0" x2="1"><stop stop-color="#61a9ff" stop-opacity=".08"/><stop offset=".46" stop-color="#bd87ff" stop-opacity=".58"/><stop offset="1" stop-color="#6aa8ff" stop-opacity=".14"/></linearGradient>
-      <linearGradient id="staff-note" x1="0" x2="1"><stop stop-color="#66bdff"/><stop offset=".55" stop-color="#b994ff"/><stop offset="1" stop-color="#e3c6ff"/></linearGradient>
-      <filter id="staff-glow" x="-30%" y="-80%" width="160%" height="260%"><feGaussianBlur stdDeviation="5" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-    </defs>
-    <g class="staff-lines" fill="none" stroke="url(#staff-ink)" stroke-width="1.5">
-      <path d="M0 105 C210 40 344 145 525 92 S880 56 1200 126"/><path d="M0 130 C210 65 344 170 525 117 S880 81 1200 151"/><path d="M0 155 C210 90 344 195 525 142 S880 106 1200 176"/><path d="M0 180 C210 115 344 220 525 167 S880 131 1200 201"/><path d="M0 205 C210 140 344 245 525 192 S880 156 1200 226"/>
-    </g>
-    <g class="staff-notes" fill="url(#staff-note)" filter="url(#staff-glow)">
-      <ellipse cx="115" cy="172" rx="10" ry="6"/><ellipse cx="244" cy="143" rx="10" ry="6"/><ellipse cx="388" cy="191" rx="10" ry="6"/><ellipse cx="541" cy="155" rx="10" ry="6"/><ellipse cx="698" cy="111" rx="10" ry="6"/><ellipse cx="864" cy="132" rx="10" ry="6"/><ellipse cx="1014" cy="183" rx="10" ry="6"/>
-    </g>
-    <path class="staff-voice" d="M0 172 C205 102 324 194 518 155 S824 88 1200 164" fill="none" stroke="#78baff" stroke-width="2" opacity=".48"/>
-    <path class="staff-voice staff-voice-violet" d="M0 188 C197 135 342 218 522 180 S850 112 1200 192" fill="none" stroke="#c99cff" stroke-width="2" opacity=".5"/>
-  </svg>`;
-
-const sections = `
-  <div class="rebuild-progress" aria-hidden="true"><span></span></div>
-  <section class="rebuild-opening" id="opening" aria-labelledby="rebuild-title" data-rebuild-chapter="opening">
-    <div class="opening-orbit opening-orbit-one" aria-hidden="true"></div><div class="opening-orbit opening-orbit-two" aria-hidden="true"></div>
-    <div class="opening-score" aria-hidden="true">${staffSvg}<span class="opening-clef">𝄞</span></div>
-    <div class="opening-copy"><p class="rebuild-index">${text(copy.index)}</p><p class="rebuild-kicker">${text(copy.openingKicker)}</p><h1 id="rebuild-title" class="rebuild-fill">${text(copy.openingTitle)}</h1><p class="rebuild-lead">${text(copy.openingBody)}</p><a class="rebuild-link" href="#code">${text(copy.enter)} <span aria-hidden="true">↘</span></a></div>
-    <p class="opening-caption">${text(copy.openingNote)} <span>·</span> Dissonância</p>
-    <a class="rebuild-scroll" href="#code" aria-label="${esc(copy.enter)}"><span></span></a>
-  </section>
-  <section class="rebuild-chapter rebuild-code" id="code" aria-labelledby="rebuild-code-title" data-rebuild-chapter="code">
-    <div class="chapter-heading"><p class="rebuild-kicker">${text(copy.codeKicker)}</p><h2 id="rebuild-code-title" class="rebuild-fill">${text(copy.codeTitle)}</h2><p>${text(copy.codeBody)}</p></div>
-    <div class="code-visual" aria-hidden="true"><svg viewBox="0 0 720 430" preserveAspectRatio="xMidYMid meet"><defs><linearGradient id="circuit" x1="0" x2="1"><stop stop-color="#5c9dff"/><stop offset=".55" stop-color="#b885ff"/><stop offset="1" stop-color="#73c8ff"/></linearGradient><filter id="circuit-light"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs><g fill="none" stroke="url(#circuit)" stroke-width="1.2" opacity=".62"><path d="M0 270H180L290 160H470L560 70H720"/><path d="M0 330H230L350 210H510L610 110H720"/><path d="M80 0V95L200 215H370L480 325H720"/><path d="M0 170H115L225 60H400L515 175H720"/><path d="M145 430V350L260 235H420L555 370H720"/></g><g fill="#9ac7ff" filter="url(#circuit-light)"><circle cx="180" cy="270" r="4"/><circle cx="470" cy="160" r="4"/><circle cx="560" cy="70" r="4"/><circle cx="350" cy="210" r="4"/><circle cx="510" cy="210" r="4"/><circle cx="200" cy="215" r="4"/></g><g fill="#c7a3ff" opacity=".17"><rect x="278" y="106" width="150" height="108" rx="2"/><rect x="455" y="226" width="160" height="102" rx="2"/></g><path d="M318 135h-17v50h17m73-50h17v50h-17" fill="none" stroke="#d5b8ff" stroke-width="5" stroke-linecap="square"/></svg><span class="visual-note">01 — PATTERN → SYSTEM</span></div>
-    <div class="stack-panel"><div class="stack-panel-heading"><div><p class="rebuild-kicker">${text(copy.stackTitle)}</p><p>${text(copy.stackBody)}</p></div><span aria-hidden="true">↘</span></div><div class="rebuild-stack"></div><div class="rebuild-stack-more"></div></div>
-    <p class="chapter-side-note">${text(copy.codeAside)}</p>
-  </section>
-  <section class="rebuild-chapter rebuild-music" id="music" aria-labelledby="rebuild-music-title" data-rebuild-chapter="music">
-    <div class="music-heading"><div><p class="rebuild-kicker">${text(copy.musicKicker)}</p><h2 id="rebuild-music-title" class="rebuild-fill">${text(copy.musicTitle)}</h2></div><p>${text(copy.musicBody)}</p></div>
-    <figure class="music-score"><div class="music-score-glow" aria-hidden="true"></div><img src="/assets/about/guitar-score/score-ribbon-row-030-033.png" alt="" decoding="async"><figcaption><span>DISSONÂNCIA</span><span>31 — 33</span><span>${text(copy.scoreBy)}</span></figcaption></figure>
-    <details class="rebuild-mixer"><summary>${text(copy.layers)} <span>＋</span></summary><div class="mixer-sliders"></div></details>
-  </section>
-  <section class="score-transition" id="score-transition" aria-label="${isEnglish ? "The score changes into watercolor" : "A partitura se transforma em aquarela"}" data-score-transition>
-    <svg class="score-filter-definitions" aria-hidden="true" focusable="false">
-      <filter id="score-watercolor-edge" x="-8%" y="-45%" width="116%" height="190%" color-interpolation-filters="sRGB" primitiveUnits="userSpaceOnUse">
-        <feTurbulence type="fractalNoise" baseFrequency=".035 .12" numOctaves="2" seed="17" result="paperGrain" />
-        <feDisplacementMap in="SourceAlpha" in2="paperGrain" scale="1.25" xChannelSelector="R" yChannelSelector="B" result="wetEdge" />
-        <feMorphology in="wetEdge" operator="dilate" radius=".75" result="pigmentBleed" />
-        <feComposite in="pigmentBleed" in2="wetEdge" operator="out" result="outerWashMask" />
-        <feFlood flood-color="#397ee5" result="bluePigment" />
-        <feComposite in="bluePigment" in2="outerWashMask" operator="in" result="blueWash" />
-        <feFlood flood-color="#bb73e8" result="violetPigment" />
-        <feComposite in="violetPigment" in2="wetEdge" operator="in" result="violetCore" />
-        <feBlend in="blueWash" in2="violetCore" mode="normal" />
-      </filter>
-    </svg>
-    <div class="score-transition-stage">
-      <div class="transition-score" aria-hidden="true">
-        <img class="transition-engraving" src="/assets/about/guitar-score/score-ribbon-row-030-033.png" alt="" decoding="async">
-        <img class="transition-watercolor" src="/assets/about/guitar-score/score-ribbon-row-030-033.png" alt="" decoding="async">
+const stackGroups = root.querySelector(".stack-groups")?.cloneNode(true);
+const stackExtras = root.querySelector(".stack-more")?.cloneNode(true);
+const escape = value => String(value).replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
+const html = value => escape(value).replaceAll("\n", "<br>");
+root.classList.add("about-rebuild-clean");
+root.replaceChildren();
+root.insertAdjacentHTML("afterbegin", `
+  <div class="about-score-thread" data-score-thread aria-hidden="true"></div>
+  <section class="clean-chapter clean-opening" id="opening" data-movement="opening" aria-labelledby="clean-opening-title">
+    <div class="clean-opening-index"><span>01 / 06</span><span>${html(copy.index)}</span></div>
+    <div class="clean-opening-copy clean-reading">
+      <p class="clean-eyebrow">ABOUT · DISSONÂNCIA</p>
+      <h1 id="clean-opening-title" class="clean-fill">${html(copy.openingTitle)}</h1>
+      <p class="clean-lead">${html(copy.openingBody)}</p>
+      <div class="clean-actions">
+        <button class="clean-listen" type="button" data-play><span aria-hidden="true">▶</span><span data-play-label>${html(copy.listen)}</span></button>
+        <a class="clean-text-link" href="#code">${html(copy.continue)} <span aria-hidden="true">↓</span></a>
       </div>
-      <p class="score-transition-caption"><span>${isEnglish ? "THE SAME PHRASE" : "A MESMA FRASE"}</span><span>${isEnglish ? "ANOTHER MATERIAL" : "OUTRA MATÉRIA"}</span></p>
+    </div>
+    <p class="clean-opening-caption">DISSONÂNCIA <span>·</span> 4:09</p>
+  </section>
+
+  <section class="clean-chapter clean-code" id="code" data-movement="code" aria-labelledby="clean-code-title">
+    <div class="clean-code-illustration code-score-anchor" aria-hidden="true"></div>
+    <div class="clean-code-copy clean-reading">
+      <p class="clean-eyebrow">${html(copy.codeEyebrow)}</p>
+      <h2 id="clean-code-title" class="clean-fill">${html(copy.codeTitle)}</h2>
+      <p>${html(copy.codeBody)}</p>
+      <span class="clean-rule" aria-hidden="true"></span>
+      <p class="clean-code-note">${html(copy.codeNote)}</p>
+    </div>
+    <div class="clean-stack clean-reading">
+      <div class="clean-stack-heading"><div><p class="clean-eyebrow">${html(copy.stackTitle)}</p><p>${html(copy.stackBody)}</p></div><span aria-hidden="true">01—33</span></div>
+      <div class="clean-stack-groups"></div>
+      <div class="clean-stack-extras"></div>
     </div>
   </section>
-  <section class="rebuild-chapter rebuild-art" id="art" aria-labelledby="rebuild-art-title" data-rebuild-chapter="art">
-    <div class="art-wash" aria-hidden="true"><svg viewBox="0 0 1000 720" preserveAspectRatio="xMidYMid slice"><defs><filter id="watercolor-blur"><feGaussianBlur stdDeviation="18"/></filter><linearGradient id="wash-purple" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#5041d7"/><stop offset=".5" stop-color="#b351df"/><stop offset="1" stop-color="#192c83"/></linearGradient></defs><path d="M-30 480C96 352 138 240 314 210s169 51 273-82 258-111 333 8 88 211 94 510H-22z" fill="url(#wash-purple)" opacity=".4" filter="url(#watercolor-blur)"/><path d="M-20 530C120 417 204 278 340 285s190 84 292-51 197-139 268-36" fill="none" stroke="#8f68ff" stroke-width="46" stroke-linecap="round" opacity=".32"/><path d="M-10 590C160 480 205 358 348 345s222 111 329-17 176-133 272-89" fill="none" stroke="#67adff" stroke-width="16" stroke-linecap="round" opacity=".42"/><g fill="#bb8aff" opacity=".68"><circle cx="185" cy="178" r="5"/><circle cx="230" cy="224" r="3"/><circle cx="760" cy="210" r="4"/><circle cx="826" cy="290" r="7"/><circle cx="668" cy="535" r="4"/><circle cx="340" cy="590" r="3"/></g><path d="M211 434c52-140 114-234 214-252-7 71-37 126-79 157 78-31 143-18 180 29-64 10-102 41-124 98-25 65-97 104-203 100 65-24 106-65 125-112-37 13-75 7-113-20z" fill="#d5bdff" opacity=".16"/></svg><span class="art-brush art-brush-one"></span><span class="art-brush art-brush-two"></span></div>
-    <div class="art-poem"><p class="rebuild-kicker">${text(copy.artKicker)}</p><blockquote>${text(copy.poem)}</blockquote><span class="poem-rule"></span><h2 id="rebuild-art-title" class="rebuild-fill">${text(copy.artTitle)}</h2><p>${text(copy.artBody)}</p><small>${text(copy.artNote)}</small></div>
-  </section>
-  <section class="rebuild-chapter rebuild-games" id="games" aria-labelledby="rebuild-games-title" data-rebuild-chapter="games">
-    <div class="games-landscape" aria-hidden="true"><img src="/assets/about/forest/forest-world-wide.png" alt="" decoding="async"><div class="games-grid"></div><span class="games-star games-star-one">✦</span><span class="games-star games-star-two">✧</span><span class="games-knight" aria-hidden="true"></span><span class="games-portal"></span></div>
-    <div class="games-copy"><p class="rebuild-kicker">${text(copy.gamesKicker)}</p><h2 id="rebuild-games-title" class="rebuild-fill">${text(copy.gamesTitle)}</h2><p>${text(copy.gamesBody)}</p><button class="rebuild-link" type="button" data-open-world>${text(copy.explore)} <span aria-hidden="true">↗</span></button></div>
-  </section>
-  <section class="rebuild-ending" id="closing" aria-labelledby="rebuild-ending-title" data-rebuild-chapter="closing"><div class="ending-score" aria-hidden="true">${staffSvg}</div><div class="ending-copy"><p class="rebuild-kicker">${text(copy.endingKicker)}</p><h2 id="rebuild-ending-title" class="rebuild-fill">${text(copy.endingTitle)}</h2><nav aria-label="${isEnglish ? "Next steps" : "Próximos passos"}"><a href="${isEnglish ? "/en/projects/" : "/pt-br/projetos/"}">${text(copy.projects)} <span>↗</span></a><a href="${isEnglish ? "/en/contact/" : "/pt-br/contato/"}">${text(copy.contact)} <span>↗</span></a></nav></div></section>
-  <p class="rebuild-footnote">${text(copy.scoreBy)} <span>·</span> 4:09</p>
-  <dialog class="rebuild-world" aria-labelledby="world-title"><button class="world-close" type="button" data-close-world aria-label="${esc(copy.closeWorld)}">×</button><div class="world-scene"><img class="world-landscape" src="/assets/about/forest/forest-world-wide.png" alt=""><span class="world-knight" aria-hidden="true"></span><span class="world-light"></span></div><div class="world-description"><p class="rebuild-kicker">GAMES · ${isEnglish ? "PRESENTATION" : "APRESENTAÇÃO"}</p><h2 id="world-title">${text(copy.worldTitle)}</h2><p>${text(copy.worldBody)}</p><button type="button" class="rebuild-link" data-close-world>${text(copy.closeWorld)} <span aria-hidden="true">↗</span></button></div></dialog>
-  <div class="rebuild-dock" role="region" aria-label="${isEnglish ? "Dissonância player" : "Player de Dissonância"}"><div class="dock-chapters" aria-label="${isEnglish ? "Chapters" : "Capítulos"}"><a href="#opening">01</a><a href="#code">02</a><a href="#music">03</a><a href="#art">04</a><a href="#games">05</a><a href="#closing">06</a></div><button type="button" class="dock-play" aria-pressed="false"><span aria-hidden="true">▶</span><span class="dock-play-label">${text(copy.listen)}</span></button><span class="dock-state">${text(copy.soundOff)}</span><button type="button" class="dock-motion" aria-pressed="false" aria-label="${esc(copy.movement)}">◌</button></div>`;
 
-root.classList.add("about-rebuild-v2");
-root.replaceChildren();
-root.insertAdjacentHTML("afterbegin", sections);
-if (source.stack) root.querySelector(".rebuild-stack").append(source.stack);
-if (source.extras) root.querySelector(".rebuild-stack-more").append(source.extras);
-if (location.hash.length > 1) {
-  requestAnimationFrame(() => document.getElementById(decodeURIComponent(location.hash.slice(1)))?.scrollIntoView({ block: "start" }));
-}
+  <section class="clean-chapter clean-music" id="music" data-movement="music" aria-labelledby="clean-music-title">
+    <div class="clean-music-heading clean-reading">
+      <div><p class="clean-eyebrow">${html(copy.musicEyebrow)}</p><h2 id="clean-music-title" class="clean-fill">${html(copy.musicTitle)}</h2></div>
+      <p>${html(copy.musicBody)}</p>
+    </div>
+    <div class="clean-music-stage" aria-hidden="true"><span>DISSONÂNCIA</span><span data-score-window></span></div>
+    <details class="clean-mixer clean-reading"><summary>${html(copy.mixer)} <span aria-hidden="true">＋</span></summary><div class="clean-mixer-sliders"></div></details>
+  </section>
+
+  <section class="clean-chapter clean-art" id="art" data-movement="art" aria-labelledby="clean-art-title">
+    <div class="clean-art-field art-score-anchor" aria-hidden="true"><span>${html(copy.artWords)}</span></div>
+    <div class="clean-art-copy clean-reading">
+      <p class="clean-eyebrow">${html(copy.artEyebrow)}</p>
+      <h2 id="clean-art-title" class="clean-fill">${html(copy.artTitle)}</h2>
+      <p>${html(copy.artBody)}</p>
+    </div>
+  </section>
+
+  <section class="clean-chapter clean-games" id="games" data-movement="games" aria-labelledby="clean-games-title">
+    <div class="clean-game-stage" aria-hidden="true">
+      <picture class="clean-world-landscape">
+        <source media="(max-width: 700px)" srcset="/assets/about/forest/forest-world-portrait.png">
+        <img src="/assets/about/forest/forest-world-wide.png" alt="" loading="lazy" decoding="async">
+      </picture>
+      <span class="clean-pixel-knight"></span>
+    </div>
+    <div class="clean-games-copy clean-reading">
+      <p class="clean-eyebrow">${html(copy.gamesEyebrow)}</p>
+      <h2 id="clean-games-title" class="clean-fill">${html(copy.gamesTitle)}</h2>
+      <p>${html(copy.gamesBody)}</p>
+      <button class="clean-text-link clean-world-open" type="button" data-world-open>${html(copy.explore)} <span aria-hidden="true">↗</span></button>
+    </div>
+  </section>
+
+  <section class="clean-chapter clean-ending" id="closing" data-movement="closing" aria-labelledby="clean-ending-title">
+    <div class="clean-ending-copy clean-reading">
+      <p class="clean-eyebrow">${html(copy.endingEyebrow)}</p>
+      <h2 id="clean-ending-title" class="clean-fill">${html(copy.endingTitle)}</h2>
+      <nav aria-label="${isEnglish ? "Next steps" : "Próximos passos"}">
+        <a href="${isEnglish ? "/en/projects/" : "/pt-br/projetos/"}">${html(copy.projects)} <span aria-hidden="true">↗</span></a>
+        <a href="${isEnglish ? "/en/contact/" : "/pt-br/contato/"}">${html(copy.contact)} <span aria-hidden="true">↗</span></a>
+      </nav>
+    </div>
+  </section>
+
+  <dialog class="clean-world" aria-labelledby="clean-world-title">
+    <button class="clean-world-close" type="button" data-world-close aria-label="${escape(copy.closeWorld)}">×</button>
+    <div class="clean-world-stage" aria-hidden="true">
+      <picture class="clean-world-landscape">
+        <source media="(max-width: 700px)" srcset="/assets/about/forest/forest-world-portrait.png">
+        <img src="/assets/about/forest/forest-world-wide.png" alt="" decoding="async">
+      </picture>
+      <span class="clean-pixel-knight"></span>
+    </div>
+    <div class="clean-world-copy"><p class="clean-eyebrow">GAMES · ${isEnglish ? "WORLD STUDY" : "ESTUDO DE MUNDO"}</p><h2 id="clean-world-title">${html(copy.worldTitle)}</h2><p>${html(copy.worldBody)}</p><button class="clean-text-link" type="button" data-world-close>${html(copy.closeWorld)} <span aria-hidden="true">↗</span></button></div>
+  </dialog>
+
+  <nav class="clean-dock" aria-label="${isEnglish ? "About chapters and audio" : "Capítulos e áudio do About"}" data-dock>
+    <div class="clean-chapter-nav">${["opening", "code", "music", "art", "games", "closing"].map((id, index) => `<a href="#${id}" aria-label="${isEnglish ? "Chapter" : "Capítulo"} ${index + 1}">${String(index + 1).padStart(2, "0")}</a>`).join("")}</div>
+    <button class="clean-dock-play" type="button" data-play aria-label="${escape(copy.listen)}"><span aria-hidden="true">▶</span><span data-play-label>${html(copy.listen)}</span></button>
+    <span class="clean-dock-state" data-play-state>${html(copy.off)}</span>
+    <button class="clean-motion" type="button" aria-label="${escape(copy.movement)}" aria-pressed="false" data-motion><span aria-hidden="true">◌</span></button>
+  </nav>
+`);
+
+const disposeChapterIllustrations = mountChapterIllustrations(root);
+if (stackGroups) root.querySelector(".clean-stack-groups").append(stackGroups);
+if (stackExtras) root.querySelector(".clean-stack-extras").append(stackExtras);
 
 for (const link of document.querySelectorAll("[data-locale-choice]")) {
   const target = new URL(link.href);
-  target.searchParams.set("about-rebuild", "v2");
+  target.searchParams.set("about-rebuild", "fresh");
   link.href = target.href;
 }
 
-function mountTextFill() {
-  for (const heading of root.querySelectorAll(".rebuild-fill")) {
-    const words = heading.textContent.trim().split(/\s+/u);
-    const ink = getComputedStyle(heading).color;
-    heading.replaceChildren(...words.map((word, index) => {
-      const span = document.createElement("span");
-      span.className = "rebuild-fill-word";
-      span.textContent = word + (index < words.length - 1 ? " " : "");
-      span.style.setProperty("--word-ink", ink);
-      return span;
-    }));
-  }
-  let pending = false;
-  let pausedTransitionProgress = null;
-  const update = () => {
-    if (pending) return;
-    pending = true;
-    requestAnimationFrame(() => {
-      pending = false;
-      for (const heading of root.querySelectorAll(".rebuild-fill")) {
-        const progress = Math.max(0, Math.min(1, (.84 * innerHeight - heading.getBoundingClientRect().top) / (innerHeight * .5)));
-        heading.querySelectorAll(".rebuild-fill-word").forEach((word, index, all) => {
-          word.style.setProperty("--fill", `${Math.max(0, Math.min(1, progress * all.length - index)) * 100}%`);
-        });
-      }
-      const pageProgress = scrollY / Math.max(1, document.documentElement.scrollHeight - innerHeight);
-      root.style.setProperty("--page-progress", pageProgress);
-      const transition = root.querySelector("[data-score-transition]");
-      if (transition) {
-        const bounds = transition.getBoundingClientRect();
-        const stage = transition.querySelector(".score-transition-stage");
-        const stageTop = innerWidth <= 700 ? 76 : Math.min(108, Math.max(72, innerHeight * .1));
-        const stageHeight = stage.getBoundingClientRect().height;
-        const travel = Math.max(1, bounds.height - stageHeight);
-        const progress = Math.max(0, Math.min(1, (stageTop - bounds.top) / travel));
-        const sceneBottom = stageTop + stageHeight;
-        const pinned = bounds.top <= stageTop && bounds.bottom >= sceneBottom;
-        const after = bounds.bottom < sceneBottom;
-        transition.toggleAttribute("data-pinned", pinned);
-        transition.toggleAttribute("data-after", after);
-        const paused = document.documentElement.dataset.motionPaused === "true" || document.documentElement.dataset.motionReduced === "true";
-        if (paused && pausedTransitionProgress === null) pausedTransitionProgress = progress;
-        if (!paused) pausedTransitionProgress = null;
-        const rawProgress = paused ? (pausedTransitionProgress ?? progress) : progress;
-        const currentProgress = rawProgress * rawProgress * (3 - 2 * rawProgress);
-        transition.style.setProperty("--transition-progress", String(currentProgress));
-        transition.style.setProperty("--watercolor-reveal", `${currentProgress * 100}%`);
-        transition.style.setProperty("--score-y", `${(0.5 - currentProgress) * 18}px`);
-        transition.style.setProperty("--score-scale", String((innerWidth <= 700 ? 0.94 : 0.9) + currentProgress * (innerWidth <= 700 ? 0.12 : 0.17)));
-      }
-    });
-  };
-  addEventListener("scroll", update, { passive: true });
-  addEventListener("resize", update, { passive: true });
-  root.querySelector(".stack-more details")?.addEventListener("toggle", update);
-  update();
+for (const heading of root.querySelectorAll(".clean-fill")) {
+  const words = heading.textContent.trim().split(/\s+/u);
+  heading.replaceChildren(...words.map((word, index) => {
+    const span = document.createElement("span");
+    span.className = "clean-fill-word";
+    span.textContent = word + (index < words.length - 1 ? " " : "");
+    return span;
+  }));
 }
-mountTextFill();
 
-const audio = createJourneyAudio(score, state => {
-  const button = root.querySelector(".dock-play");
-  const label = root.querySelector(".dock-play-label");
-  const status = root.querySelector(".dock-state");
-  const playing = state.state === "playing" || state.state === "starting";
-  button.setAttribute("aria-pressed", String(playing));
-  button.querySelector("[aria-hidden]").textContent = playing ? "Ⅱ" : "▶";
-  label.textContent = playing ? copy.pause : copy.listen;
-  status.textContent = state.state === "playing" ? `${state.section} · ${formatTime(audio.snapshot().seconds)}` : state.state === "error" || state.state === "unavailable" ? (isEnglish ? "Audio unavailable" : "Áudio indisponível") : copy.soundOff;
-}, { });
+const chapters = [...root.querySelectorAll("[data-movement]")];
+const codeIllustration = root.querySelector(".clean-code-illustration");
+const artIllustration = root.querySelector(".clean-art-field");
+const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)");
+if (reduceMotion.matches) document.documentElement.dataset.motionReduced = "true";
+let motionPaused = document.documentElement.dataset.motionPaused === "true";
+let audio;
+let scoreRuntime;
+let frameId = 0;
+let resizeObserver;
+let chapterCenters = [];
+let poseCurve;
+let zoomCurve;
+let journeyCurve;
+let activeChapter = "opening";
+const readLineRatio = .52;
+
+function measureJourney() {
+  chapterCenters = chapters.map(chapter => chapter.getBoundingClientRect().top + window.scrollY + chapter.offsetHeight * readLineRatio);
+  const mobile = window.innerWidth <= 700;
+  const poseStops = mobile
+    ? [SCORE_CAMERA_POSE_STOPS.mobile[0], SCORE_CAMERA_POSE_STOPS.mobile[1], SCORE_CAMERA_POSE_STOPS.mobile[2], .46, SCORE_CAMERA_POSE_STOPS.mobile[4], SCORE_CAMERA_POSE_STOPS.mobile[5]]
+    : [SCORE_CAMERA_POSE_STOPS.desktop[0], SCORE_CAMERA_POSE_STOPS.desktop[1], SCORE_CAMERA_POSE_STOPS.desktop[2], .52, SCORE_CAMERA_POSE_STOPS.desktop[4], SCORE_CAMERA_POSE_STOPS.desktop[5]];
+  const zoomStops = mobile ? [.76, .82, 2.12, 1.08, .72, .7] : [.68, .72, .96, 1.02, .69, .66];
+  poseCurve = createScoreCurve(chapterCenters, poseStops);
+  zoomCurve = createScoreCurve(chapterCenters, zoomStops);
+  journeyCurve = createScoreJourneyCurve(chapterCenters);
+}
+
+function updateHeadlines() {
+  for (const heading of root.querySelectorAll(".clean-fill")) {
+    const progress = Math.max(0, Math.min(1, (.84 * window.innerHeight - heading.getBoundingClientRect().top) / (window.innerHeight * .5)));
+    heading.querySelectorAll(".clean-fill-word").forEach((word, index, all) => {
+      word.style.setProperty("--word-fill", `${Math.max(0, Math.min(1, progress * all.length - index)) * 100}%`);
+    });
+  }
+}
+
+function updateChapterMaterials(journeyPosition) {
+  const codeProgress = Math.max(0, Math.min(1, journeyPosition / 2));
+  const codePresence = Math.sin(codeProgress * Math.PI);
+  codeIllustration?.style.setProperty("--code-presence", codePresence.toFixed(3));
+
+  const artProgress = Math.max(0, Math.min(1, (journeyPosition - 2) / 2));
+  const artPresence = Math.min(
+    Math.max(0, Math.min(1, journeyPosition - 2)),
+    Math.max(0, Math.min(1, 4 - journeyPosition)),
+  );
+  artIllustration?.style.setProperty("--about-paint-reveal", `${Math.round(artPresence * 100)}%`);
+  const parallax = motionPaused || reduceMotion.matches ? 0 : -24 * Math.sin(artProgress * Math.PI);
+  artIllustration?.style.setProperty("--about-art-image-offset", `${parallax.toFixed(1)}px`);
+}
 
 function formatTime(seconds) {
   const minutes = Math.floor(seconds / 60);
   return `${minutes}:${String(Math.floor(seconds % 60)).padStart(2, "0")}`;
 }
 
-root.querySelector(".dock-play").addEventListener("click", () => audio.playing ? audio.pause() : audio.start());
-const dockState = root.querySelector(".dock-state");
-const playbackClock = setInterval(() => {
-  if (!audio.playing) return;
-  const snapshot = audio.snapshot();
-  dockState.textContent = `${snapshot.section} · ${formatTime(snapshot.seconds)}`;
-}, 1000);
-const mixer = root.querySelector(".mixer-sliders");
-for (const track of score.tracks) {
-  const row = document.createElement("label");
-  row.className = "mixer-row";
-  const name = document.createElement("span");
-  name.textContent = track.name;
-  const input = document.createElement("input");
-  input.type = "range";
-  input.min = "0";
-  input.max = "1";
-  input.step = ".01";
-  input.value = String(audio.getTrackVolume(track.id) ?? .5);
-  input.setAttribute("aria-label", `${track.name} ${copy.volume}`);
-  input.addEventListener("input", () => audio.setTrackVolume(track.id, Number(input.value)));
-  row.append(name, input);
-  mixer.append(row);
+function updatePlaybackUI(state = audio?.snapshot?.()) {
+  if (!state) return;
+  const playing = state.state === "playing" || state.state === "starting";
+  root.querySelectorAll("[data-play]").forEach(button => {
+    const icon = button.querySelector("[aria-hidden]");
+    const label = button.querySelector("[data-play-label]");
+    if (icon) icon.textContent = playing ? "Ⅱ" : "▶";
+    if (label) label.textContent = playing ? copy.pause : copy.listen;
+    button.setAttribute("aria-label", playing ? copy.pause : copy.listen);
+    button.setAttribute("aria-pressed", String(playing));
+  });
+  const status = root.querySelector("[data-play-state]");
+  if (status) status.textContent = state.state === "playing" ? `${state.section} · ${formatTime(state.seconds)}`
+    : ["error", "unavailable"].includes(state.state) ? copy.unavailable : copy.off;
 }
 
-const motionButton = root.querySelector(".dock-motion");
-motionButton.addEventListener("click", () => {
-  const paused = document.documentElement.dataset.motionPaused !== "true";
-  document.documentElement.dataset.motionPaused = String(paused);
-  motionButton.setAttribute("aria-pressed", String(paused));
-  motionButton.setAttribute("aria-label", paused ? copy.movementOn : copy.movement);
-  dispatchEvent(new Event("scroll"));
-});
-const dialog = root.querySelector(".rebuild-world");
-const opener = root.querySelector("[data-open-world]");
-opener.addEventListener("click", () => dialog.showModal());
-root.querySelectorAll("[data-close-world]").forEach(button => button.addEventListener("click", () => dialog.close()));
-dialog.addEventListener("click", event => { if (event.target === dialog) dialog.close(); });
-addEventListener("pagehide", () => { clearInterval(playbackClock); audio.dispose(); }, { once: true });
+function paintFrame(timestamp) {
+  frameId = 0;
+  if (!chapterCenters.length) measureJourney();
+  updateHeadlines();
 
-if (matchMedia("(prefers-reduced-motion: reduce)").matches) document.documentElement.dataset.motionReduced = "true";
+  const readingLine = window.scrollY + window.innerHeight * readLineRatio;
+  const journey = journeyCurve(readingLine);
+  const journeyPosition = journey.index + journey.progress;
+  updateChapterMaterials(journeyPosition);
+  const cameraPose = poseCurve(readingLine).value;
+  const zoom = zoomCurve(readingLine).value;
+  let chapterIndex = 0;
+  for (let index = 1; index < chapterCenters.length; index += 1) {
+    if (readingLine >= chapterCenters[index]) chapterIndex = index;
+  }
+  const chapter = chapters[chapterIndex].dataset.movement;
+  if (chapter !== activeChapter) {
+    activeChapter = chapter;
+    root.dataset.activeMovement = chapter;
+    audio?.setMovement?.(chapter);
+  }
+
+  const playbackSnapshot = audio?.snapshot?.() ?? null;
+  const paused = motionPaused || reduceMotion.matches;
+  const scoreFrame = scoreRuntime?.update({
+    chapter,
+    journey: journeyPosition,
+    pose: cameraPose,
+    zoom,
+    frameOffset: { x: 0, y: 0 },
+    motionEnabled: !paused,
+    reducedMotion: reduceMotion.matches,
+    playbackSnapshot,
+    timestamp,
+  });
+
+  const dock = root.querySelector("[data-dock]");
+  const opening = root.querySelector("#opening");
+  dock.toggleAttribute("data-visible", opening.getBoundingClientRect().bottom < 104);
+  const windowLabel = root.querySelector("[data-score-window]");
+  if (windowLabel && chapter === "music") {
+    if (scoreFrame) {
+      const range = scoreFrame.firstBar === scoreFrame.lastBar ? `${copy.bar} ${scoreFrame.firstBar}` : `${copy.bars} ${scoreFrame.firstBar}–${scoreFrame.lastBar}`;
+      windowLabel.textContent = scoreFrame.playbackActive ? range : `${copy.preview} · ${range}`;
+    }
+  }
+
+  if (audio?.playing && !document.hidden) requestFrame();
+}
+
+function requestFrame() {
+  if (!frameId) frameId = requestAnimationFrame(paintFrame);
+}
+
+function mountAudio() {
+  audio = createJourneyAudio(score, state => {
+    updatePlaybackUI(state);
+    requestFrame();
+  });
+  root.querySelectorAll("[data-play]").forEach(button => button.addEventListener("click", () => {
+    if (audio.playing) audio.pause();
+    else audio.start();
+    updatePlaybackUI();
+    requestFrame();
+  }));
+
+  const mixer = root.querySelector(".clean-mixer-sliders");
+  for (const track of score.tracks) {
+    const label = document.createElement("label");
+    label.className = "clean-mixer-row";
+    const name = document.createElement("span");
+    name.textContent = track.name;
+    const value = document.createElement("output");
+    const input = document.createElement("input");
+    input.type = "range";
+    input.min = "0";
+    input.max = "1";
+    input.step = ".01";
+    input.value = String(audio.getTrackVolume(track.id) ?? .5);
+    value.value = `${Math.round(Number(input.value) * 100)}%`;
+    input.setAttribute("aria-label", `${track.name} ${copy.mixer}`);
+    input.addEventListener("input", () => {
+      const volume = Number(input.value);
+      value.value = `${Math.round(volume * 100)}%`;
+      audio.setTrackVolume(track.id, volume);
+    });
+    label.append(name, input, value);
+    mixer.append(label);
+  }
+  updatePlaybackUI();
+}
+
+mountAudio();
+
+const motionButton = root.querySelector("[data-motion]");
+motionButton.setAttribute("aria-label", motionPaused ? copy.movementOn : copy.movement);
+motionButton.setAttribute("aria-pressed", String(motionPaused));
+motionButton.addEventListener("click", () => {
+  motionPaused = !motionPaused;
+  document.documentElement.dataset.motionPaused = String(motionPaused);
+  motionButton.setAttribute("aria-label", motionPaused ? copy.movementOn : copy.movement);
+  motionButton.setAttribute("aria-pressed", String(motionPaused));
+  requestFrame();
+});
+
+const world = root.querySelector(".clean-world");
+const worldOpener = root.querySelector("[data-world-open]");
+worldOpener.addEventListener("click", () => world.showModal());
+root.querySelectorAll("[data-world-close]").forEach(button => button.addEventListener("click", () => world.close()));
+world.addEventListener("click", event => { if (event.target === world) world.close(); });
+world.addEventListener("close", () => worldOpener.focus({ preventScroll: true }));
+
+measureJourney();
+resizeObserver = new ResizeObserver(() => { measureJourney();requestFrame(); });
+chapters.forEach(chapter => resizeObserver.observe(chapter));
+root.querySelector(".stack-more details")?.addEventListener("toggle", () => { measureJourney();requestFrame(); });
+window.addEventListener("scroll", requestFrame, { passive: true });
+window.addEventListener("resize", () => { measureJourney();requestFrame(); }, { passive: true });
+document.fonts?.ready.then(() => { measureJourney();requestFrame(); });
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) audio.pause();
+  else requestFrame();
+});
+
+import("../score-gpu-scroll.js?clean-about-1").then(module => module.mountAboutGpuScroll(root)).then(runtime => {
+  scoreRuntime = runtime;
+  measureJourney();
+  requestFrame();
+}).catch(error => console.error("The About score scene could not be mounted.", error));
+
+if (location.hash.length > 1) requestAnimationFrame(() => document.getElementById(decodeURIComponent(location.hash.slice(1)))?.scrollIntoView({ block: "start" }));
+
+window.addEventListener("pagehide", () => {
+  cancelAnimationFrame(frameId);
+  resizeObserver?.disconnect();
+  disposeChapterIllustrations();
+  scoreRuntime?.dispose();
+  audio.dispose();
+  stylesheet.remove();
+}, { once: true });
