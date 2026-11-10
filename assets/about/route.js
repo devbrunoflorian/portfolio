@@ -1,1 +1,1 @@
-import "./main.js?about-scene-1";
+import "./main.js?about-pigment-2";

@@ -2,7 +2,7 @@ import * as THREE from './vendor/three-score.min.js';
 import { createTravelProjector } from './score-travel-geometry.js';
 import { readingFocus } from './score-focus-profile.js';
 import { buildRibbonGeometry, scoreSourceRange, trebleClefFromTimeline } from './score-gpu-ribbon-geometry.js?v=chapter-materials-1';
-import { createPixelSpriteAtlas, SCORE_MATERIAL, scoreMaterialShader } from './score-gpu-materials.js?v=watercolor-journey-4';
+import { createPixelSpriteAtlas, SCORE_MATERIAL, scoreMaterialShader } from './score-gpu-materials.js?v=watercolor-journey-5';
 import { resolutionShader } from './score-resolution.js?v=journey-resolution-1';
 
 const BACKGROUND = [6 / 255, 6 / 255, 9 / 255];
@@ -104,7 +104,8 @@ const fragmentShader = `
     if(vSourceX<sourceRange.x||vSourceX>sourceRange.y)discard;
     if(vArrival>.5&&pose<.85)discard;
     if(vKind>3.5&&vKind<4.5){if(halo<.5)discard;gl_FragColor=vec4(${BACKGROUND.join(',')},0.);return;}
-    vec4 chapters=scoreChapterWeights(journey);
+    float along=clamp((vSourceX-sourceRange.x)/(sourceRange.y-sourceRange.x),0.,1.);
+    vec4 chapters=scoreChapterWeights(scorePigmentJourney(journey,along));
     float codeWeight=chapters.x,musicWeight=chapters.y,artWeight=chapters.z,gameWeight=chapters.w;
     float chapterGlow=clamp(1.-artWeight*.68-gameWeight*.82,.18,1.);
     float clef=step(${(SCORE_MATERIAL.CLEF - 0.5).toFixed(1)},vMaterialType)*(1.-step(${(SCORE_MATERIAL.CLEF + 0.5).toFixed(1)},vMaterialType));
@@ -146,25 +147,27 @@ const fragmentShader = `
     source=mix(source,codeInk,codeWeight*.88);
     // Pigment overlays the same score geometry. Preserve enough value and hue
     // separation for the notation to stay readable on the dark page.
-    float grain=scoreBrushNoise(vec2(sourceProgress*1.7+vGlyphOffset.x*.72,vSourceY*.12+vGlyphOffset.y*.72));
-    float fiber=scoreBrushNoise(vec2(sourceProgress*6.4+vGlyphOffset.x*2.1,vSourceY*.43+vGlyphOffset.y*2.1));
-    vec3 staffWash=mix(vec3(.30,.39,.78),vec3(.78,.48,.89),grain);
-    vec3 pigment=staffWash;
+    // Texture coordinates belong to the engraved piece, so pigment bends with it.
+    vec2 paint=vec2(vSourceX*.065,vSourceY*.48);
+    float grain=scoreBrushNoise(paint)+.32*scoreBrushNoise(paint*2.7);
+    float rim=1.-smoothstep(.66,.96,length((local-.5)*2.));
+    float pool=clamp(grain*.72+(1.-rim)*.28,0.,1.);
+    vec3 pigment=mix(vec3(.27,.30,.63),vec3(.77,.49,.85),pool);
     if(vVoice>.5){
-      vec3 blueWash=mix(vec3(.20,.39,.78),vec3(.53,.76,1.),grain);
-      vec3 violetWash=mix(vec3(.48,.24,.73),vec3(.87,.59,1.),grain);
-      pigment=vVoice<1.5?blueWash:violetWash;
+      pigment=vVoice<1.5?mix(vec3(.22,.39,.74),vec3(.53,.76,1.),pool)
+        :mix(vec3(.46,.25,.69),vec3(.86,.60,.96),pool);
     }
-    if(vMaterialType>5.5&&vMaterialType<6.5){
-      float bristle=step(.56,fiber);
-      pigment=mix(pigment,vec3(.95,.80,1.),bristle*.58);
-    }else if(vMaterialType>6.5&&vMaterialType<7.5){
-      float dryBrush=step(.48,fiber);
-      pigment=mix(pigment,vec3(.66,.82,1.),dryBrush*.66);
+    float dry=0.;
+    if(vMaterialType>5.5&&vMaterialType<7.5){
+      // Longitudinal fibers: stems run in v, beams run in u.
+      float across=vMaterialType<6.5?vSourceX*8.:vSourceY*8.;
+      float lengthwise=vMaterialType<6.5?vSourceY*.14:vSourceX*.025;
+      float bristle=scoreBrushNoise(vec2(across,lengthwise));
+      dry=smoothstep(.58,.83,bristle)*.42;
+      pigment=mix(pigment,vec3(.80,.72,.92),dry);
     }
-    float puddle=mix(.68,1.28,grain);
     source=mix(source,pigment,artWeight*.96);
-    source=mix(source,source*puddle,artWeight*.34);
+    source*=mix(1.,mix(.68,1.16,pool),artWeight*.65);
     vec4 sprite=scorePixelSprite(spriteAtlas,vMaterialType,local);
     if(gameWeight>.001&&sprite.a<.5&&gameWeight>.999)discard;
     source=mix(source,sprite.rgb,gameWeight*sprite.a);
@@ -187,7 +190,7 @@ const fragmentShader = `
     edgeOpacity*=ribbonFade;
     // The same note mesh gets uneven pigment coverage instead of a separate
     // painted score image; the source geometry and event anchors stay intact.
-    edgeOpacity*=mix(1.,.56+.44*grain,artWeight*.82);
+    edgeOpacity*=mix(1.,clamp(.74+.26*grain-dry,.38,1.),artWeight*.82);
     edgeOpacity=mix(edgeOpacity,1.,clef);
     ink=mix(vec3(${BACKGROUND.join(',')}),ink,edgeOpacity);
     ink=min(vec3(1.),ink+source*beatAttack*musicWeight*.72);

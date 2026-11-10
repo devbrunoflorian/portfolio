@@ -134,9 +134,16 @@ export const scoreMaterialShader = `
     return max(max(line,stem),max(terminal,contact));
   }
   float scoreBrushNoise(vec2 p){
-    vec2 cell=floor(p*vec2(19.,13.));
-    vec2 local=fract(p*vec2(19.,13.))-.5;
-    float grain=scoreHash(cell);
-    return grain*.72+(1.-smoothstep(.12,.48,length(local)))*.28;
+    vec2 cell=floor(p), f=fract(p);
+    f=f*f*(3.-2.*f);
+    return mix(mix(scoreHash(cell),scoreHash(cell+vec2(1.,0.)),f.x),
+      mix(scoreHash(cell+vec2(0.,1.)),scoreHash(cell+vec2(1.,1.)),f.x),f.y);
+  }
+  // A reversible wetting front travels along the source score, never screen space.
+  float scorePigmentJourney(float value,float along){
+    if(value<=2.||value>=3.)return value;
+    float progress=value-2.;
+    float front=smoothstep(along*.36, .64+along*.36, progress);
+    return 2.+front;
   }
 `;

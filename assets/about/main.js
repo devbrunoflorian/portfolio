@@ -1,6 +1,6 @@
 import { createJourneyAudio } from "../about-legacy/audio.js";
 import { score } from "../about-legacy/score.js";
-import { mountAboutScene } from "./scene/runtime.js?v=about-scene-1";
+import { mountAboutScene } from "./scene/runtime.js?v=about-pigment-2";
 
 const page = document.querySelector("[data-about-page]");
 if (!page) throw new Error("About root is missing");
@@ -12,6 +12,7 @@ const initialStatus = page.querySelector("[data-audio-status]")?.textContent.tri
 const playButtons = [...page.querySelectorAll("[data-play-toggle]")];
 const statusLabels = [...page.querySelectorAll("[data-audio-status]")];
 const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
+const nativeArtParallax = CSS.supports("(animation-timeline: view()) and (animation-range: entry)");
 const chapters = [...page.querySelectorAll("[data-chapter]")];
 const audio = createJourneyAudio(score, renderPlayback);
 let activeChapter = "opening";
@@ -110,7 +111,7 @@ function updateScrollScene() {
       bridge.style.setProperty("--bridge-scale", (1.03 + reveal * .08).toFixed(3));
       bridge.style.setProperty("--bridge-rotation", `${(-4 + reveal * 4).toFixed(2)}deg`);
     }
-    if (artImage) {
+    if (artImage && !nativeArtParallax) {
       const section = artImage.closest("[data-chapter]");
       const bounds = section.getBoundingClientRect();
       const position = (innerHeight * .5 - (bounds.top + bounds.height * .5)) / Math.max(1, innerHeight);

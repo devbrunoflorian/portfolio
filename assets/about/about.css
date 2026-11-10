@@ -116,7 +116,7 @@ html[data-content-id="about"] .site-footer { width: min(100% - 2 * var(--about-g
 .about-art { display: grid; grid-template-columns: minmax(0, 1fr) minmax(340px, .78fr); align-items: center; min-height: 100svh; background: linear-gradient(100deg, transparent 0%, rgb(6 6 9 / 22%) 47%, var(--about-bg) 76%); }
 .art-image-layer { position: absolute; z-index: -1; inset: 0 32% 0 0; overflow: hidden; mask-image: linear-gradient(90deg, #000 0%, #000 59%, transparent 100%); }
 .art-image-layer::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, transparent 42%, var(--about-bg) 100%), linear-gradient(0deg, rgb(6 6 9 / 46%), transparent 54%); }
-.art-image-layer img { width: 100%; height: 112%; object-fit: cover; object-position: center; transform: translateY(var(--art-parallax, 0px)) scale(1.04); will-change: transform; }
+.art-image-layer img { width: 100%; height: 112%; object-fit: var(--art-image-fit, contain); object-position: var(--art-image-focus, 50% 50%); opacity: .58; transform: translateY(var(--art-parallax, 0px)) scale(1.04); will-change: transform; }
 .art-copy { grid-column: 2; justify-self: end; width: min(100%, 540px); }
 .art-poem { display: flex; flex-direction: column; gap: 4px; margin-top: 32px !important; color: #f1eaf8 !important; font-size: clamp(23px, 3vw, 38px) !important; font-weight: 440; line-height: 1.16 !important; text-shadow: 0 2px 24px rgb(0 0 0 / 66%); }
 .art-meta { margin-top: 25px !important; color: var(--about-violet) !important; font-size: 9px !important; letter-spacing: .17em; }
@@ -214,7 +214,7 @@ body[data-score-gpu-scroll="true"] .about-rebuild .stack-panel::before { content
   .about-art { display: flex; align-items: end; min-height: 92svh; padding-top: 42svh; background: linear-gradient(0deg, var(--about-bg) 0%, rgb(6 6 9 / 88%) 32%, transparent 75%); }
   .art-image-layer { inset: 0 0 25%; mask-image: linear-gradient(180deg, #000 0%, #000 58%, transparent 100%); }
   .art-image-layer::after { background: linear-gradient(0deg, var(--about-bg) 0%, transparent 57%); }
-  .art-image-layer img { object-fit: cover; object-position: center 35%; }
+  .art-image-layer img { --art-image-focus: 50% 30%; }
   .art-copy { max-width: 590px; }
   .art-poem { margin-top: 25px !important; font-size: 26px !important; }
   .about-games { display: flex; flex-direction: column; align-items: stretch; gap: 32px; }
@@ -247,3 +247,21 @@ body[data-score-gpu-scroll="true"] .about-rebuild .stack-panel::before { content
 html[data-motion-paused="true"] .knight-sprite { animation: none; }
 @media (prefers-reduced-motion: reduce) { .knight-sprite { animation: none; } }
 @media (prefers-reduced-motion: reduce) { .about-rebuild *, .about-rebuild *::before, .about-rebuild *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; } }
+
+/* Only the replaceable artwork moves in parallax; the score has its own camera. */
+@supports ((animation-timeline: view()) and (animation-range: entry)) {
+  .about-art { view-timeline: --art-reading block; }
+  .art-image-layer img {
+    animation: about-art-parallax linear both;
+    animation-timeline: --art-reading;
+    animation-range: entry 0% exit 100%;
+  }
+  html[data-motion-paused="true"] .art-image-layer img { animation-play-state: paused; }
+}
+@keyframes about-art-parallax {
+  from { transform: translateY(-24px) scale(1.04); }
+  to { transform: translateY(24px) scale(1.04); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .art-image-layer img { animation: none; transform: none; will-change: auto; }
+}
