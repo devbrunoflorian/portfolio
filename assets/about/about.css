@@ -125,7 +125,7 @@ html[data-content-id="about"] .site-footer { width: min(100% - 2 * var(--about-g
 .about-games { display: grid; grid-template-columns: minmax(300px, .64fr) minmax(0, 1.36fr); align-items: center; gap: clamp(42px, 7vw, 108px); background: radial-gradient(ellipse at 82% 52%, rgb(38 67 132 / 14%), transparent 50%); }
 .games-scene { position: relative; min-height: clamp(350px, 45vw, 650px); margin: 0; overflow: hidden; border: 1px solid rgb(172 134 234 / 29%); border-radius: 4px; background: #101022; box-shadow: 0 20px 75px rgb(0 0 0 / 42%); }
 .games-landscape { width: 100%; height: 100%; position: absolute; inset: 0; object-fit: cover; }
-.knight-sprite { position: absolute; left: 53%; bottom: 12%; width: clamp(86px, 12vw, 158px); aspect-ratio: 1; transform: translateX(-50%); background-image: url("/assets/about-legacy/forest/knight_idle_8dirs_6frames_96px.png"); background-repeat: no-repeat; background-position: 0% 0%; background-size: 600% 800%; image-rendering: pixelated; filter: drop-shadow(0 7px 0 rgb(4 5 13 / 80%)) drop-shadow(0 0 20px rgb(178 117 255 / 38%)); animation: about-knight-idle 1.8s steps(6, end) infinite; }
+.knight-sprite { position: absolute; left: 53%; bottom: 12%; width: clamp(64px, 12%, 96px); aspect-ratio: 1; transform: translateX(-50%); background-image: url("/assets/about-legacy/forest/knight_idle_8dirs_6frames_96px.png"); background-repeat: no-repeat; background-position: 0% 0%; background-size: 600% 800%; image-rendering: pixelated; filter: none; animation: about-knight-idle 1.8s steps(6, end) infinite; }
 @keyframes about-knight-idle { to { background-position: 120% 0%; } }
 .world-open { margin-top: 28px; padding: 0 18px; }
 
@@ -220,7 +220,7 @@ body[data-score-gpu-scroll="true"] .about-rebuild .stack-panel::before { content
   .art-poem { margin-top: 25px !important; font-size: 26px !important; }
   .about-games { display: flex; flex-direction: column; align-items: stretch; gap: 32px; }
   .games-scene { min-height: 62vw; }
-  .knight-sprite { width: clamp(92px, 28vw, 132px); }
+  .knight-sprite { width: clamp(64px, 20%, 84px); }
   .about-closing { display: block; min-height: 68svh; padding: 82px var(--about-gutter) calc(90px + var(--about-dock-height) + env(safe-area-inset-bottom)); }
   .closing-links { margin-top: 35px; }
   .player-dock { right: max(10px, env(safe-area-inset-right)); bottom: max(8px, env(safe-area-inset-bottom)); left: max(10px, env(safe-area-inset-left)); width: calc(100% - 20px); gap: 8px; padding: 5px 7px; }
@@ -292,12 +292,12 @@ html.about-world-open { overflow: hidden; scroll-behavior: auto !important; }
   aspect-ratio: 1672 / 941;
 }
 .world-dialog-scene img { object-fit: cover; }
-.world-dialog-scene .knight-sprite { width: clamp(72px, 11vw, 158px); bottom: 8%; }
+.world-dialog-scene .knight-sprite { width: clamp(64px, 9%, 112px); left: 40%; bottom: 8%; }
 .world-close { margin-top: env(safe-area-inset-top); }
 .world-dialog-label { bottom: max(18px, env(safe-area-inset-bottom)); }
 @media (max-width: 680px) {
   .world-dialog-scene { width: min(calc(100vw - 16px), calc((100dvh - 140px) * 2 / 3)); aspect-ratio: 2 / 3; }
-  .world-dialog-scene .knight-sprite { width: clamp(72px, 24vw, 112px); left: 50%; bottom: 10%; }
+  .world-dialog-scene .knight-sprite { width: clamp(64px, 20%, 84px); left: 29%; bottom: 10%; }
   .world-dialog-label { left: 16px; right: 16px; text-align: center; font-size: 10px; }
 }
 
@@ -332,3 +332,12 @@ html[data-motion-paused="true"] .forest-foreground { animation: none; transform:
 
 /* Inline canvas sizing must never override the renderer visibility switch. */
 .about-rebuild .about-score-thread canvas[hidden] { display: none !important; }
+
+/* The sprite sheet's base sits above its transparent lower margin. */
+.knight-sprite::before {
+  content: ""; position: absolute; z-index: -1; left: 20%; bottom: 7%; width: 60%; height: 9%;
+  background: rgb(5 7 18 / 72%);
+  clip-path: polygon(18% 0,82% 0,82% 18%,100% 18%,100% 82%,82% 82%,82% 100%,18% 100%,18% 82%,0 82%,0 18%,18% 18%);
+}
+
+.games-scene .knight-sprite { left: 40%; }
