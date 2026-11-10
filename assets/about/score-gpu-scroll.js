@@ -6,6 +6,7 @@ import { buildEngraving } from './score-engraving.js';
 import { buildCompoundGroups } from './score-compound-groups.js';
 import { createAdaptiveDpr, initialGpuPixelRatio } from './score-gpu-budget.js';
 import { shouldEnableScoreLight } from './score-gpu-route.js?v=score-light-1';
+import { scoreSourceRange, trebleClefFromTimeline } from './score-gpu-ribbon-geometry.js?v=header-clef-space-4';
 
 const CHAPTER_POSES = { opening: 0, code: 0, music: 1, art: .52, games: .78, closing: 1 };
 const PITCH_STEP = [0, 0, 1, 1, 2, 3, 3, 4, 4, 5, 5, 6];
@@ -50,7 +51,7 @@ function loadTransitionStylesheet() {
   if (document.querySelector('[data-score-ribbon-transition-style]')) return null;
   const stylesheet = document.createElement('link');
   stylesheet.rel = 'stylesheet';
-  stylesheet.href = new URL('./score-ribbon-transition.css?gpu-scroll-games-readability-2', import.meta.url);
+  stylesheet.href = new URL('./score-ribbon-transition.css?gpu-scroll-games-readability-3', import.meta.url);
   stylesheet.dataset.scoreRibbonTransitionStyle = '';
   document.head.append(stylesheet);
   return stylesheet;
@@ -82,15 +83,37 @@ export async function mountAboutGpuScroll(root, host = root.querySelector('[data
   const notation = selectedNotation();
   let activeNotation = notation;
   let activeWindowKey = `${notation.firstBar}:${notation.lastBar}`;
-  let activeSourceRange = { x0: notation.view.x0, x1: notation.view.x1 };
-  const state = { pose: 0, zoom: 1, frameOffset: { x: 0, y: 0 }, chapter: 'opening', motionEnabled: true, reducedMotion: false, timestamp: null };
+  const clefGlyph = trebleClefFromTimeline(score).glyph;
+  let activeSourceRange = scoreSourceRange(notation.view, score.bars, score.staffLines, true, clefGlyph);
+  const state = { pose: 0, journey: 0, zoom: 1, frameOffset: { x: 0, y: 0 }, chapter: 'opening', motionEnabled: true, reducedMotion: false, timestamp: null };
   const dprBudget = createAdaptiveDpr(initialGpuPixelRatio(window.devicePixelRatio));
   let width = 0, height = 0, pixelRatio = initialGpuPixelRatio(window.devicePixelRatio);
-  let gpu = null, gpuLoading = false, gpuFailed = false, pageVisible = false, disposed = false, lastPose = null, lastZoom = null;
+  let gpu = null, gpuLoading = false, gpuFailed = false, pageVisible = false, disposed = false,
+    lastPose = null, lastZoom = null, lastJourney = null, lastPlaybackBeat = -1, lastPlaybackActive = false;
   let lastChapter = null;
   let lastFrameX = null, lastFrameY = null;
   let lastSourceRange = null;
   let lastFallbackChapter = '', fallbackDirty = true, resizeFrame = 0;
+  let flowFrame = 0, lastFlowPhase = 0;
+
+  function stopFlow() {
+    if (!flowFrame) return;
+    cancelAnimationFrame(flowFrame);
+    flowFrame = 0;
+  }
+
+  function animateFlow(timestamp) {
+    flowFrame = 0;
+    if (disposed || !gpu || gpuFailed || !pageVisible || document.hidden || state.reducedMotion || !state.motionEnabled) return;
+    const phase = (timestamp / 11500) % 1;
+    renderPose(state.pose, null, phase);
+    flowFrame = requestAnimationFrame(animateFlow);
+  }
+
+  function startFlow() {
+    if (flowFrame || disposed || !gpu || gpuFailed || !pageVisible || document.hidden || state.reducedMotion || !state.motionEnabled) return;
+    flowFrame = requestAnimationFrame(animateFlow);
+  }
 
   function resizeFallback() {
     width = window.innerWidth;
@@ -140,12 +163,18 @@ export async function mountAboutGpuScroll(root, host = root.querySelector('[data
     fallback.hidden = true;
   }
 
-  function renderPose(pose, timestamp) {
+  function renderPose(pose, timestamp, flowPhase = lastFlowPhase) {
     if (!gpu || gpuFailed || !pageVisible || document.hidden || state.reducedMotion || !state.motionEnabled) return;
+    flowPhase = Number.isFinite(flowPhase) ? flowPhase : 0;
     const frameX = Number.isFinite(state.frameOffset?.x) ? state.frameOffset.x : 0;
     const frameY = Number.isFinite(state.frameOffset?.y) ? state.frameOffset.y : 0;
-    if (lastPose === pose && lastZoom === state.zoom && lastFrameX === frameX && lastFrameY === frameY
+    const playbackBeat = Number.isFinite(state.playbackSnapshot?.beat) ? state.playbackSnapshot.beat : -1;
+    const playbackActive = ['starting', 'playing', 'paused', 'finished'].includes(state.playbackSnapshot?.state)
+      && playbackBeat >= 0;
+    if (lastPose === pose && lastZoom === state.zoom && lastJourney === state.journey && lastFrameX === frameX && lastFrameY === frameY
+      && lastPlaybackBeat === playbackBeat && lastPlaybackActive === playbackActive
       && lastChapter === state.chapter
+      && lastFlowPhase === flowPhase
       && lastSourceRange?.x0 === activeSourceRange.x0 && lastSourceRange?.x1 === activeSourceRange.x1) return;
     const decision = Number.isFinite(timestamp) ? dprBudget.observe(timestamp) : null;
     if (decision?.lowered) {
@@ -153,23 +182,32 @@ export async function mountAboutGpuScroll(root, host = root.querySelector('[data
       gpu.setPixelRatio(pixelRatio);
     }
     gpu.setSourceRange(activeSourceRange.x0, activeSourceRange.x1);
-    gpu.draw(pose, 'C', false, state.zoom, { x: frameX, y: frameY }, state.chapter === 'music', scoreLightEnabled);
+    gpu.draw(pose, 'C', false, state.zoom, { x: frameX, y: frameY }, state.chapter === 'music', scoreLightEnabled,
+      flowPhase, state.journey, { beat: playbackBeat, active: playbackActive });
     exposeGpu();
     lastPose = pose;
     lastZoom = state.zoom;
+    lastJourney = state.journey;
+    lastPlaybackBeat = playbackBeat;
+    lastPlaybackActive = playbackActive;
     lastFrameX = frameX;
     lastFrameY = frameY;
     lastChapter = state.chapter;
+    lastFlowPhase = flowPhase;
     lastSourceRange = { ...activeSourceRange };
     host.dataset.scoreGpuPose = pose.toFixed(6);
     host.dataset.scoreGpuDpr = String(pixelRatio);
+    host.dataset.scoreGpuFlow = flowPhase.toFixed(4);
+    host.dataset.scoreGpuZoom = state.zoom.toFixed(2);
+    host.dataset.scoreGpuBeat = playbackBeat >= 0 ? playbackBeat.toFixed(2) : 'off';
+    host.dataset.scoreGpuPlayback = playbackActive ? 'active' : 'off';
   }
 
   async function mountGpu() {
     if (disposed || gpu || gpuLoading || gpuFailed || state.reducedMotion) return;
     gpuLoading = true;
     try {
-      const { mountGpuRibbon } = await import('./score-gpu-ribbon.js?v=score-light-1');
+      const { mountGpuRibbon } = await import('./score-gpu-ribbon.js?v=chapter-material-audio-4');
       if (disposed) return;
       gpu = await mountGpuRibbon(host, {
         score,
@@ -182,7 +220,10 @@ export async function mountAboutGpuScroll(root, host = root.querySelector('[data
       });
       if (disposed) { gpu.dispose(); gpu = null; return; }
       gpu.canvas.addEventListener('webglcontextlost', onContextLost);
-      if (pageVisible && !document.hidden && state.motionEnabled && !state.reducedMotion) renderPose(state.pose, state.timestamp);
+      if (pageVisible && !document.hidden && state.motionEnabled && !state.reducedMotion) {
+        renderPose(state.pose, state.timestamp);
+        startFlow();
+      }
       else drawFallback(state.chapter, true);
     } catch (error) {
       gpuFailed = true;
@@ -225,10 +266,11 @@ export async function mountAboutGpuScroll(root, host = root.querySelector('[data
         lastPose = null;
         lastSourceRange = null;
       }
-      activeSourceRange = { x0: notation.view.x0, x1: notation.view.x1 };
+      activeSourceRange = scoreSourceRange(notation.view, score.bars, score.staffLines, true, clefGlyph);
     }
-    if (!pageVisible || document.hidden) return;
+    if (!pageVisible || document.hidden) { stopFlow();return; }
     if (state.reducedMotion) {
+      stopFlow();
       drawFallback(state.chapter);
       return;
     }
@@ -238,34 +280,40 @@ export async function mountAboutGpuScroll(root, host = root.querySelector('[data
       return;
     }
     if (!state.motionEnabled) {
+      stopFlow();
       if (lastPose === null || !gpu) drawFallback(state.chapter);
       return;
     }
     renderPose(state.pose, state.timestamp);
+    startFlow();
   }
 
   resizeFallback();
   const visibilityObserver = new IntersectionObserver(entries => {
     pageVisible = Boolean(entries[0]?.isIntersecting);
-    if (pageVisible && state.reducedMotion) drawFallback(state.chapter);
+    if (!pageVisible) stopFlow();
+    else if (pageVisible && state.reducedMotion) drawFallback(state.chapter);
     else if (pageVisible && state.motionEnabled && !gpu && !gpuFailed) {
       drawFallback(state.chapter);
       mountGpu();
     } else if (pageVisible && state.motionEnabled) {
       renderPose(state.pose, performance.now());
+      startFlow();
     }
   }, { threshold: 0 });
   visibilityObserver.observe(root);
   const onVisibility = () => {
-    if (document.hidden) return;
+    if (document.hidden) { stopFlow();return; }
     if (pageVisible && state.motionEnabled && !state.reducedMotion) {
       renderPose(state.pose, performance.now());
+      startFlow();
     } else if (pageVisible) drawFallback(state.chapter, true);
   };
   const onResize = () => {
     if (resizeFrame) cancelAnimationFrame(resizeFrame);
     resizeFrame = requestAnimationFrame(async () => {
       resizeFrame = 0;
+      stopFlow();
       resizeFallback();
       if (gpu) { gpu.canvas.removeEventListener('webglcontextlost', onContextLost);gpu.dispose();gpu = null;lastPose = null;lastZoom = null; }
       if (state.reducedMotion) drawFallback(state.chapter, true);
@@ -289,6 +337,7 @@ export async function mountAboutGpuScroll(root, host = root.querySelector('[data
     dispose() {
       if (disposed) return;
       disposed = true;
+      stopFlow();
       visibilityObserver.disconnect();
       document.removeEventListener('visibilitychange', onVisibility);
       window.removeEventListener('resize', onResize);
@@ -299,6 +348,10 @@ export async function mountAboutGpuScroll(root, host = root.querySelector('[data
       stylesheet?.remove();
       delete host.dataset.scoreGpuPose;
       delete host.dataset.scoreGpuDpr;
+      delete host.dataset.scoreGpuFlow;
+      delete host.dataset.scoreGpuZoom;
+      delete host.dataset.scoreGpuBeat;
+      delete host.dataset.scoreGpuPlayback;
       delete document.body.dataset.scoreGpuScroll;
       delete document.body.dataset.scoreRibbonTransition;
     },

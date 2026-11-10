@@ -1,9 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
 import {createTravelProjector} from '../assets/about/score-travel-geometry.js';
 import {createRibbonFrameTable} from '../assets/about/score-gpu-ribbon.js';
-import {buildRibbonGeometry,trebleClefContoursFromSvg} from '../assets/about/score-gpu-ribbon-geometry.js';
+import {buildRibbonGeometry,clefHeaderAnchor,scoreSourceRange,trebleClefFromTimeline} from '../assets/about/score-gpu-ribbon-geometry.js';
 import {buildEngraving} from '../assets/about/score-engraving.js';
 import {buildCompoundGroups,glyphContours} from '../assets/about/score-compound-groups.js';
 import {scoreRibbonTimeline as score} from '../assets/about/score-ribbon-timeline.js';
@@ -212,29 +211,55 @@ test('notation path reader preserves quadratic treble-clef contours for GPU tess
   assert.deepEqual(contours[0].at(-1),[0,-2]);
 });
 
-test('existing treble clef is converted to ribbon-space contours and triangulated with the staff',()=>{
-  const svg=readFileSync(new URL('../assets/about/guitar-score/notation-header.svg',import.meta.url),'utf8');
-  const clef=trebleClefContoursFromSvg(svg);
-  const points=clef.flat();
+test('treble clef stays in the staff header, on its G line, through every camera pose',()=>{
+  const clefSource=trebleClefFromTimeline(score);
+  const clef=clefSource.contours;
+  const points=clef.flat().map(([x,y])=>[x*clefSource.glyph.scaleX,y*clefSource.glyph.scaleY]);
   assert.ok(points.length>100);
   assert.ok(points.every(([x,y])=>Number.isFinite(x)&&Number.isFinite(y)));
-  assert.ok(Math.max(...points.map(([x])=>x))>1.5);
-  assert.ok(Math.min(...points.map(([,y])=>y))<-12,'treble clef remains a prominent staff-scale mark');
-  assert.ok(Math.max(...points.map(([,y])=>y))<.2);
-  const geometry=buildRibbonGeometry(score,view,groups,engraving,[],undefined,clef);
+  const gap=Math.abs(score.staffLines[1]-score.staffLines[0]);
+  const widthInStaffUnits=(Math.max(...points.map(([x])=>x))-Math.min(...points.map(([x])=>x)))/gap;
+  const heightInStaffUnits=(Math.max(...points.map(([,y])=>y))-Math.min(...points.map(([,y])=>y)))/gap;
+  assert.ok(widthInStaffUnits>2.3&&widthInStaffUnits<2.6,'clef width uses the PDF glyph scale and staff spacing');
+  assert.ok(heightInStaffUnits>6.8&&heightInStaffUnits<7.1,'clef height uses the PDF glyph scale and staff spacing');
+  const geometry=buildRibbonGeometry(score,view,groups,engraving,[],undefined,clefSource);
   const kinds=geometry.attributes.kind.array,uvs=geometry.attributes.sourceUV.array,offsets=geometry.attributes.glyphOffset.array;
-  const clefAnchor=view.x0+(view.x1-view.x0)*.12;
+  const firstBar=score.bars.find(bar=>Math.abs(bar.xStart-view.x0)<.02);
+  const firstSystemBar=score.bars.find(bar=>bar.number===1)??score.bars[0];
+  const expectedAnchor=firstBar.xStart+clefSource.glyph.x-firstSystemBar.xStart;
+  const clefAnchor=clefHeaderAnchor(view,score.bars,clefSource.glyph);
+  assert.ok(Math.abs(clefAnchor-expectedAnchor)<1e-9);
+  const firstNoteU=Math.min(...groups.flatMap(group=>group.heads.map(head=>head.anchor.u)));
+  assert.ok(clefAnchor>=firstBar.xStart&&clefAnchor<firstNoteU,'clef sits in the measure header before its first note');
+  const sourceRange=scoreSourceRange(view,score.bars,score.staffLines,true,clefSource.glyph);
+  assert.equal(sourceRange.x0,Math.min(view.x0,clefAnchor),'the camera range includes the clef header');
+  assert.equal(sourceRange.x1,view.x1);
   const clefVertices=[...kinds.keys()].filter(index=>kinds[index]===5&&Math.abs(uvs[index*2]-clefAnchor)<1e-3);
   assert.ok(clefVertices.length>100);
+  assert.ok(clefVertices.every(index=>Math.abs(uvs[index*2+1]-score.staffLines.at(-2))<1e-6),
+    'every clef contour point is attached to the G-line anchor and deformed by local offsets');
   assert.ok(clefVertices.some(index=>offsets[index*2]!==0||offsets[index*2+1]!==0));
-  const mobileGeometry=buildRibbonGeometry(score,view,groups,engraving,[],undefined,clef,4);
-  const mobileKinds=mobileGeometry.attributes.kind.array,mobileOffsets=mobileGeometry.attributes.glyphOffset.array;
-  const mobileClefVertices=[...mobileKinds.keys()].filter(index=>mobileKinds[index]===5);
-  assert.equal(Math.max(...mobileClefVertices.map(index=>Math.abs(mobileOffsets[index*2+1]))),
-    4*Math.max(...clefVertices.map(index=>Math.abs(offsets[index*2+1]))),
-    'the narrow-screen clef grows around its staff-bottom anchor');
-  mobileGeometry.dispose();
-  assert.throws(()=>buildRibbonGeometry(score,view,groups,engraving,[],undefined,clef,0),/positive finite/);
+  const staffAnchor=[...kinds.keys()].filter(index=>kinds[index]===2
+    &&Math.abs(uvs[index*2+1]-score.staffLines.at(-2))<1e-6)
+    .sort((a,b)=>Math.abs(uvs[a*2]-clefAnchor)-Math.abs(uvs[b*2]-clefAnchor))[0];
+  assert.ok(Math.abs(uvs[staffAnchor*2]-clefAnchor)<1e-3,'the G-line path crosses the clef anchor');
+  for(const poseIndex of Array.from({length:101},(_,i)=>i)){
+    const pose=poseIndex/100;
+    const projector=createTravelProjector(1280,800,score,pose,sourceRange);
+    const staffPoint=projector(clefAnchor,score.staffLines.at(-2));
+    const clefAnchorPoint=projector(uvs[staffAnchor*2],uvs[staffAnchor*2+1]);
+    assert.ok(Math.hypot(staffPoint.x-clefAnchorPoint.x,staffPoint.y-clefAnchorPoint.y)<.02,
+      `clef G-line anchor remains attached to the staff at pose ${pose}`);
+    for(const index of clefVertices){
+      const actual=projector(uvs[index*2]+offsets[index*2]*projector.uvAspect,
+        uvs[index*2+1]+offsets[index*2+1]);
+      const expected=projector(clefAnchor+offsets[index*2]*projector.uvAspect,
+        score.staffLines.at(-2)+offsets[index*2+1]);
+      assert.ok(Math.hypot(actual.x-expected.x,actual.y-expected.y)<.01,
+        `clef contour deforms with the staff at pose ${pose}`);
+    }
+  }
+  assert.throws(()=>scoreSourceRange(view,score.bars,[0,1,2,3],true,clefSource.glyph),/five finite staff lines/);
   geometry.dispose();
 });
 

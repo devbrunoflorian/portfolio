@@ -1,7 +1,9 @@
 import * as THREE from './vendor/three-score.min.js';
 import { createTravelProjector } from './score-travel-geometry.js';
 import { readingFocus } from './score-focus-profile.js';
-import { buildRibbonGeometry, loadTrebleClefContours } from './score-gpu-ribbon-geometry.js?v=mobile-clef-scale-1';
+import { buildRibbonGeometry, scoreSourceRange, trebleClefFromTimeline } from './score-gpu-ribbon-geometry.js?v=chapter-materials-1';
+import { createPixelSpriteAtlas, SCORE_MATERIAL, scoreMaterialShader } from './score-gpu-materials.js?v=watercolor-journey-4';
+import { resolutionShader } from './score-resolution.js?v=journey-resolution-1';
 
 const BACKGROUND = [6 / 255, 6 / 255, 9 / 255];
 const TABLE_SIZE = 2048;
@@ -28,11 +30,14 @@ const vertexShader = `
   uniform sampler2D frames;
   uniform vec4 staffLinesA;
   uniform float staffLineE;
-  uniform float ribbonLength, arcStart, arcSpan, unit, aspect, middle, focal, viewportWidth;
+  uniform float ribbonLength, arcStart, arcSpan, unit, aspect, middle, focal, viewportWidth, journey;
   uniform vec2 sourceRange, viewport, frameOffset;
-  attribute vec2 sourceUV, glyphOffset, segmentEnd, stroke;
-  attribute float remap, segmentRemap, kind, gold, frontHead, arrivalBar, voice;
+  attribute vec2 sourceUV, glyphOffset, spriteUV, segmentEnd, stroke, feature, protection, role;
+  attribute float remap, segmentRemap, beat, segmentBeat, noteDuration;
   varying float vDistance, vGold, vHead, vKind, vArrival, vVoice, vSourceX, vSourceY;
+  varying float vMaterialType, vBeat, vDuration, vSegmentProgress;
+  varying vec2 vSpriteUV, vGlyphOffset;
+  ${resolutionShader}
   vec3 frameAt(float f, float row){
     float lo=floor(f),hi=min(${TABLE_SIZE - 1}.,lo+1.);
     return mix(texture2D(frames,vec2((lo+.5)/${TABLE_SIZE}.,row)).xyz,
@@ -43,12 +48,15 @@ const vertexShader = `
     float u=clamp((uv.x-sourceRange.x)/(sourceRange.y-sourceRange.x),0.,1.);
     float f=clamp((arcStart+u*arcSpan)/ribbonLength,0.,1.)*${TABLE_SIZE - 1}.;
     vec3 world=frameAt(f,.25)+normalize(frameAt(f,.75))*(uv.y-middle)*unit;
-    return modelViewMatrix*vec4(world,1.);
+    return resolutionView(modelViewMatrix*vec4(world,1.),u,(uv.y-middle)*unit,journey,viewport,focal);
   }
   vec4 screenOffset(vec4 clip, vec2 offset, float scale){
     clip.xy+=offset*scale*vec2(2.,-2.)/viewport*clip.w;return clip;
   }
   void main(){
+    float kind=feature.x,materialType=feature.y;
+    float gold=protection.x,frontHead=protection.y;
+    float arrivalBar=role.x,voice=role.y;
     vec2 source=sourceUV;
     if(kind>4.5&&kind<5.5)source+=glyphOffset*vec2(aspect,1.);
     vec4 view=projectUV(source,remap);
@@ -56,13 +64,15 @@ const vertexShader = `
     vSourceY=source.y;
     float scale=unit*focal/(-view.z);
     vDistance=-view.z;vGold=gold;vHead=frontHead;vKind=kind;vArrival=arrivalBar;vVoice=voice;
+    vMaterialType=materialType;vBeat=beat;vDuration=noteDuration;vSegmentProgress=position.z;
+    vSpriteUV=spriteUV;vGlyphOffset=glyphOffset;
     if(kind<3.5||(kind>4.5&&kind<5.5))view.xyz*=(-view.z-1.)/(-view.z);
     vec4 clip=projectionMatrix*view;
     if(kind>.5&&kind<1.5)clip=screenOffset(clip,glyphOffset,scale);
     if(kind>1.5&&kind<3.5){
       vec4 endView=projectUV(segmentEnd,segmentRemap);endView.xyz*=(-endView.z-1.)/(-endView.z);
       vec4 endClip=projectionMatrix*endView;
-      if(kind>2.5)clip=screenOffset(clip,glyphOffset,scale);
+      if(kind>2.5)clip=screenOffset(clip,vec2(glyphOffset.x*aspect,glyphOffset.y),scale);
       vec2 delta=(endClip.xy/endClip.w-clip.xy/clip.w)*viewport;
       vec2 normal=length(delta)>1.e-5?normalize(vec2(-delta.y,delta.x)):vec2(1.,0.);
       float t=position.z;
@@ -71,6 +81,7 @@ const vertexShader = `
       float depth=mix(-view.z,-endView.z,t);
       vSourceX=mix(sourceUV.x+remap*aspect,segmentEnd.x+segmentRemap*aspect,t);
       vSourceY=mix(source.y,segmentEnd.y,t);
+      vBeat=mix(beat,segmentBeat,t);
       vDistance=depth+1.;
       clip.xy+=normal*stroke.x*stroke.y*.5*(unit*focal/depth)*2./viewport*clip.w;
     }
@@ -79,18 +90,33 @@ const vertexShader = `
   }`;
 
 const fragmentShader = `
-  uniform float focus, viewportWidth, fade, halo, pose, pixelRatio, lighting, musicScene, glowPass;
+  uniform sampler2D spriteAtlas;
+  uniform float focus, viewportWidth, fade, halo, pose, pixelRatio, lighting, musicScene, glowPass, flowPhase;
+  uniform float journey, playbackBeat, playbackActive;
   uniform vec4 staffLinesA;
   uniform float staffLineE;
   uniform vec2 viewport, sourceRange;
   varying float vDistance,vGold,vHead,vKind,vArrival,vVoice,vSourceX,vSourceY;
+  varying float vMaterialType,vBeat,vDuration,vSegmentProgress;
+  varying vec2 vSpriteUV,vGlyphOffset;
+  ${scoreMaterialShader}
   void main(){
     if(vSourceX<sourceRange.x||vSourceX>sourceRange.y)discard;
     if(vArrival>.5&&pose<.85)discard;
     if(vKind>3.5&&vKind<4.5){if(halo<.5)discard;gl_FragColor=vec4(${BACKGROUND.join(',')},0.);return;}
+    vec4 chapters=scoreChapterWeights(journey);
+    float codeWeight=chapters.x,musicWeight=chapters.y,artWeight=chapters.z,gameWeight=chapters.w;
+    float chapterGlow=clamp(1.-artWeight*.68-gameWeight*.82,.18,1.);
+    float clef=step(${(SCORE_MATERIAL.CLEF - 0.5).toFixed(1)},vMaterialType)*(1.-step(${(SCORE_MATERIAL.CLEF + 0.5).toFixed(1)},vMaterialType));
+    float triplet=step(${(SCORE_MATERIAL.TRIPLET - 0.5).toFixed(1)},vMaterialType)*(1.-step(${(SCORE_MATERIAL.TRIPLET + 0.5).toFixed(1)},vMaterialType));
+    float splatter=step(${(SCORE_MATERIAL.SPATTER - 0.5).toFixed(1)},vMaterialType);
+    if(splatter>.5){
+      if(artWeight<.001||scoreHash(floor(vGlyphOffset*42.))<.18)discard;
+      vec3 pigment=mix(vec3(.20,.12,.48),vec3(.47,.31,.82),scoreHash(floor(vGlyphOffset*27.)));
+      gl_FragColor=vec4(mix(vec3(${BACKGROUND.join(',')}),pigment,artWeight),0.);return;
+    }
     vec3 source=mix(vec3(.811764706,.760784314,.886274510),vec3(1.,.862745098,.513725490),vGold);
     if(vVoice>.5)source=vVoice<1.5?vec3(.439215686,.658823529,1.):vec3(.764705882,.603921569,1.);
-    float clef=step(4.5,vKind);
     float staffDistance=min(min(min(abs(vSourceY-staffLinesA.x),abs(vSourceY-staffLinesA.y)),
       min(abs(vSourceY-staffLinesA.z),abs(vSourceY-staffLinesA.w))),abs(vSourceY-staffLineE));
     float staffLine=(1.-step(.5,vVoice))*step(1.5,vKind)*(1.-step(2.5,vKind))
@@ -98,25 +124,77 @@ const fragmentShader = `
     float scoreHead=step(.5,vHead)*(1.-step(1.5,vKind));
     float voiceInk=step(.5,vVoice);
     float lightMask=max(max(staffLine,scoreHead),voiceInk);
+    float sourceProgress=clamp((vSourceX-sourceRange.x)/(sourceRange.y-sourceRange.x),0.,1.);
+    float pulseDistance=abs(sourceProgress-flowPhase);
+    float voicePhase=fract(flowPhase+(vVoice>1.5 ? .37 : 0.));
+    float voiceDistance=abs(sourceProgress-voicePhase);
+    float flowPulse=max(exp(-pow(pulseDistance*28.,2.)),exp(-pow(voiceDistance*28.,2.)));
+    float flowAura=max(exp(-pow(pulseDistance*9.,2.)),exp(-pow(voiceDistance*9.,2.)));
+    float noteAge=playbackBeat-vBeat;
+    float noteActive=playbackActive*step(0.,noteAge)*(1.-step(max(.04,vDuration),noteAge));
+    float beatAttack=noteActive*(1.-smoothstep(.06,.22,noteAge));
+    vec3 staffGradient=mix(vec3(.35,.58,1.),vec3(.73,.43,1.),smoothstep(.04,.96,sourceProgress));
+    source=mix(source,staffGradient,staffLine);
+    vec2 local=clamp(vSpriteUV,vec2(0.),vec2(1.));
+    float trace=scoreCodeTrace(local);
+    if(vMaterialType>5.5){
+      float grid=1.-smoothstep(.025,.07,abs(fract(vSourceY*5.)-.5));
+      trace=max(trace,grid*.48);
+      if(vMaterialType>5.5&&vMaterialType<6.5)trace=max(trace,1.-smoothstep(.025,.07,abs(fract(vSegmentProgress*8.)-.5)));
+    }
+    vec3 codeInk=mix(vec3(.15,.24,.46),vec3(.24,.88,1.),trace);
+    source=mix(source,codeInk,codeWeight*.88);
+    // Pigment overlays the same score geometry. Preserve enough value and hue
+    // separation for the notation to stay readable on the dark page.
+    float grain=scoreBrushNoise(vec2(sourceProgress*1.7+vGlyphOffset.x*.72,vSourceY*.12+vGlyphOffset.y*.72));
+    float fiber=scoreBrushNoise(vec2(sourceProgress*6.4+vGlyphOffset.x*2.1,vSourceY*.43+vGlyphOffset.y*2.1));
+    vec3 staffWash=mix(vec3(.30,.39,.78),vec3(.78,.48,.89),grain);
+    vec3 pigment=staffWash;
+    if(vVoice>.5){
+      vec3 blueWash=mix(vec3(.20,.39,.78),vec3(.53,.76,1.),grain);
+      vec3 violetWash=mix(vec3(.48,.24,.73),vec3(.87,.59,1.),grain);
+      pigment=vVoice<1.5?blueWash:violetWash;
+    }
+    if(vMaterialType>5.5&&vMaterialType<6.5){
+      float bristle=step(.56,fiber);
+      pigment=mix(pigment,vec3(.95,.80,1.),bristle*.58);
+    }else if(vMaterialType>6.5&&vMaterialType<7.5){
+      float dryBrush=step(.48,fiber);
+      pigment=mix(pigment,vec3(.66,.82,1.),dryBrush*.66);
+    }
+    float puddle=mix(.68,1.28,grain);
+    source=mix(source,pigment,artWeight*.96);
+    source=mix(source,source*puddle,artWeight*.34);
+    vec4 sprite=scorePixelSprite(spriteAtlas,vMaterialType,local);
+    if(gameWeight>.001&&sprite.a<.5&&gameWeight>.999)discard;
+    source=mix(source,sprite.rgb,gameWeight*sprite.a);
     float nearFocus=1.-smoothstep(focus+.02,focus+.34,vDistance/viewportWidth);
     if(glowPass>.5){
       if(lighting<.5||lightMask<.5){gl_FragColor=vec4(0.);return;}
-      float depthLight=mix(.22,.48,nearFocus)*(1.+.30*musicScene);
+      float depthLight=(mix(.28,.58,nearFocus)*(1.+.42*musicScene)+flowAura*.18+flowPulse*.48+beatAttack*.92)*chapterGlow;
       gl_FragColor=vec4(source*depthLight,1.);return;
     }
     float protect=max(max(vGold,vHead*step(vDistance/viewportWidth,focus+.001)),clef);
     float t=smoothstep(.04,.70,vDistance/viewportWidth-focus)*fade*(1.-protect);
     float gray=dot(source,vec3(.2126,.7152,.0722));
     vec3 ink=mix(vec3(gray),source,mix(1.,.20,t))*mix(1.,.72,t);
-    ink=min(vec3(1.),ink+source*lightMask*lighting*(.025+.065*nearFocus)*(1.+.35*musicScene));
+    ink=min(vec3(1.),ink+source*lightMask*lighting*(.05+.13*nearFocus+flowAura*.22+flowPulse*.48)*(1.+.5*musicScene)*chapterGlow);
     vec2 pixel=gl_FragCoord.xy/pixelRatio;
     float edgeX=min(pixel.x,viewport.x-pixel.x);
     float edgeY=min(pixel.y,viewport.y-pixel.y);
     float edgeOpacity=smoothstep(0.,min(viewport.x*.16,180.),edgeX)*smoothstep(0.,min(viewport.y*.09,72.),edgeY);
+    float ribbonFade=smoothstep(0.,.095,sourceProgress)*(1.-smoothstep(.91,1.,sourceProgress));
+    edgeOpacity*=ribbonFade;
+    // The same note mesh gets uneven pigment coverage instead of a separate
+    // painted score image; the source geometry and event anchors stay intact.
+    edgeOpacity*=mix(1.,.56+.44*grain,artWeight*.82);
+    edgeOpacity=mix(edgeOpacity,1.,clef);
     ink=mix(vec3(${BACKGROUND.join(',')}),ink,edgeOpacity);
-    // Alpha carries explicit gold and clef focus masks, independent of ink color.
+    ink=min(vec3(1.),ink+source*beatAttack*musicWeight*.72);
+    // Clef and tuplet use separate semantic masks even though both deform as glyphs.
     gl_FragColor=vec4(mix(vec3(${BACKGROUND.join(',')}),ink,mix(1.,.32,t)),max(vGold,clef));
   }`;
+const completeFragmentShader = `${scoreMaterialShader}\n${fragmentShader}`;
 
 const postFragment = `
   uniform sampler2D image,depths,glowImage;
@@ -164,11 +242,10 @@ export async function mountGpuRibbon(host, { score, view, points, groups, engrav
   renderer.info.autoReset = false;
   const initial = createTravelProjector(width, height, score, 0, view, .2);
   const table = createRibbonFrameTable(initial.samples);
-  const trebleClefContours = await loadTrebleClefContours();
-  const trebleClefScale = width <= 700 ? 4 : 1;
+  const trebleClefContours = trebleClefFromTimeline(score);
   const frames = new THREE.DataTexture(table.data, TABLE_SIZE, 2, THREE.RGBAFormat, THREE.FloatType);
   frames.needsUpdate = true;
-  let geometry = buildRibbonGeometry(score, view, groups, engraving, voicePaths, markerId, trebleClefContours, trebleClefScale);
+  let geometry = buildRibbonGeometry(score, view, groups, engraving, voicePaths, markerId, trebleClefContours);
   const focal = width * 1.45, near = width * .01, far = width * 20;
   const camera = new THREE.PerspectiveCamera(2 * Math.atan(height / (2 * focal)) * 180 / Math.PI, width / height, near, far);
   // The reference's world uses screen-down Y. Flip only the projection Y so
@@ -181,11 +258,12 @@ export async function mountGpuRibbon(host, { score, view, points, groups, engrav
     focal: { value: focal }, viewportWidth: { value: width }, viewport: { value: new THREE.Vector2(width, height) },
     frameOffset: { value: new THREE.Vector2(0, 0) },
     pixelRatio: { value: pixelRatio },
-    sourceRange: { value: new THREE.Vector2(view.x0, view.x1) }, focus: { value: 0 },
-    staffLinesA: { value: new THREE.Vector4(...score.staffLines.slice(0, 4)) },
+    sourceRange: { value: new THREE.Vector2(...Object.values(scoreSourceRange(view, score.bars, score.staffLines, true, trebleClefFromTimeline(score).glyph))) }, focus: { value: 0 },
+    staffLinesA: { value: new Float32Array(score.staffLines.slice(0, 4)) },
     staffLineE: { value: score.staffLines[4] },
     fade: { value: 0 }, halo: { value: 0 }, pose: { value: 0 },
-    lighting: { value: 1 }, musicScene: { value: 0 }, glowPass: { value: 0 },
+    lighting: { value: 1 }, musicScene: { value: 0 }, glowPass: { value: 0 }, flowPhase: { value: 0 },
+    journey: { value: 0 }, playbackBeat: { value: -1 }, playbackActive: { value: 0 },
   };
   const material = new THREE.ShaderMaterial({ uniforms, vertexShader, fragmentShader,
     side: THREE.DoubleSide, blending: THREE.NoBlending, depthTest: true, depthWrite: true });
@@ -218,8 +296,9 @@ export async function mountGpuRibbon(host, { score, view, points, groups, engrav
     frameTextureBytes: table.data.byteLength, vertices: geometry.attributes.position.count,
     hardwareAcceleration: 'Unknown; renderer string does not prove hardware acceleration.',
     presentation: 'Not measured; next RAF is scheduling latency only.', contextLost: false };
-  let disposed = false, cachedPose = null, cachedZoom = null, cachedFrameX = 0, cachedFrameY = 0,
-    cachedMusicScene = false, cachedLighting = true, lastVariant = 'C';
+  let disposed = false, cachedPose = null, cachedZoom = null, cachedJourney = null, cachedFrameX = 0, cachedFrameY = 0,
+    cachedMusicScene = false, cachedLighting = true, cachedFlowPhase = null, cachedPlaybackBeat = -1,
+    cachedPlaybackActive = false, lastVariant = 'C';
   const projectorScratch = {}, focusScratch = {}, reusableSample = {};
   let lastSample = null;
   const originalGL=new Map();metrics.bufferUploadCalls=0;metrics.bufferUploadBytes=0;metrics.actualFrameUploads=0;
@@ -256,7 +335,8 @@ export async function mountGpuRibbon(host, { score, view, points, groups, engrav
     uniforms.arcSpan.value = project.arcLength;
     const arrive = Math.max(0, Math.min(1, (pose - .65) / .2));
     const sourceWidth = readingView.x1 - readingView.x0;
-    uniforms.unit.value = (width * 1.5 * (1 - arrive) + project.arcLength * arrive) / sourceWidth;
+    const mobileStaffScale = width <= 700 ? Math.min(1.8, 1 + Math.max(0, cameraZoom - 1) * .32) : 1;
+    uniforms.unit.value = (width * 1.5 * (1 - arrive) + project.arcLength * arrive) / sourceWidth * mobileStaffScale;
     uniforms.aspect.value = project.uvAspect;
     uniforms.focus.value = readingFocus(project, readingView, width, height, marker, pose, focusScratch).distance;
     uniforms.pose.value = pose;
@@ -288,7 +368,7 @@ export async function mountGpuRibbon(host, { score, view, points, groups, engrav
   function setNotation(notation) {
     if (disposed) throw new Error('GPU ribbon is disposed.');
     const next = buildRibbonGeometry(score, notation.view, notation.groups, notation.engraving,
-      notation.voicePaths ?? [], markerId, trebleClefContours, trebleClefScale);
+      notation.voicePaths ?? [], markerId, trebleClefContours);
     const previous = geometry;
     geometry = next;
     mesh.geometry = next;
@@ -308,15 +388,21 @@ export async function mountGpuRibbon(host, { score, view, points, groups, engrav
     return true;
   }
 
-  function draw(pose, variant = 'C', captureSample = diagnostics, cameraZoom = 1, frameOffset = { x: 0, y: 0 }, musicScene = false, lighting = true) {
+  function draw(pose, variant = 'C', captureSample = diagnostics, cameraZoom = 1, frameOffset = { x: 0, y: 0 }, musicScene = false, lighting = true, flowPhase = 0, journey = 0, playback = null) {
     if (disposed) throw new Error('GPU ribbon is disposed.');
     if (metrics.contextLost) return { pose, variant, cpuMs: 0, gpuMs: null, gpuStatus: 'context-lost' };
     if (!Number.isFinite(pose) || pose < 0 || pose > 1) throw new RangeError('Pose must be in [0,1].');
     if (!Number.isFinite(cameraZoom) || cameraZoom <= 0) throw new RangeError('Camera zoom must be a positive finite number.');
     const frameX = Number.isFinite(frameOffset?.x) ? frameOffset.x : 0;
     const frameY = Number.isFinite(frameOffset?.y) ? frameOffset.y : 0;
+    const wrappedFlowPhase = ((Number.isFinite(flowPhase) ? flowPhase : 0) % 1 + 1) % 1;
+    const chapterJourney = Number.isFinite(journey) ? Math.max(0, Math.min(5, journey)) : 0;
+    const playbackBeat = Number.isFinite(playback?.beat) ? playback.beat : -1;
+    const playbackActive = Boolean(playback?.active && playbackBeat >= 0);
     if (cachedPose === pose && cachedZoom === cameraZoom && cachedFrameX === frameX && cachedFrameY === frameY
       && cachedMusicScene === Boolean(musicScene) && cachedLighting === Boolean(lighting)
+      && cachedJourney === chapterJourney && cachedFlowPhase === wrappedFlowPhase
+      && cachedPlaybackBeat === playbackBeat && cachedPlaybackActive === playbackActive
       && lastVariant === variant && lastSample) return lastSample;
     const started = performance.now();
     if (diagnostics || pending.length) pollGPU();
@@ -326,10 +412,14 @@ export async function mountGpuRibbon(host, { score, view, points, groups, engrav
     uniforms.halo.value = pose < .85 && variant !== 'A' ? 1 : 0;
     uniforms.fade.value = pose < .4 && variant !== 'A' ? 1 : 0;
     uniforms.musicScene.value = musicScene ? 1 : 0;
+    uniforms.journey.value = chapterJourney;
+    uniforms.playbackBeat.value = playbackBeat;
+    uniforms.playbackActive.value = playbackActive ? 1 : 0;
     uniforms.lighting.value = lighting ? 1 : 0;
+    uniforms.flowPhase.value = wrappedFlowPhase;
     uniforms.glowPass.value = 0;
     postMaterial.uniforms.blur.value = variant === 'C' && pose < .85 ? 1 : 0;
-    postMaterial.uniforms.glowStrength.value = lighting ? (musicScene ? .78 : .58) : 0;
+    postMaterial.uniforms.glowStrength.value = lighting ? (musicScene ? .92 : .72) : 0;
     lastVariant = variant;
     const prepared = performance.now();
     const sample = captureSample ? {} : reusableSample;
@@ -364,6 +454,10 @@ export async function mountGpuRibbon(host, { score, view, points, groups, engrav
     }
     cachedMusicScene = Boolean(musicScene);
     cachedLighting = Boolean(lighting);
+    cachedJourney = chapterJourney;
+    cachedFlowPhase = wrappedFlowPhase;
+    cachedPlaybackBeat = playbackBeat;
+    cachedPlaybackActive = playbackActive;
     lastSample = sample;
     return sample;
   }
@@ -392,7 +486,9 @@ export async function mountGpuRibbon(host, { score, view, points, groups, engrav
     metrics.frameTextureUploads++;metrics.geometryUploads++;
     canvas.dataset.contextLost = 'false';
     if (cachedPose !== null) {
-      draw(cachedPose, lastVariant, false, cachedZoom ?? 1, { x: cachedFrameX, y: cachedFrameY }, cachedMusicScene, cachedLighting);
+      draw(cachedPose, lastVariant, false, cachedZoom ?? 1, { x: cachedFrameX, y: cachedFrameY },
+        cachedMusicScene, cachedLighting, cachedFlowPhase ?? 0, cachedJourney ?? 0,
+        { beat: cachedPlaybackBeat, active: cachedPlaybackActive });
     }
   }
   canvas.addEventListener('webglcontextlost', onLost);

@@ -50,7 +50,34 @@ body[data-score-gpu-scroll="true"] .score-gpu-scroll-canvas {
   /* Three owns the camera in this route; applying the editorial CSS transform
      here would offset and scale the same camera move a second time. */
   transform: none;
-  opacity: var(--thread-opacity, 1);
+  opacity: clamp(0, calc(var(--thread-opacity, 1) + .2), 1);
+}
+
+body[data-score-gpu-scroll="true"] .about-score-thread {
+  isolation: isolate;
+  mask-image: linear-gradient(to right, transparent, black min(3.5vw, 52px), black calc(100% - min(3.5vw, 52px)), transparent),
+    linear-gradient(to bottom, transparent, black 9%, black 92%, transparent), var(--reading-veils, linear-gradient(black,black));
+  mask-composite: intersect;
+}
+
+body[data-score-gpu-scroll="true"] .about-score-thread::before {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  inset: -18%;
+  pointer-events: none;
+  opacity: .72;
+  filter: blur(28px);
+  background:
+    radial-gradient(ellipse at 28% 44%, rgb(111 57 177 / 21%), transparent 38%),
+    radial-gradient(ellipse at 72% 54%, rgb(45 111 214 / 17%), transparent 43%);
+  transform: translate3d(-1%, 0, 0) scale(.99);
+  animation: score-atmosphere-drift 18s ease-in-out infinite alternate;
+}
+
+@keyframes score-atmosphere-drift {
+  from { transform: translate3d(-1.2%, .4%, 0) scale(.99); }
+  to { transform: translate3d(1.4%, -1%, 0) scale(1.035); }
 }
 
 body[data-score-gpu-scroll="true"] .about-hero .hero-copy {
@@ -181,3 +208,29 @@ body[data-score-gpu-scroll="true"] .games-chapter .chapter-copy::before {
     background: radial-gradient(ellipse 108% 124% at center, #060609 0 58%, rgb(6 6 9 / 97%) 76%, rgb(6 6 9 / 70%) 92%, transparent 100%);
   }
 }
+
+@media (prefers-reduced-motion: reduce) {
+  body[data-score-gpu-scroll="true"] .about-score-thread::before {
+    animation: none;
+  }
+}
+
+html[data-motion-paused="true"] body[data-score-gpu-scroll="true"] .about-score-thread::before {
+  animation: none;
+}
+
+/* Bring the veil to zero before its own bounding box on every side. */
+body[data-score-gpu-scroll="true"] :is(.hero-copy, .code-chapter .chapter-copy, .music-heading .chapter-copy, .music-intro, .games-chapter .chapter-copy)::before {
+  inset: -28% -20%;
+  mask-image: radial-gradient(ellipse 50% 50% at center, black 54%, transparent);
+}
+body[data-score-gpu-scroll="true"] .code-stack::before {
+  inset-inline: calc(-1 * var(--about-gutter));
+  mask-image: linear-gradient(90deg, transparent, black var(--about-gutter), black calc(100% - var(--about-gutter)), transparent),
+    linear-gradient(transparent, black 15%, black 83%, transparent);
+  mask-composite: intersect;
+}
+body[data-score-gpu-scroll="true"] :is(.hero-copy, .chapter-copy, .music-heading, .music-intro, .poem, .rhythm-keys, .closing-links, .code-stack, .about-closing h2)::before {
+  background: none;
+}
+body[data-score-gpu-scroll="true"] .hero-field { overflow: visible; }

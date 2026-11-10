@@ -280,7 +280,7 @@ export function mountGpuStudy(page, options, renderCanvas) {
       if (!referenceReady) drawReference(referencePose);
       if (gpuStudy) { gpuStudy.dispose(); gpuStudy = undefined; }
       lostContext = false;
-      const { mountGpuRibbon } = await import('./score-gpu-ribbon.js?v=3');
+      const { mountGpuRibbon } = await import('./score-gpu-ribbon.js?v=header-clef-stem-6');
       if (disposed) return;
       gpuStudy = await mountGpuRibbon(gpuHost, { ...options, width: sceneWidth, height: sceneHeight });
       if (disposed) { gpuStudy.dispose(); gpuStudy = undefined; return; }

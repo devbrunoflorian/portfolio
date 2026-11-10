@@ -10,7 +10,9 @@ html[data-content-id="about"] {
   --site-scroll-ink: var(--about-ink);
   background: var(--about-bg);
   scroll-padding-top: 88px;
-  scroll-padding-bottom: 110px;
+  --about-dock-height: 58px;
+  --about-dock-clearance: calc(var(--about-dock-height) + max(16px, env(safe-area-inset-bottom)) + 16px);
+  scroll-padding-bottom: var(--about-dock-clearance);
   scroll-behavior: smooth;
 }
 body { background: var(--about-bg); color: var(--about-ink); }
@@ -36,6 +38,15 @@ body { background: var(--about-bg); color: var(--about-ink); }
 .about-main h2 { --heading-active: var(--about-ink); --heading-rest: #a49aaa; --scroll-fill-active: var(--about-ink); --scroll-fill-rest: #817b89; }
 .about-main .scroll-fill[data-scroll-fill-ready="true"] .scroll-fill-word {
   background-image: linear-gradient(90deg, var(--word-ink, currentColor) 0%, var(--word-ink, currentColor) var(--word-fill, 100%), var(--heading-rest, var(--word-ink, currentColor)) var(--word-fill, 100%), var(--heading-rest, var(--word-ink, currentColor)) 100%);
+}
+.about-main :is(button, a, input, summary) { scroll-margin-block: 14px; }
+@media (max-width: 700px) {
+  html[data-content-id="about"] { --about-dock-clearance: calc(var(--about-dock-height) + 16px); }
+  .about-main .journey-bar { padding-bottom: calc(5px + env(safe-area-inset-bottom)); }
+  .about-main :is(.art-chapter, .games-chapter, .about-closing) {
+    padding-bottom: max(82px, var(--about-dock-clearance));
+  }
+  .about-main .dock-panel { bottom: var(--about-dock-clearance); }
 }
 .about-main em {
   --heading-active: var(--about-violet);

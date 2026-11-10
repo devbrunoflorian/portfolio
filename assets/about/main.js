@@ -1,8 +1,10 @@
 import { score } from "./score.js?v=a1c14c40";
 import { createJourneyAudio, playbackPositionForDisplay } from "./audio.js";
 import { mountExperiments } from "./experiments.js";
+import { mountChapterIllustrations } from "./chapter-illustrations.js?v=art-image-layer-1";
+import { mountForestWorld } from "./forest-world.js";
 import { createScoreVisual, scoreStageOffsets } from "./score-visual.js";
-import { createGpuEditorialFrame } from "./score-gpu-frame.js";
+import { measureJourneyFrames } from "./score-gpu-frame.js";
 import { shouldUseGpuScoreScroll } from "./score-gpu-route.js?v=score-light-1";
 import {
   SCORE_CAMERA_POSE_STOPS,
@@ -50,19 +52,20 @@ const scoreCameraAnchors = {
   games: ".games-experiment",
   closing: ".closing-links",
 };
-const scoreGpuMusicIndex = chapters.findIndex(chapter => chapter.dataset.movement === "music");
 const mobileScoreScale = { opening: 1.12, code: .68, music: .95, art: .76, games: .58, closing: .66 };
+let scoreGpuJourney = 0;
 let scoreGpuPose = 0;
 let scoreGpuZoom = 1;
 let gpuEditorialFrame = { offset: { x: 0, y: 0 }, zoom: 1 };
 let scoreChapterBounds = [];
 let scoreChapterCenters = [];
-let scoreGpuOffsetStops = [];
 let scoreGpuCurves = null;
 let scoreGpuOffsetsNeedMeasure = true;
 let scoreThreadNeedsMeasure = true;
 let scoreThreadLastScrollY = Number.NaN;
 let scoreThreadLastStyle = "";
+let readingAreas = [];
+let lastReadingScroll = NaN;
 let scoreTransitionProgress = 0;
 let scoreTransitionTarget = 0;
 let scoreCameraCurrent = null;
@@ -112,9 +115,26 @@ function updateScoreThread(force = false) {
       const bounds = chapter.getBoundingClientRect();
       return { top: bounds.top + scrollY, bottom: bounds.bottom + scrollY, height: bounds.height };
     });
-    scoreChapterCenters = scoreChapterBounds.map(bounds => bounds.top + bounds.height / 2);
+    scoreChapterCenters = chapters.map((chapter, index) => {
+      const anchor = scoreGpuScrollMode && scoreAnchorFor(chapter);
+      if (!anchor) return scoreChapterBounds[index].top + scoreChapterBounds[index].height / 2;
+      const rect = anchor.getBoundingClientRect();
+      return rect.top + scrollY + rect.height / 2;
+    });
     scoreThreadNeedsMeasure = false;
+    readingAreas = [...root.querySelectorAll(".hero-copy, .chapter-copy, .music-intro, .poem, .rhythm-keys, .stack-groups, .stack-more[open], .music-tools, .closing-links, .about-closing h2")].map(element => {
+      const rect = element.getBoundingClientRect();
+      return { x: rect.left + rect.width / 2, y: rect.top + scrollY + rect.height / 2,
+        rx: Math.round(rect.width * .84 + 30), ry: Math.round(rect.height * .9 + 24) };
+    });
+    lastReadingScroll = NaN;
     if (scoreGpuScrollMode) scoreGpuOffsetsNeedMeasure = true;
+  }
+  if (scoreGpuScrollMode && lastReadingScroll !== scrollY) {
+    const veils = readingAreas.filter(area => Math.abs(area.y - scrollY - innerHeight / 2) < innerHeight / 2 + area.ry)
+      .map(area => `radial-gradient(ellipse ${area.rx}px ${area.ry}px at ${Math.round(area.x)}px ${Math.round(area.y-scrollY)}px, transparent 44%, #0004 68%, black)`);
+    scoreThread.style.setProperty("--reading-veils", veils.join(",") || "linear-gradient(black,black)");
+    lastReadingScroll = scrollY;
   }
   scoreThreadLastScrollY = scrollY;
   const storyPoint = scrollY + window.innerHeight * .52;
@@ -126,12 +146,9 @@ function updateScoreThread(force = false) {
   const chapterCenters = scoreChapterCenters;
   if (scoreGpuScrollMode && scoreGpuOffsetsNeedMeasure) {
     const mobile = window.innerWidth <= 700;
-    scoreGpuOffsetStops = chapters.map((chapter, index) => {
-      const movement = chapter.dataset.movement;
-      const scale = mobile ? mobileScoreScale[movement] : scoreGpuCameraStops[index].scale;
-      const centerScrollY = chapterCenters[index] - window.innerHeight * .52;
-      return scoreStageOffsets(scoreAnchorFor(chapter), scale, centerScrollY, { ignoreRevealTransforms: true });
-    });
+    const poses = mobile ? SCORE_CAMERA_POSE_STOPS.mobile : SCORE_CAMERA_POSE_STOPS.desktop;
+    const zooms = mobile ? [1.08, .79, 2.25, 1.14, .68, .68] : [1.06, .82, Math.min(.96, 1630 / (innerWidth * .94)), 1.12, .69, .66];
+    const frames = measureJourneyFrames(chapters.map(scoreAnchorFor), poses, zooms, mobile);
     const valuesFor = key => scoreGpuCameraStops.map(stop => stop[key]);
     scoreGpuCurves = {
       journey: createScoreJourneyCurve(chapterCenters),
@@ -144,9 +161,9 @@ function updateScoreThread(force = false) {
         chapterCenters,
         chapters.map(chapter => mobileScoreScale[chapter.dataset.movement]),
       ),
-      mobileZoom: createScoreCurve(chapterCenters, [1, 1, 2.5, 1, 1, 1], .74),
-      offsetX: createScoreCurve(chapterCenters, scoreGpuOffsetStops.map(stop => stop.x)),
-      offsetY: createScoreCurve(chapterCenters, scoreGpuOffsetStops.map(stop => stop.y)),
+      zoom: createScoreCurve(chapterCenters, zooms),
+      offsetX: createScoreCurve(chapterCenters, frames.map(stop => stop.x)),
+      offsetY: createScoreCurve(chapterCenters, frames.map(stop => stop.y)),
     };
     scoreGpuOffsetsNeedMeasure = false;
   }
@@ -183,6 +200,19 @@ function updateScoreThread(force = false) {
     }
     progress = progress * progress * (3 - 2 * progress);
   }
+  scoreGpuJourney = scoreTransitionTarget * (chapters.length - 1);
+  const appear = t => { const n = clamp(t, 0, 1); return n * n * (3 - 2 * n); };
+  const enterChapter = n => appear((scoreGpuJourney - (n - 1) - .55) / .45);
+  const leaveChapter = n => appear((scoreGpuJourney - n) / .4);
+  root.style.setProperty("--code-presence", (enterChapter(1) * (1 - leaveChapter(1))).toFixed(4));
+  const paintPresence = appear((scoreGpuJourney - 2.2) / .8) * (1 - leaveChapter(3));
+  root.style.setProperty("--paint-presence", paintPresence.toFixed(4));
+  root.style.setProperty("--about-paint-reveal", `${(paintPresence * 100).toFixed(2)}%`);
+  root.style.setProperty("--world-entry", enterChapter(4).toFixed(4));
+  root.style.setProperty("--world-exit", leaveChapter(4).toFixed(4));
+  const artImageTravel = clamp((scoreGpuJourney - 2.2) / 1.2, 0, 1);
+  const artImageOffset = reduceMotion.matches ? 0 : (0.5 - artImageTravel) * 18;
+  root.style.setProperty("--about-art-image-offset", `${artImageOffset.toFixed(2)}px`);
   const mainBounds = root.getBoundingClientRect();
   const enter = clamp((window.innerHeight - mainBounds.top) / (window.innerHeight * .42), 0, 1);
   const leave = clamp(mainBounds.bottom / (window.innerHeight * .42), 0, 1);
@@ -203,8 +233,8 @@ function updateScoreThread(force = false) {
     const endScale = mobileScoreScale[chapters[Math.min(chapters.length - 1, index + 1)].dataset.movement];
     values.scale = startScale + (endScale - startScale) * progress;
   }
-  scoreGpuZoom = scoreGpuScrollMode && window.innerWidth <= 700
-    ? scoreGpuCurves.mobileZoom(cameraReadingLine).value
+  scoreGpuZoom = scoreGpuScrollMode
+    ? scoreGpuCurves.zoom(cameraReadingLine).value
     : 1;
   let x;
   let y;
@@ -227,24 +257,15 @@ function updateScoreThread(force = false) {
   }
   const target = { x, y, scale: values.scale, opacity: values.opacity, lead: values.lead, rotate: values.rotate };
   gpuEditorialFrame = { offset: { x: 0, y: 0 }, zoom: scoreGpuZoom };
-  if (scoreGpuScrollMode && scoreGpuMusicIndex >= 0 && scoreGpuCurves) {
-    const musicReadingLine = chapterCenters[scoreGpuMusicIndex];
-    const musicScale = window.innerWidth <= 700
-      ? mobileScoreScale.music
-      : scoreGpuCameraStops[scoreGpuMusicIndex].scale;
-    const musicFrame = {
-      x: scoreGpuCurves.frame.x(musicReadingLine).value * window.innerWidth
-        + scoreGpuCurves.offsetX(musicReadingLine).value,
-      y: scoreGpuCurves.frame.y(musicReadingLine).value * window.innerHeight
-        + scoreGpuCurves.offsetY(musicReadingLine).value,
-      scale: musicScale,
+  if (scoreGpuScrollMode) {
+    const closest = Math.round(scoreGpuJourney);
+    const travel = reduceMotion.matches ? 0 : chapterCenters[closest] - storyPoint;
+    // Hold the score in its reserved reading space as that space crosses the viewport.
+    const lock = 1 - appear((Math.abs(travel) / innerHeight - .17) / .45);
+    gpuEditorialFrame.offset = {
+      x: scoreGpuCurves.offsetX(cameraReadingLine).value,
+      y: scoreGpuCurves.offsetY(cameraReadingLine).value + travel * lock,
     };
-    gpuEditorialFrame = createGpuEditorialFrame({ x, y, scale: values.scale }, musicFrame, scoreGpuZoom);
-    if (window.innerWidth <= 700 && index === 0) {
-      const openingProgress = progress * progress * (3 - 2 * progress);
-      const openingLift = 128 + 22 * clamp((window.innerWidth - 320) / 70, 0, 1);
-      gpuEditorialFrame.offset.y -= openingLift * (1 - openingProgress);
-    }
   }
   const now = performance.now();
   const elapsed = scoreCameraLastTime ? Math.min(64, now - scoreCameraLastTime) : 16;
@@ -331,6 +352,8 @@ const audio = createJourneyAudio(score, status => {
   requestScene();
 });
 const experiments = mountExperiments(root, audio, isPortuguese);
+const disposeIllustrations = scoreGpuScrollMode ? mountChapterIllustrations(root) : null;
+const disposeForestWorld = mountForestWorld(root);
 const visual = createScoreVisual(root, score, requestScene);
 const controller = new AbortController();
 const { signal } = controller;
@@ -437,6 +460,11 @@ function syncDock() {
   const focusInControls = dock.contains(document.activeElement) || panels.some(panel => panel.contains(document.activeElement));
   dock.hidden = hero.getBoundingClientRect().bottom > 96 && !focusInControls;
 }
+const dockSize = new ResizeObserver(([entry]) => {
+  const height = entry.borderBoxSize?.[0]?.blockSize ?? dock.offsetHeight;
+  if (height > 0) document.documentElement.style.setProperty("--about-dock-height", height + "px");
+});
+dockSize.observe(dock);
 const dockObserver = new IntersectionObserver(syncDock, { rootMargin: "-96px 0px 0px", threshold: 0 });
 dockObserver.observe(hero);
 if (!nativePopover) {
@@ -500,6 +528,7 @@ function paintScenes(timestamp) {
   } else if (visible && scoreGpuScrollMode && updateGpuScroll) {
     const result = updateGpuScroll({
       chapter: root.dataset.activeMovement ?? "opening",
+      journey: scoreGpuJourney,
       pose: scoreGpuPose,
       zoom: gpuEditorialFrame.zoom,
       frameOffset: gpuEditorialFrame.offset,
@@ -600,6 +629,8 @@ window.addEventListener("scroll", requestScene, { signal, passive: true });
 window.addEventListener("resize", () => { selectMovement(); invalidateScoreLayout(); }, { signal });
 window.addEventListener("hashchange", () => { selectMovement(); invalidateScoreLayout(); }, { signal });
 root.querySelectorAll("details").forEach(details => details.addEventListener("toggle", invalidateScoreLayout, { signal }));
+const chapterSize = new ResizeObserver(invalidateScoreLayout);
+chapters.forEach(chapter => chapterSize.observe(chapter));
 document.fonts?.ready.then(invalidateScoreLayout);
 selectMovement();
 requestScene();
@@ -615,7 +646,9 @@ window.addEventListener("pagehide", event => {
   audio.pause();
   if (event.persisted) return;
   clearInterval(displayTimer);
-  controller.abort(); observer.disconnect(); dockObserver.disconnect(); revealObserver?.disconnect(); cancelAnimationFrame(pointerFrame); cancelAnimationFrame(sceneFrame);
+  controller.abort(); dockSize.disconnect(); chapterSize.disconnect(); observer.disconnect(); dockObserver.disconnect(); revealObserver?.disconnect(); cancelAnimationFrame(pointerFrame); cancelAnimationFrame(sceneFrame);
+  disposeIllustrations?.();
+  disposeForestWorld?.();
   experiments.dispose(); visual.dispose(); audio.dispose(); disposeRibbonTransition?.(); disposeGpuScroll?.();
 }, { signal });
 
@@ -643,7 +676,7 @@ if (scoreRibbonTransitionMode) {
 }
 
 if (scoreGpuScrollMode) {
-  import("./score-gpu-scroll.js?v=score-light-1").then(module => module.mountAboutGpuScroll(root)).then(runtime => {
+  import("./score-gpu-scroll.js?v=chapter-material-audio-4").then(module => module.mountAboutGpuScroll(root)).then(runtime => {
     updateGpuScroll = runtime.update;
     disposeGpuScroll = runtime.dispose;
     invalidateScoreLayout();
