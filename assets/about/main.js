@@ -192,6 +192,13 @@ const worldButton = page.querySelector("[data-world-open]");
 let worldScroll = null;
 worldButton?.addEventListener("click", () => {
   if (!worldDialog || worldDialog.open) return;
+  // The About owns only the cover. Load the separate world preview on demand.
+  for (const source of worldDialog.querySelectorAll("[data-world-srcset]")) {
+    if (!source.hasAttribute("srcset")) source.setAttribute("srcset", source.dataset.worldSrcset);
+  }
+  for (const image of worldDialog.querySelectorAll("[data-world-src]")) {
+    if (!image.hasAttribute("src")) image.setAttribute("src", image.dataset.worldSrc);
+  }
   restoreFocus = worldButton;
   worldScroll = { x: window.scrollX, y: window.scrollY };
   document.documentElement.classList.add("about-world-open");

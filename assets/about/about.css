@@ -341,3 +341,7 @@ html[data-motion-paused="true"] .forest-foreground { animation: none; transform:
 }
 
 .games-scene .knight-sprite { left: 40%; }
+
+/* The chapter is a cover; only an explicitly opened preview runs its idle. */
+.games-scene .knight-sprite,
+.world-dialog:not([open]) .knight-sprite { animation: none; }
