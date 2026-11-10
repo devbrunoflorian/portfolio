@@ -329,3 +329,6 @@ html[data-motion-paused="true"] .forest-foreground { animation: none; transform:
 }
 
 .about-rebuild .score-frame { margin-inline: auto; }
+
+/* Inline canvas sizing must never override the renderer visibility switch. */
+.about-rebuild .about-score-thread canvas[hidden] { display: none !important; }
