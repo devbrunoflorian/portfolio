@@ -14,6 +14,19 @@ import {
 
 const root = document.querySelector(".about-main");
 const query = new URLSearchParams(window.location.search);
+const aboutCompositionPreview = query.get("about-rebuild") === "composition";
+if (aboutCompositionPreview) {
+  document.documentElement.dataset.aboutComposition = "true";
+  document.querySelectorAll("[data-locale-choice]").forEach(link => {
+    const target = new URL(link.href, window.location.href);
+    target.searchParams.set("about-rebuild", "composition");
+    link.href = target.href;
+  });
+  const stylesheet = document.createElement("link");
+  stylesheet.rel = "stylesheet";
+  stylesheet.href = "/assets/about/refactor-composition.css?v=1";
+  document.head.append(stylesheet);
+}
 if (['2a','2b','3a','3b'].includes(query.get('score-gate'))) import('./score-fold-gate.js?v=gpu-study-4');
 const scoreGridStudyMode = query.get("score-grid") === "study";
 const scoreRibbonStudyMode = query.get("score-ribbon") === "study";
