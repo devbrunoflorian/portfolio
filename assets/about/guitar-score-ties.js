@@ -1,1 +1,0 @@
-export const guitarScoreTies = [{"fromBeat":407.9166666666667,"toBeat":408,"midi":64,"crossBar":true},{"fromBeat":411.875,"toBeat":412,"midi":40,"crossBar":true},{"fromBeat":412,"toBeat":416,"midi":40,"crossBar":true},{"fromBeat":416,"toBeat":420,"midi":40,"crossBar":true}];
