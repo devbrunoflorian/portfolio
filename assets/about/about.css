@@ -66,8 +66,9 @@ html[data-content-id="about"] .site-footer { width: min(100% - 2 * var(--about-g
 .chapter-copy h2, .about-art h2, .about-games h2, .about-closing h2, .chapter-heading h2 { margin-top: 19px; color: var(--about-ink); font-size: clamp(48px, 6.2vw, 88px); font-weight: 520; line-height: .98; }
 .chapter-copy > p:not(.about-eyebrow), .art-copy > p:not(.about-eyebrow), .games-copy > p:not(.about-eyebrow) { max-width: 42ch; margin-top: 24px; }
 
-.about-code { display: grid; grid-template-columns: minmax(370px, .8fr) minmax(0, 1.2fr); align-items: center; gap: clamp(42px, 8vw, 132px); background: radial-gradient(ellipse at 68% 50%, rgb(30 61 122 / 11%), transparent 50%); }
-.code-stage { position: relative; min-height: 580px; display: grid; align-items: center; isolation: isolate; }
+.about-code { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(300px, .8fr); align-items: center; gap: clamp(42px, 8vw, 132px); background: radial-gradient(ellipse at 68% 50%, rgb(30 61 122 / 11%), transparent 50%); }
+.about-code .chapter-copy { grid-column: 2; grid-row: 1; }
+.code-stage { grid-column: 1; grid-row: 1; position: relative; min-height: 580px; display: grid; align-items: center; isolation: isolate; }
 .code-circuit { position: absolute; z-index: -1; inset: 0 -4% 0 -7%; opacity: .54; }
 .code-circuit svg { width: 100%; height: 100%; overflow: visible; fill: none; stroke: rgb(84 135 228 / 52%); stroke-width: 1; }
 .code-circuit circle { fill: var(--about-blue); stroke: none; filter: drop-shadow(0 0 7px var(--about-blue)); }
@@ -196,7 +197,7 @@ body[data-score-gpu-scroll="true"] .about-rebuild .stack-panel::before { content
   .opening-index { bottom: 26px; }
   .about-chapter { min-height: auto; padding: 92px var(--about-gutter) calc(92px + var(--about-dock-height) + env(safe-area-inset-bottom)); }
   .chapter-copy h2, .about-art h2, .about-games h2, .about-closing h2, .chapter-heading h2 { font-size: clamp(44px, 12.5vw, 62px); }
-  .about-code { display: flex; flex-direction: column-reverse; align-items: stretch; gap: 42px; }
+  .about-code { display: flex; flex-direction: column; align-items: stretch; gap: 42px; }
   .code-stage { min-height: 0; }
   .code-circuit { inset: -12% -12%; }
   .stack-panel { padding: 22px 16px; }
