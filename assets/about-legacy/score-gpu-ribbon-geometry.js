@@ -140,7 +140,7 @@ export function buildRibbonGeometry(score, view, groups, engraving, voicePaths =
       const distance = radius * (.78 + (hash % 100) / 360);
       const centerOffset = [Math.cos(angle) * distance, Math.sin(angle) * distance];
       const dabRadius = radius * (.12 + ((hash >>> 8) % 100) / 900);
-      const center = point(anchor.u, anchor.v, { kind: 1, materialType: SCORE_MATERIAL.SPATTER });
+      const center = point(anchor.u, anchor.v, { kind: 1, materialType: SCORE_MATERIAL.SPATTER, offset: centerOffset });
       for (let side = 0; side < 7; side += 1) {
         const angleA = side / 7 * Math.PI * 2;
         const angleB = (side + 1) / 7 * Math.PI * 2;
