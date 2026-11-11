@@ -1,8 +1,8 @@
 import * as THREE from './vendor/three-score.min.js';
 import { createTravelProjector, viewportStaffScale } from './score-travel-geometry.js?v=staff-scale-1';
 import { readingFocus } from './score-focus-profile.js';
-import { buildRibbonGeometry, scoreSourceRange, trebleClefFromTimeline } from './score-gpu-ribbon-geometry.js?v=pixel-rest-1';
-import { createPixelSpriteAtlas, SCORE_MATERIAL, scoreMaterialShader } from './score-gpu-materials.js?v=watercolor-journey-5';
+import { buildRibbonGeometry, scoreSourceRange, trebleClefFromTimeline } from './score-gpu-ribbon-geometry.js?v=painted-stems-1';
+import { createPixelSpriteAtlas, SCORE_MATERIAL, scoreMaterialShader } from './score-gpu-materials.js?v=painted-stems-1';
 import { resolutionShader } from './score-resolution.js?v=journey-resolution-1';
 
 const BACKGROUND = [6 / 255, 6 / 255, 9 / 255];
@@ -121,7 +121,7 @@ const fragmentShader = `
     float clef=step(${(SCORE_MATERIAL.CLEF - 0.5).toFixed(1)},vMaterialType)*(1.-step(${(SCORE_MATERIAL.CLEF + 0.5).toFixed(1)},vMaterialType));
     float triplet=step(${(SCORE_MATERIAL.TRIPLET - 0.5).toFixed(1)},vMaterialType)*(1.-step(${(SCORE_MATERIAL.TRIPLET + 0.5).toFixed(1)},vMaterialType));
     float splatter=(1.-step(9.5,vMaterialType))*step(${(SCORE_MATERIAL.SPATTER - 0.5).toFixed(1)},vMaterialType);
-    if(vMaterialType>14.5){
+    if(vMaterialType>14.5&&vMaterialType<19.5){
       if(gameWeight<.001||glowPass>.5)discard;
       vec4 pixel=scorePixelSprite(spriteAtlas,vMaterialType,vSpriteUV);
       if(pixel.a<.5)discard;
@@ -138,15 +138,15 @@ const fragmentShader = `
       float edge=smoothstep(0.,min(viewport.x*.16,180.),min(screen.x,viewport.x-screen.x));
       gl_FragColor=vec4(mix(vec3(${BACKGROUND.join(',')}),circuit,codeWeight*edge),0.);return;
     }
-    if(vMaterialType>9.5){
+    if((vMaterialType>9.5&&vMaterialType<11.5)||vMaterialType>19.5){
       if(artWeight<.001||pigmentReady<.5||glowPass>.5)discard;
-      vec2 paintUV=clamp(vSpriteUV,vec2(.015),vec2(.985));
+      vec2 paintUV=clamp(vMaterialType>19.5?vSpriteUV.yx:vSpriteUV,vec2(.015),vec2(.985));
       bool headWash=vMaterialType<10.5;
       vec4 wash=texture2D(pigmentAtlas,vec2(paintUV.x*.5,paintUV.y*.5+(headWash?.5:0.)));
       if(wash.a<.10)discard;
       vec2 screen=gl_FragCoord.xy/pixelRatio;
       float edge=smoothstep(0.,min(viewport.x*.16,180.),min(screen.x,viewport.x-screen.x));
-      float opacity=artWeight*wash.a*.70*edge;
+      float opacity=artWeight*wash.a*(vMaterialType>19.5?.88:.70)*edge;
       gl_FragColor=vec4(mix(vec3(${BACKGROUND.join(',')}),wash.rgb,opacity),0.);return;
     }
     if(splatter>.5){

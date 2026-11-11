@@ -19,6 +19,7 @@ export const SCORE_MATERIAL = Object.freeze({
   PIXEL_TRIPLET: 17,
   PIXEL_ACCIDENTAL: 18,
   PIXEL_REST: 19,
+  STEM_WASH: 20,
 });
 
 const SPRITE_SIZE = 16;

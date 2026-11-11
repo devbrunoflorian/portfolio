@@ -1,1 +1,1 @@
-import "./main.js?about-pixel-rest-1";
+import "./main.js?about-painted-stems-1";

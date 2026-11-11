@@ -1,7 +1,7 @@
 import * as THREE from './vendor/three-score.min.js';
 import { glyphContours } from './score-compound-groups.js';
 import { HALO_HALF_WIDTH } from './score-depth-cues.js';
-import { SCORE_MATERIAL } from './score-gpu-materials.js';
+import { SCORE_MATERIAL } from './score-gpu-materials.js?v=painted-stems-1';
 
 const DEFAULT_MARKER = 'guitar-33-4-1';
 
@@ -246,6 +246,10 @@ export function buildRibbonGeometry(score, view, groups, engraving, voicePaths =
       const p = point(h.anchor.u, h.anchor.v, { kind: 3, end: [tip.u, tip.v], endRemap: tip.remap,
         offset: [s.contact.u - h.anchor.u, s.contact.v - h.anchor.v], width: s.width,
         materialType: SCORE_MATERIAL.STEM });
+      const wash = { ...p, width: s.width * 4.2, materialType: SCORE_MATERIAL.STEM_WASH };
+      const washVertex = (side, t) => ({ ...wash, side, t, spriteUV: [(side + 1) / 2, t] });
+      emit(washVertex(-1, 0), washVertex(1, 0), washVertex(1, 1));
+      emit(washVertex(-1, 0), washVertex(1, 1), washVertex(-1, 1));
       emit({ ...p, side: -1 }, { ...p, side: 1 }, { ...p, side: 1, t: 1 });
       emit({ ...p, side: -1 }, { ...p, side: 1, t: 1 }, { ...p, side: -1, t: 1 });
     }
