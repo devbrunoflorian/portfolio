@@ -1,11 +1,11 @@
-import { createAboutCamera } from "./camera.js?v=passage-framing-1";
+import { createAboutCamera } from "./camera.js?v=material-close-3";
 
 export async function mountAboutScene(root) {
   const host = root.querySelector("[data-score-thread]");
   if (!host) throw new Error("The About score scene needs its canvas host.");
 
   const camera = createAboutCamera(root);
-  const { mountAboutGpuScroll } = await import("../../about-legacy/score-gpu-scroll.js?v=about-scene-1");
+  const { mountAboutGpuScroll } = await import("../../about-legacy/score-gpu-scroll.js?v=material-close-3");
   const renderer = await mountAboutGpuScroll(root, host);
   let disposed = false;
 

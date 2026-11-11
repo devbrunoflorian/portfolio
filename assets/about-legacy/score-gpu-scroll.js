@@ -4,6 +4,7 @@ import { scorePlaybackWindowAtBeat, scorePositionAtBeat, scoreWindowAtBeat } fro
 import { drawScoreRibbon, staffYForMidi, visualVoiceSegments, voiceRibbonPoints } from './score-ribbon-renderer.js';
 import { buildEngraving } from './score-engraving.js';
 import { buildCompoundGroups } from './score-compound-groups.js';
+import { createTravelProjector } from './score-travel-geometry.js';
 import { createAdaptiveDpr, initialGpuPixelRatio } from './score-gpu-budget.js';
 import { shouldEnableScoreLight } from './score-gpu-route.js?v=score-light-1';
 import { scoreSourceRange, trebleClefFromTimeline } from './score-gpu-ribbon-geometry.js?v=header-clef-space-4';
@@ -95,6 +96,8 @@ export async function mountAboutGpuScroll(root, host = root.querySelector('[data
   let lastSourceRange = null;
   let lastFallbackChapter = '', fallbackDirty = true, resizeFrame = 0;
   let flowFrame = 0, lastFlowPhase = 0;
+  const closeProjectionScratch = {};
+  const closeHead = notation.groups.flatMap(group => group.heads).find(head => head.noteId === 'guitar-33-3-1');
 
   function stopFlow() {
     if (!flowFrame) return;
@@ -166,11 +169,24 @@ export async function mountAboutGpuScroll(root, host = root.querySelector('[data
   function renderPose(pose, timestamp, flowPhase = lastFlowPhase) {
     if (!gpu || gpuFailed || !pageVisible || document.hidden || state.reducedMotion || !state.motionEnabled) return;
     flowPhase = Number.isFinite(flowPhase) ? flowPhase : 0;
-    const frameX = Number.isFinite(state.frameOffset?.x) ? state.frameOffset.x : 0;
-    const frameY = Number.isFinite(state.frameOffset?.y) ? state.frameOffset.y : 0;
+    let frameX = Number.isFinite(state.frameOffset?.x) ? state.frameOffset.x : 0;
+    let frameY = Number.isFinite(state.frameOffset?.y) ? state.frameOffset.y : 0;
     const playbackBeat = Number.isFinite(state.playbackSnapshot?.beat) ? state.playbackSnapshot.beat : -1;
     const playbackActive = ['starting', 'playing', 'paused', 'finished'].includes(state.playbackSnapshot?.state)
       && playbackBeat >= 0;
+    const closeWeight = Math.max(0, Math.min(1, state.materialClose ?? 0));
+    if (closeWeight > 0) {
+      const view = activeSourceRange;
+      const projector = createTravelProjector(width,height,score,pose,view,.2,true,closeProjectionScratch,state.zoom);
+      const middle = (score.staffLines[0]+score.staffLines.at(-1))/2;
+      const anchor = !playbackActive && closeHead ? closeHead.anchor
+        : { u:view.x0+(view.x1-view.x0)*.35, v:middle };
+      const mobileScale = width<=700 ? Math.min(1.8,1+Math.max(0,state.zoom-1)*.32) : 1;
+      const target = projector(anchor.u,middle+(anchor.v-middle)*mobileScale);
+      // One camera correction follows the musical anchor; every piece keeps its UV.
+      frameX += (width*.5-target.x-frameX)*closeWeight;
+      frameY += (height*.54-target.y-frameY)*closeWeight;
+    }
     if (lastPose === pose && lastZoom === state.zoom && lastJourney === state.journey && lastFrameX === frameX && lastFrameY === frameY
       && lastPlaybackBeat === playbackBeat && lastPlaybackActive === playbackActive
       && lastChapter === state.chapter
@@ -209,7 +225,7 @@ export async function mountAboutGpuScroll(root, host = root.querySelector('[data
     if (disposed || gpu || gpuLoading || gpuFailed || state.reducedMotion) return;
     gpuLoading = true;
     try {
-      const { mountGpuRibbon } = await import('./score-gpu-ribbon.js?v=chapter-material-audio-4');
+      const { mountGpuRibbon } = await import('./score-gpu-ribbon.js?v=art-close-tone-2');
       if (disposed) return;
       gpu = await mountGpuRibbon(host, {
         score,

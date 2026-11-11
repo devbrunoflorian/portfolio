@@ -1,7 +1,7 @@
 import * as THREE from './vendor/three-score.min.js';
 import { createTravelProjector } from './score-travel-geometry.js';
 import { readingFocus } from './score-focus-profile.js';
-import { buildRibbonGeometry, scoreSourceRange, trebleClefFromTimeline } from './score-gpu-ribbon-geometry.js?v=chapter-materials-1';
+import { buildRibbonGeometry, scoreSourceRange, trebleClefFromTimeline } from './score-gpu-ribbon-geometry.js?v=organic-spatter-1';
 import { createPixelSpriteAtlas, SCORE_MATERIAL, scoreMaterialShader } from './score-gpu-materials.js?v=watercolor-journey-5';
 import { resolutionShader } from './score-resolution.js?v=journey-resolution-1';
 
@@ -150,9 +150,13 @@ const fragmentShader = `
       gl_FragColor=vec4(mix(vec3(${BACKGROUND.join(',')}),wash.rgb,opacity),0.);return;
     }
     if(splatter>.5){
-      if(artWeight<.001||scoreHash(floor(vGlyphOffset*42.))<.18)discard;
+      if(artWeight<.001||glowPass>.5)discard;
+      float dropDistance=length((vSpriteUV-.5)*2.);
+      float dropEdge=.68+.19*scoreBrushNoise(vSpriteUV*9.);
+      if(dropDistance>dropEdge)discard;
+      float coverage=1.-smoothstep(dropEdge-.22,dropEdge,dropDistance);
       vec3 pigment=mix(vec3(.20,.12,.48),vec3(.47,.31,.82),scoreHash(floor(vGlyphOffset*27.)));
-      gl_FragColor=vec4(mix(vec3(${BACKGROUND.join(',')}),pigment,artWeight),0.);return;
+      gl_FragColor=vec4(mix(vec3(${BACKGROUND.join(',')}),pigment,artWeight*.65*coverage),0.);return;
     }
     vec3 source=mix(vec3(.811764706,.760784314,.886274510),vec3(1.,.862745098,.513725490),vGold);
     if(vVoice>.5)source=vVoice<1.5?vec3(.439215686,.658823529,1.):vec3(.764705882,.603921569,1.);
@@ -209,7 +213,7 @@ const fragmentShader = `
       bool brush=vMaterialType>5.5;
       vec2 cell=vec2(vVoice>1.5?1.:0.,brush?0.:1.);
       vec4 paintSample=texture2D(pigmentAtlas,(cell+clamp(local,vec2(.02),vec2(.98)))*.5);
-      pigment=mix(pigment,paintSample.rgb*1.35,.78);
+      pigment=mix(pigment,paintSample.rgb,.78);
       paintedCoverage=mix(.38,1.,paintSample.a);
     }
     source=mix(source,pigment,artWeight*.96);
