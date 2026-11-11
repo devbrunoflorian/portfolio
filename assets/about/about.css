@@ -346,7 +346,8 @@ html[data-motion-paused="true"] .forest-foreground { animation: none; transform:
 .games-scene .knight-sprite,
 .world-dialog:not([open]) .knight-sprite { animation: none; }
 
-.world-entry { position: absolute; inset: 50% auto auto 50%; transform: translate(-50%,-50%); width: min(calc(100vw - 36px), calc((100dvh - 144px) * 16 / 9)); aspect-ratio: 16 / 9; display: grid; place-items: center; overflow: hidden; background: #101022 url("/assets/about-legacy/forest/forest-world-wide.png") center / cover; border: 1px solid rgb(193 154 255 / 30%); }
+.world-entry { position: absolute; inset: 50% auto auto 50%; transform: translate(-50%,-50%); width: min(calc(100vw - 36px), calc((100dvh - 144px) * 16 / 9)); aspect-ratio: 16 / 9; display: grid; place-items: center; overflow: hidden; background: radial-gradient(ellipse at 50% 44%, rgb(50 32 91 / 56%), #101022 76%); border: 1px solid rgb(193 154 255 / 30%); }
+.world-dialog[open][data-world-started="false"] .world-entry { background-image: linear-gradient(90deg, rgb(6 6 9 / 68%), rgb(6 6 9 / 28%)), url("/assets/about-legacy/forest/forest-world-wide.png"); background-position: center; background-size: cover; }
 .world-entry::before { content: ""; position: absolute; inset: 0; background: radial-gradient(ellipse at center,rgb(6 6 9 / 83%),rgb(6 6 9 / 22%) 80%); }
 .world-entry-copy { position: relative; text-align: center; padding: 28px; }
 .world-entry h2 { margin: 12px 0 25px; color: #f0edf5; font-size: clamp(32px,5vw,70px); font-weight: 550; letter-spacing: -.05em; line-height: 1; }
