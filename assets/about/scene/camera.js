@@ -87,7 +87,7 @@ export function createAboutCamera(root) {
       chapter: chapterName,
       journey: journey.normalizedProgress * (current.chapters.length - 1),
       pose,
-      zoom: current.mobile ? zoom * (1-passage) + 1.35 * passage : zoom * (1 + passage * .55),
+      zoom: current.mobile ? zoom : zoom * (1 + passage * .55),
       materialClose: passage,
       frameOffset: { x: offsetX, y: offsetY + readingShift + passage * window.innerHeight * .16 },
       settledPose: current.poses[chapterIndex],

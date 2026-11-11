@@ -5,6 +5,7 @@ import { drawScoreRibbon, staffYForMidi, visualVoiceSegments, voiceRibbonPoints 
 import { buildEngraving } from './score-engraving.js';
 import { buildCompoundGroups } from './score-compound-groups.js';
 import { createTravelProjector } from './score-travel-geometry.js';
+import { fitCloseZoom, projectedHeadWidth, limitCloseZoom } from './score-close-framing.js?v=near-limit-1';
 import { createAdaptiveDpr, initialGpuPixelRatio } from './score-gpu-budget.js';
 import { shouldEnableScoreLight } from './score-gpu-route.js?v=score-light-1';
 import { scoreSourceRange, trebleClefFromTimeline } from './score-gpu-ribbon-geometry.js?v=header-clef-space-4';
@@ -98,6 +99,9 @@ export async function mountAboutGpuScroll(root, host = root.querySelector('[data
   let flowFrame = 0, lastFlowPhase = 0;
   const closeProjectionScratch = {};
   const closeHead = notation.groups.flatMap(group => group.heads).find(head => head.noteId === 'guitar-33-3-1');
+  const headContour = closeHead?.contours.flat() ?? [];
+  const closeHeadWidth = headContour.length ? Math.max(...headContour.map(p=>p.u))-Math.min(...headContour.map(p=>p.u)) : 3;
+  let closeFitKey='', closeFitZoom=1, safeFitKey='', safeFitZoom=1;
 
   function stopFlow() {
     if (!flowFrame) return;
@@ -175,19 +179,35 @@ export async function mountAboutGpuScroll(root, host = root.querySelector('[data
     const playbackActive = ['starting', 'playing', 'paused', 'finished'].includes(state.playbackSnapshot?.state)
       && playbackBeat >= 0;
     const closeWeight = Math.max(0, Math.min(1, state.materialClose ?? 0));
-    if (closeWeight > 0) {
-      const view = activeSourceRange;
-      const projector = createTravelProjector(width,height,score,pose,view,.2,true,closeProjectionScratch,state.zoom);
-      const middle = (score.staffLines[0]+score.staffLines.at(-1))/2;
-      const anchor = !playbackActive && closeHead ? closeHead.anchor
-        : { u:view.x0+(view.x1-view.x0)*.35, v:middle };
-      const mobileScale = width<=700 ? Math.min(1.8,1+Math.max(0,state.zoom-1)*.32) : 1;
-      const target = projector(anchor.u,middle+(anchor.v-middle)*mobileScale);
-      // One camera correction follows the musical anchor; every piece keeps its UV.
-      frameX += (width*.5-target.x-frameX)*closeWeight;
-      frameY += (height*.54-target.y-frameY)*closeWeight;
+    let drawZoom=state.zoom;
+    const view=activeSourceRange;
+    const middle=(score.staffLines[0]+score.staffLines.at(-1))/2;
+    const anchor=!playbackActive&&closeHead?closeHead.anchor
+      :{u:view.x0+(view.x1-view.x0)*.35,v:middle};
+    const options={width,height,score,pose,view,anchor,headWidth:closeHeadWidth};
+    if(closeWeight>0&&width<=700) {
+      const key=[width,height,pose,view.x1-view.x0,(anchor.u-view.x0)/(view.x1-view.x0),anchor.v].join(':');
+      if(key!==closeFitKey) {closeFitZoom=fitCloseZoom(options,width<=360?22:28,closeProjectionScratch);closeFitKey=key;}
+      drawZoom+=(closeFitZoom-drawZoom)*closeWeight;
     }
-    if (lastPose === pose && lastZoom === state.zoom && lastJourney === state.journey && lastFrameX === frameX && lastFrameY === frameY
+    if(state.journey>=2&&state.journey<=4) {
+      const key=[width,height,pose,view.x1-view.x0,drawZoom].join(':');
+      if(key!==safeFitKey) {
+        safeFitZoom=limitCloseZoom({...options,zoom:drawZoom,headWidth:closeHeadWidth*1.1},width<=700?50:90,closeProjectionScratch);
+        safeFitKey=key;
+      }
+      drawZoom=safeFitZoom;
+    }
+    if(closeWeight>0) {
+      if(width<=700)host.dataset.scoreCloseWidth=projectedHeadWidth({...options,zoom:drawZoom},closeProjectionScratch).toFixed(2);
+      const projector=createTravelProjector(width,height,score,pose,view,.2,true,closeProjectionScratch,drawZoom);
+      const mobileScale=width<=700?Math.min(1.8,1+Math.max(0,drawZoom-1)*.32):1;
+      const target=projector(anchor.u,middle+(anchor.v-middle)*mobileScale);
+      // One camera correction follows the musical anchor; every piece keeps its UV.
+      frameX+=(width*.5-target.x-frameX)*closeWeight;
+      frameY+=(height*.54-target.y-frameY)*closeWeight;
+    }
+    if (lastPose === pose && lastZoom === drawZoom && lastJourney === state.journey && lastFrameX === frameX && lastFrameY === frameY
       && lastPlaybackBeat === playbackBeat && lastPlaybackActive === playbackActive
       && lastChapter === state.chapter
       && lastFlowPhase === flowPhase
@@ -198,11 +218,11 @@ export async function mountAboutGpuScroll(root, host = root.querySelector('[data
       gpu.setPixelRatio(pixelRatio);
     }
     gpu.setSourceRange(activeSourceRange.x0, activeSourceRange.x1);
-    gpu.draw(pose, 'C', false, state.zoom, { x: frameX, y: frameY }, state.chapter === 'music', scoreLightEnabled,
+    gpu.draw(pose, 'C', false, drawZoom, { x: frameX, y: frameY }, state.chapter === 'music', scoreLightEnabled,
       flowPhase, state.journey, { beat: playbackBeat, active: playbackActive });
     exposeGpu();
     lastPose = pose;
-    lastZoom = state.zoom;
+    lastZoom = drawZoom;
     lastJourney = state.journey;
     lastPlaybackBeat = playbackBeat;
     lastPlaybackActive = playbackActive;
@@ -216,7 +236,7 @@ export async function mountAboutGpuScroll(root, host = root.querySelector('[data
     host.dataset.scoreGpuPose = pose.toFixed(6);
     host.dataset.scoreGpuDpr = String(pixelRatio);
     host.dataset.scoreGpuFlow = flowPhase.toFixed(4);
-    host.dataset.scoreGpuZoom = state.zoom.toFixed(2);
+    host.dataset.scoreGpuZoom = drawZoom.toFixed(2);
     host.dataset.scoreGpuBeat = playbackBeat >= 0 ? playbackBeat.toFixed(2) : 'off';
     host.dataset.scoreGpuPlayback = playbackActive ? 'active' : 'off';
   }

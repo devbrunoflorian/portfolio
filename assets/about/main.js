@@ -1,6 +1,6 @@
 import { createJourneyAudio } from "../about-legacy/audio.js";
 import { score } from "../about-legacy/score.js";
-import { mountAboutScene } from "./scene/runtime.js?v=about-material-close-3";
+import { mountAboutScene } from "./scene/runtime.js?v=about-material-close-6";
 
 const page = document.querySelector("[data-about-page]");
 if (!page) throw new Error("About root is missing");
