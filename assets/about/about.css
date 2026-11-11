@@ -556,7 +556,7 @@ html[lang="en"] .opening-copy h1 { font-size: clamp(3.625rem, calc(4vw + .375rem
   font-size: clamp(18px, 1.15vw, 22px) !important;
   line-height: 1.5 !important;
 }
-.opening-intro-break { display: none; }
+.opening-intro-break { display: block; }
 .opening-actions { display: flex; align-items: center; margin-block-start: 28px; }
 .about-opening [data-audio-status] {
   position: absolute !important;
@@ -681,7 +681,6 @@ body[data-score-gpu-scroll="true"] .about-rebuild .opening-copy :is(h1, .opening
   .opening-title-narrow { display: block; }
   html[lang="en"] .opening-copy h1 { font-size: clamp(1.625rem, 8.2vw, 2rem); }
   .opening-intro { max-width: 34ch; margin: 18px auto 0 !important; text-align: center; font-size: clamp(15px, 4.1vw, 16px) !important; line-height: 1.5 !important; }
-  .opening-intro-break { display: block; }
   .opening-actions { justify-content: center; margin-block-start: 20px; }
   .opening-scroll { inset-block-end: 16px; }
 }
