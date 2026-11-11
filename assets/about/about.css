@@ -680,7 +680,7 @@ body[data-score-gpu-scroll="true"] .about-rebuild .opening-copy :is(h1, .opening
   .opening-title-wide { display: none; }
   .opening-title-narrow { display: block; }
   html[lang="en"] .opening-copy h1 { font-size: clamp(1.625rem, 8.2vw, 2rem); }
-  .opening-intro { max-width: 34ch; margin: 18px auto 0 !important; font-size: clamp(15px, 4.1vw, 16px) !important; line-height: 1.5 !important; }
+  .opening-intro { max-width: 34ch; margin: 18px auto 0 !important; text-align: center; font-size: clamp(15px, 4.1vw, 16px) !important; line-height: 1.5 !important; }
   .opening-intro-break { display: block; }
   .opening-actions { justify-content: center; margin-block-start: 20px; }
   .opening-scroll { inset-block-end: 16px; }
