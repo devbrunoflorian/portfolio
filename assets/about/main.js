@@ -2,9 +2,11 @@ import { createJourneyAudio } from "../about-legacy/audio.js";
 import { score } from "../about-legacy/score.js";
 import { readingChapterIndex } from "./scene/reading.js";
 import { mountAboutScene } from "./scene/runtime.js?v=about-mobile-framing-4";
+import { mountStackCarousel } from "./stack-carousel.js?v=stack-category-carousel-3";
 
 const page = document.querySelector("[data-about-page]");
 if (!page) throw new Error("About root is missing");
+const stackCarousel = mountStackCarousel(page);
 
 const scoreRibbonPreview = new URLSearchParams(location.search).get("score-ribbon") === "preview";
 if (scoreRibbonPreview) document.body.dataset.scoreRibbonPreview = "true";
@@ -191,6 +193,7 @@ motionButton?.addEventListener("click", () => {
   motionButton.textContent = motionPaused
     ? (english ? "Resume movement" : "Retomar movimento")
     : (english ? "Pause movement" : "Pausar movimento");
+  stackCarousel.setMotionPaused(motionPaused);
   requestSceneFrame();
 });
 
@@ -258,6 +261,7 @@ window.addEventListener("pagehide", () => {
   pageDisposed = true;
   document.documentElement.classList.remove("about-world-open");
   layoutObserver.disconnect();
+  stackCarousel.dispose();
   sceneRuntime?.dispose();
   audio.dispose();
 }, { once: true });

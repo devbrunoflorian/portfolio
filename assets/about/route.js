@@ -1,1 +1,1 @@
-import "./main.js?opening-exit-dissolve-4";
+import "./main.js?about-code-carousel-3";
