@@ -143,9 +143,14 @@ export function buildRibbonGeometry(score, view, groups, engraving, voicePaths =
     const face=([x,y])=>({...center,offset:[x*rx,y*ry],spriteUV:[(x+1)/2,(y+1)/2]});
     for(let i=0;i<corners.length;i++)emit(center,face(corners[i]),face(corners[(i+1)%corners.length]));
     if(!withTrace)return;
-    const offsets=[[0,0],[2,0],[4,-2],[4,-6],[8,-6]];
+    // Circuit routes keep the note as their origin and use the pitch register
+    // to alternate their branch direction. Orthogonal bends read as traces
+    // rather than as another melodic contour when the score is folded.
+    const branchSide = Math.round(anchor.v / lineGap) % 2 === 0 ? -1 : 1;
+    const offsets=[[0,0],[1.8,0],[1.8,branchSide*2.2],[4.1,branchSide*2.2],
+      [4.1,branchSide*5.4],[7.6,branchSide*5.4]];
     const path=offsets.map(([du,dv])=>point(anchor.u,anchor.v+dv,{remap:du}));
-    stroke(path,.10,{materialType:SCORE_MATERIAL.CODE_TRACE});
+    stroke(path,.12,{materialType:SCORE_MATERIAL.CODE_TRACE});
     const end=path.at(-1), terminal={...end,kind:1,materialType:SCORE_MATERIAL.CODE_TERMINAL};
     const q=[[-.35,-.35],[.35,-.35],[.35,.35],[-.35,.35]].map(([x,y])=>({...terminal,offset:[x,y],spriteUV:[x/.7+.5,y/.7+.5]}));
     emit(q[0],q[1],q[2]);emit(q[0],q[2],q[3]);
