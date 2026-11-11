@@ -311,6 +311,12 @@ export function buildRibbonGeometry(score, view, groups, engraving, voicePaths =
   }
   const r = engraving.rest;
   if(r.x>=view.x0&&r.x<=view.x1){
+    // The atlas contains four ink rows inside a 16px cell. Preserve the written
+    // rest's ink bounds while letting its sprite own the outer silhouette.
+    pixelPiece({ u: r.x, v: r.y }, {
+      x0: -r.width * .8, x1: r.width * .8,
+      y0: -r.height, y1: r.height * 3,
+    }, SCORE_MATERIAL.PIXEL_REST);
     const a = point(r.x, r.y, { kind: 1, materialType: SCORE_MATERIAL.REST });
     const rest = [
       { offset: [-r.width / 2, 0], spriteUV: [0, 0] }, { offset: [r.width / 2, 0], spriteUV: [1, 0] },

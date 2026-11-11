@@ -1,1 +1,1 @@
-import "./main.js?about-mobile-staff-2";
+import "./main.js?about-pixel-rest-1";

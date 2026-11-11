@@ -1,7 +1,7 @@
 import * as THREE from './vendor/three-score.min.js';
 import { createTravelProjector, viewportStaffScale } from './score-travel-geometry.js?v=staff-scale-1';
 import { readingFocus } from './score-focus-profile.js';
-import { buildRibbonGeometry, scoreSourceRange, trebleClefFromTimeline } from './score-gpu-ribbon-geometry.js?v=organic-spatter-1';
+import { buildRibbonGeometry, scoreSourceRange, trebleClefFromTimeline } from './score-gpu-ribbon-geometry.js?v=pixel-rest-1';
 import { createPixelSpriteAtlas, SCORE_MATERIAL, scoreMaterialShader } from './score-gpu-materials.js?v=watercolor-journey-5';
 import { resolutionShader } from './score-resolution.js?v=journey-resolution-1';
 
@@ -219,7 +219,7 @@ const fragmentShader = `
     source=mix(source,pigment,artWeight*.96);
     source*=mix(1.,mix(.68,1.16,pool),artWeight*.65);
     vec4 sprite=scorePixelSprite(spriteAtlas,vMaterialType,local);
-    if(scoreSpriteSlot(vMaterialType)>=0.&&vMaterialType<4.5){
+    if(scoreSpriteSlot(vMaterialType)>=0.&&vMaterialType<5.5){
       if(gameWeight>.999)discard;
       source=mix(source,vec3(${BACKGROUND.join(',')}),gameWeight);
     } else source=mix(source,sprite.rgb,gameWeight*sprite.a);

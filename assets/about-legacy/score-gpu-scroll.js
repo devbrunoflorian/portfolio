@@ -5,7 +5,7 @@ import { drawScoreRibbon, staffYForMidi, visualVoiceSegments, voiceRibbonPoints 
 import { buildEngraving } from './score-engraving.js';
 import { buildCompoundGroups } from './score-compound-groups.js';
 import { createTravelProjector, viewportStaffScale } from './score-travel-geometry.js?v=staff-scale-1';
-import { fitCloseZoom, projectedHeadWidth, limitCloseZoom } from './score-close-framing.js?v=mobile-staff-2';
+import { fitCloseZoom, projectedHeadWidth, limitCloseZoom } from './score-close-framing.js?v=pixel-rest-1';
 import { createAdaptiveDpr, initialGpuPixelRatio } from './score-gpu-budget.js';
 import { shouldEnableScoreLight } from './score-gpu-route.js?v=score-light-1';
 import { scoreSourceRange, trebleClefFromTimeline } from './score-gpu-ribbon-geometry.js?v=header-clef-space-4';
@@ -246,7 +246,7 @@ export async function mountAboutGpuScroll(root, host = root.querySelector('[data
     if (disposed || gpu || gpuLoading || gpuFailed || state.reducedMotion) return;
     gpuLoading = true;
     try {
-      const { mountGpuRibbon } = await import('./score-gpu-ribbon.js?v=mobile-staff-2');
+      const { mountGpuRibbon } = await import('./score-gpu-ribbon.js?v=pixel-rest-1');
       if (disposed) return;
       gpu = await mountGpuRibbon(host, {
         score,
