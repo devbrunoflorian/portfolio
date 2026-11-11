@@ -441,6 +441,12 @@ html[data-motion-paused="true"] .forest-foreground { animation: none; transform:
   background:
     radial-gradient(ellipse 35% 82% at 17% 48%, rgb(77 21 112 / 25%), transparent 74%),
     radial-gradient(ellipse 42% 84% at 91% 48%, rgb(11 40 89 / 28%), transparent 76%);
+  -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 70%, transparent 100%);
+  mask-image: linear-gradient(180deg, #000 0%, #000 70%, transparent 100%);
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
 }
 .opening-portrait-frame {
   position: absolute;
@@ -701,7 +707,7 @@ body[data-score-gpu-scroll="true"] .about-rebuild .opening-copy :is(h1, .opening
     .opening-board-layer {
       animation: opening-photo-exit auto linear both;
       animation-timeline: --opening-exit;
-      animation-range: exit 12% exit 72%;
+      animation-range: exit 0% exit 60%;
     }
   }
 }

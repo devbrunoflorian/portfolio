@@ -124,7 +124,7 @@ function updateOpeningFadeFallback() {
 
   const { top, height } = opening.getBoundingClientRect();
   const exitProgress = clamp(-top / Math.max(1, height), 0, 1);
-  const fadeProgress = clamp((exitProgress - .12) / (.72 - .12), 0, 1);
+  const fadeProgress = clamp(exitProgress / .6, 0, 1);
   const opacity = (1 - fadeProgress).toFixed(3);
   if (opening.style.getPropertyValue("--opening-image-opacity") !== opacity) {
     opening.style.setProperty("--opening-image-opacity", opacity);
