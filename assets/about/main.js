@@ -1,6 +1,7 @@
 import { createJourneyAudio } from "../about-legacy/audio.js";
 import { score } from "../about-legacy/score.js";
-import { mountAboutScene } from "./scene/runtime.js?v=about-material-close-6";
+import { readingChapterIndex } from "./scene/reading.js";
+import { mountAboutScene } from "./scene/runtime.js?v=about-material-close-7";
 
 const page = document.querySelector("[data-about-page]");
 if (!page) throw new Error("About root is missing");
@@ -102,19 +103,6 @@ page.querySelector("[data-mix-reset]")?.addEventListener("click", () => {
 page.querySelector("[data-repeat]")?.addEventListener("change", event => audio.setRepeat(event.currentTarget.checked));
 page.querySelector("[data-audio-restart]")?.addEventListener("click", () => { audio.restart(); requestSceneFrame(); });
 
-const chapterObserver = new IntersectionObserver(entries => {
-  const current = entries
-    .filter(entry => entry.isIntersecting)
-    .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
-  if (!current) return;
-  const nextChapter = current.target.dataset.chapter;
-  if (nextChapter === activeChapter) return;
-  activeChapter = nextChapter;
-  page.dataset.activeChapter = nextChapter;
-  requestSceneFrame();
-}, { rootMargin: "-42% 0px -42% 0px", threshold: [0, .15, .35, .6] });
-chapters.forEach(chapter => chapterObserver.observe(chapter));
-
 function clamp(value, minimum, maximum) {
   return Math.max(minimum, Math.min(maximum, value));
 }
@@ -122,6 +110,11 @@ function clamp(value, minimum, maximum) {
 function updateScrollScene() {
   framePending = false;
   if (pageDisposed) return;
+  const index = readingChapterIndex(chapters.map(chapter => chapter.getBoundingClientRect()), innerHeight * .52);
+  if (index >= 0) {
+    activeChapter = chapters[index].dataset.chapter;
+    if (page.dataset.activeChapter !== activeChapter) page.dataset.activeChapter = activeChapter;
+  }
   const bridge = page.querySelector("[data-material-bridge]");
   const artImage = page.querySelector("[data-art-image]");
   if (!motionPaused && !reducedMotion.matches) {
@@ -251,7 +244,6 @@ window.addEventListener("pagehide", () => {
   pageDisposed = true;
   document.documentElement.classList.remove("about-world-open");
   layoutObserver.disconnect();
-  chapterObserver.disconnect();
   sceneRuntime?.dispose();
   audio.dispose();
 }, { once: true });
