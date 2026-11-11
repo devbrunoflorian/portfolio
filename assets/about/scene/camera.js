@@ -5,7 +5,7 @@ import {
 } from "../../about-legacy/score-camera-journey.js";
 import { measureJourneyFrames } from "../../about-legacy/score-gpu-frame.js";
 
-const MOBILE_ZOOM = [1.08, .79, 2.25, 1.14, .68, .68];
+const MOBILE_ZOOM = [1.08, .79, 2.4, 1.14, .68, .68];
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 const smooth = value => {
   const progress = clamp(value, 0, 1);

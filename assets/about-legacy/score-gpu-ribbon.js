@@ -1,5 +1,5 @@
 import * as THREE from './vendor/three-score.min.js';
-import { createTravelProjector, viewportStaffScale } from './score-travel-geometry.js?v=staff-scale-1';
+import { createTravelProjector, travelFocalLength, viewportStaffScale } from './score-travel-geometry.js?v=about-mobile-framing-4';
 import { readingFocus } from './score-focus-profile.js';
 import { buildRibbonGeometry, scoreSourceRange, trebleClefFromTimeline } from './score-gpu-ribbon-geometry.js?v=painted-heads-1';
 import { createPixelSpriteAtlas, SCORE_MATERIAL, scoreMaterialShader } from './score-gpu-materials.js?v=painted-heads-1';
@@ -314,7 +314,7 @@ export async function mountGpuRibbon(host, { score, view, points, groups, engrav
   const frames = new THREE.DataTexture(table.data, TABLE_SIZE, 2, THREE.RGBAFormat, THREE.FloatType);
   frames.needsUpdate = true;
   let geometry = buildRibbonGeometry(score, view, groups, engraving, voicePaths, markerId, trebleClefContours);
-  const focal = width * 1.45, near = width * .01, far = width * 20;
+  const focal = travelFocalLength(width), near = width * .01, far = width * 20;
   const camera = new THREE.PerspectiveCamera(2 * Math.atan(height / (2 * focal)) * 180 / Math.PI, width / height, near, far);
   // The reference's world uses screen-down Y. Flip only the projection Y so
   // camera right, world positions and transported normals retain their signs.

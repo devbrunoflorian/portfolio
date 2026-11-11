@@ -4,6 +4,9 @@ const cross=(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]]
 const norm=a=>{const n=Math.hypot(...a);return a.map(v=>v/(n||1));};
 const WORLD_UP=[0,1,0];
 const controls=[[-.8,.2,.6],[-.8,.2,.6],[-.2,.35,.4],[.8,.3,-.7],[.8,-.3,-.9],[-.4,-.5,0],[-.6,.15,.8],[.2,.4,.9],[.9,-.02,-.5],[1.5,-.12,-.65],[2,-.12,-.65],[3,-.12,-.65],[4,-.12,-.65],[5,-.12,-.65],[6,-.12,-.65],[6,-.12,-.65]];
+export function travelFocalLength(width) {
+  return width * (width <= 700 ? 3.2 : 1.45);
+}
 function curve(t){
   const v=Math.min(controls.length-3-1e-10,t*(controls.length-3));
   const i=Math.floor(v),u=v-i;
@@ -90,7 +93,7 @@ export function createTravelProjector(width,height,study,progress,view=study,min
   }
   const zoomOut=Math.max(0,Math.min(1,(p-.6)/.4));
   const zoomEase=zoomOut*zoomOut*(3-2*zoomOut);
-  const focal=width*1.45,distance=focal*span/(width*.94)*(minimumDistance+(1-minimumDistance)*zoomEase)/cameraZoom;
+  const focal=travelFocalLength(width),distance=focal*span/(width*.94)*(minimumDistance+(1-minimumDistance)*zoomEase)/cameraZoom;
   const orbit=Math.sin(Math.PI*p);
   if(reuse){
     cameraPosition[0]=center[0]+Math.sin(p*Math.PI*2)*distance*.15*orbit;

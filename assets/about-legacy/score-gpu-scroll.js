@@ -4,8 +4,8 @@ import { scorePlaybackWindowAtBeat, scorePositionAtBeat, scoreWindowAtBeat } fro
 import { drawScoreRibbon, staffYForMidi, visualVoiceSegments, voiceRibbonPoints } from './score-ribbon-renderer.js';
 import { buildEngraving } from './score-engraving.js';
 import { buildCompoundGroups } from './score-compound-groups.js';
-import { createTravelProjector, viewportStaffScale } from './score-travel-geometry.js?v=staff-scale-1';
-import { fitCloseZoom, projectedHeadWidth, limitCloseZoom } from './score-close-framing.js?v=painted-stems-1';
+import { createTravelProjector, viewportStaffScale } from './score-travel-geometry.js?v=about-mobile-framing-4';
+import { fitCloseZoom, projectedHeadWidth, limitCloseZoom } from './score-close-framing.js?v=about-mobile-framing-4';
 import { createAdaptiveDpr, initialGpuPixelRatio } from './score-gpu-budget.js';
 import { shouldEnableScoreLight } from './score-gpu-route.js?v=score-light-1';
 import { scoreSourceRange, trebleClefFromTimeline } from './score-gpu-ribbon-geometry.js?v=header-clef-space-4';
@@ -190,13 +190,15 @@ export async function mountAboutGpuScroll(root, host = root.querySelector('[data
       if(key!==closeFitKey) {closeFitZoom=fitCloseZoom(options,width<=360?22:28,closeProjectionScratch);closeFitKey=key;}
       drawZoom+=(closeFitZoom-drawZoom)*closeWeight;
     }
-    if(state.journey>=2&&state.journey<=4) {
+    const safetyProgress=Math.max(0,Math.min(1,(state.journey-2)/.24));
+    const safetyBlend=safetyProgress*safetyProgress*(3-2*safetyProgress);
+    if(safetyBlend>0&&state.journey<=4) {
       const key=[width,height,pose,view.x1-view.x0,drawZoom].join(':');
       if(key!==safeFitKey) {
         safeFitZoom=limitCloseZoom({...options,zoom:drawZoom,headWidth:closeHeadWidth*1.1},width<=700?50:90,closeProjectionScratch);
         safeFitKey=key;
       }
-      drawZoom=safeFitZoom;
+      drawZoom+=(safeFitZoom-drawZoom)*safetyBlend;
     }
     if(closeWeight>0) {
       if(width<=700)host.dataset.scoreCloseWidth=projectedHeadWidth({...options,zoom:drawZoom},closeProjectionScratch).toFixed(2);
@@ -246,7 +248,7 @@ export async function mountAboutGpuScroll(root, host = root.querySelector('[data
     if (disposed || gpu || gpuLoading || gpuFailed || state.reducedMotion) return;
     gpuLoading = true;
     try {
-      const { mountGpuRibbon } = await import('./score-gpu-ribbon.js?v=painted-heads-1');
+      const { mountGpuRibbon } = await import('./score-gpu-ribbon.js?v=about-mobile-framing-4');
       if (disposed) return;
       gpu = await mountGpuRibbon(host, {
         score,

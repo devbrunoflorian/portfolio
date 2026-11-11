@@ -1,1 +1,1 @@
-import "./main.js?about-painted-heads-1";
+import "./main.js?about-mobile-framing-4";
