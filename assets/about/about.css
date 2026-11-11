@@ -441,7 +441,7 @@ html[data-motion-paused="true"] .knight-sprite { animation: none; }
   color: var(--about-ink);
 }
 .stack-icon { width: 52px; height: 52px; color: var(--about-blue); opacity: .96; }
-.stack-icon-csharp { object-fit: contain; }
+.stack-icon-csharp, .stack-icon-brand { object-fit: contain; }
 .stack-mark { display: grid; width: 52px; height: 52px; place-items: center; color: var(--about-violet); font-size: 19px; font-weight: 650; letter-spacing: -.06em; }
 .stack-name { max-width: 100%; color: var(--about-ink); font-size: 17px; line-height: 1.25; text-align: center; text-wrap: balance; }
 .stack-controls { display: flex; align-items: center; justify-content: flex-end; gap: 8px; min-height: 48px; margin-top: 0; }
