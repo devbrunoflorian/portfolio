@@ -107,12 +107,6 @@ html[data-content-id="about"] .site-footer { width: min(100% - 2 * var(--about-g
 .about-mixer-row output { color: var(--about-ink); text-align: right; }
 
 .score-transition { position: relative; display: grid; place-items: center; min-height: 32svh; overflow: hidden; isolation: isolate; background: radial-gradient(ellipse at 55% 50%, rgb(42 43 103 / 18%), transparent 57%); }
-.transition-score { position: absolute; inset: 0; display: grid; place-items: center; opacity: .94; transform: scale(var(--bridge-scale, 1.03)) rotate(var(--bridge-rotation, -4deg)); transform-origin: center; }
-.transition-score-base, .transition-score-ink { width: min(1320px, calc(100vw - 2 * var(--about-gutter))); }
-.transition-pigment { position: absolute; inset: 0; display: grid; place-items: center; overflow: hidden; clip-path: inset(0 calc(100% - var(--paint-reveal, 0%)) 0 0); filter: drop-shadow(0 0 14px rgb(130 78 202 / 22%)); }
-.transition-score-ink { filter: saturate(1.35) hue-rotate(258deg) brightness(1.28); mix-blend-mode: screen; }
-.transition-score-ink .score-staff-lines { stroke: rgb(132 151 235 / 91%); stroke-width: 2; stroke-dasharray: 1.5 1; }
-.transition-wash { position: absolute; z-index: -1; inset: 9% 12%; opacity: calc(.1 + .3 * var(--material-pigment, 0)); background: radial-gradient(ellipse at 43% 48%, rgb(127 61 188 / 48%), transparent 46%), radial-gradient(ellipse at 64% 57%, rgb(37 86 183 / 40%), transparent 37%); filter: blur(34px); }
 
 .about-art { display: grid; grid-template-columns: minmax(0, 1fr) minmax(340px, .78fr); align-items: center; min-height: 100svh; background: linear-gradient(100deg, transparent 0%, rgb(6 6 9 / 22%) 47%, var(--about-bg) 76%); }
 .art-image-layer { position: absolute; z-index: -1; inset: 0 32% 0 0; overflow: hidden; mask-image: linear-gradient(90deg, #000 0%, #000 59%, transparent 100%); }
@@ -211,8 +205,6 @@ body[data-score-gpu-scroll="true"] .about-rebuild .stack-panel::before { content
   .music-controls { display: flex; flex-direction: column; gap: 22px; margin-top: 22px; }
   .about-mixer { width: 100%; }
   .score-transition { min-height: 30svh; }
-  .transition-score { transform: scale(var(--bridge-scale, 1.12)) rotate(var(--bridge-rotation, -4deg)); }
-  .transition-score-base, .transition-score-ink { width: 144vw; }
   .about-art { display: flex; align-items: end; min-height: 92svh; padding-top: 42svh; background: linear-gradient(0deg, var(--about-bg) 0%, rgb(6 6 9 / 88%) 32%, transparent 75%); }
   .art-image-layer { inset: 0 0 25%; mask-image: linear-gradient(180deg, #000 0%, #000 58%, transparent 100%); }
   .art-image-layer::after { background: linear-gradient(0deg, var(--about-bg) 0%, transparent 57%); }

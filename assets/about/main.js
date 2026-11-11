@@ -115,19 +115,8 @@ function updateScrollScene() {
     activeChapter = chapters[index].dataset.chapter;
     if (page.dataset.activeChapter !== activeChapter) page.dataset.activeChapter = activeChapter;
   }
-  const bridge = page.querySelector("[data-material-bridge]");
   const artImage = page.querySelector("[data-art-image]");
   if (!motionPaused && !reducedMotion.matches) {
-    if (bridge) {
-      const bounds = bridge.getBoundingClientRect();
-      const progress = clamp((innerHeight * .82 - bounds.top) / (bounds.height + innerHeight * .64), 0, 1);
-      const reveal = progress * progress * (3 - 2 * progress);
-      bridge.style.setProperty("--material-progress", progress.toFixed(4));
-      bridge.style.setProperty("--material-pigment", reveal.toFixed(4));
-      bridge.style.setProperty("--paint-reveal", `${Math.round(reveal * 100)}%`);
-      bridge.style.setProperty("--bridge-scale", (1.03 + reveal * .08).toFixed(3));
-      bridge.style.setProperty("--bridge-rotation", `${(-4 + reveal * 4).toFixed(2)}deg`);
-    }
     if (artImage && !nativeArtParallax) {
       const section = artImage.closest("[data-chapter]");
       const bounds = section.getBoundingClientRect();
