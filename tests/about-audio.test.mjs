@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createJourneyAudio, playbackPositionForDisplay } from "../assets/about/audio.js";
-import { score } from "../assets/about/score.js";
+import { createJourneyAudio, playbackPositionForDisplay } from "../assets/about-legacy/audio.js";
+import { score } from "../assets/about-legacy/score.js";
 
 function parameter(value = 0) {
   return {

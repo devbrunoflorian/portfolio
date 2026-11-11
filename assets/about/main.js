@@ -1,445 +1,273 @@
-import { score } from "./score.js?v=a1c14c40";
-import { createJourneyAudio, playbackPositionForDisplay } from "./audio.js";
-import { mountExperiments } from "./experiments.js";
-import { createScoreVisual, scoreStageOffsets } from "./score-visual.js";
+import { createJourneyAudio } from "../about-legacy/audio.js";
+import { score } from "../about-legacy/score.js";
+import { readingChapterIndex } from "./scene/reading.js";
+import { mountAboutScene } from "./scene/runtime.js?v=about-mobile-framing-4";
 
-const root = document.querySelector(".about-main");
-const scoreGridStudyMode = new URLSearchParams(window.location.search).get("score-grid") === "study";
-const chapters = [...root.querySelectorAll("[data-movement]")];
-const scoreThread = root.querySelector("[data-score-thread]");
-const scoreLeads = root.querySelector("[data-score-leads-global]");
-const scoreCameraStops = [
-  { x: -.012, y: -.012, scale: .64, opacity: .48, lead: .82, rotate: 0 },
-  { x: .008, y: .018, scale: .62, opacity: .38, lead: .62, rotate: 0 },
-  { x: 0, y: .008, scale: .94, opacity: .66, lead: .98, rotate: 0 },
-  { x: -.026, y: .02, scale: .80, opacity: .32, lead: .56, rotate: 0 },
-  { x: .024, y: -.018, scale: .72, opacity: .34, lead: .50, rotate: 0 },
-  { x: 0, y: .04, scale: .62, opacity: .18, lead: .28, rotate: 0 },
-];
-const scoreCameraAnchors = {
-  opening: ".hero-field",
-  code: ".code-score-anchor",
-  music: ".score-stage-spacer",
-  art: ".art-score-anchor",
-  games: ".games-experiment",
-  closing: ".closing-links",
-};
-const mobileScoreScale = { opening: .72, code: .66, music: .95, art: .70, games: .62, closing: .66 };
-let scoreChapterBounds = [];
-let scoreThreadNeedsMeasure = true;
-let scoreThreadLastScrollY = Number.NaN;
-let scoreThreadLastStyle = "";
-// Each chapter enters on the previous frame, then holds its own composition for reading.
-// Let the score keep traveling while each chapter is read; it should not settle
-// after a brief camera move at the top of every section.
-const cameraTransitionPortion = .18;
-function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
-function scoreAnchorFor(chapter) {
-  const selector = scoreCameraAnchors[chapter?.dataset.movement];
-  return selector ? chapter.querySelector(selector) : null;
-}
-const revealSelectors = {
-  opening: ".hero-copy .section-kicker, .hero-copy .hero-intro, .hero-copy .hero-actions",
-  code: ".code-chapter .chapter-copy .section-kicker, .code-chapter .chapter-copy > p:last-child, .code-stack > .experiment-label, .code-stack > .stack-intro, .code-stack > .stack-groups, .code-stack > .stack-more",
-  music: ".music-heading .section-kicker, .music-intro, .score-figure, .music-tools, .music-explore",
-  art: ".art-chapter .art-experiment, .art-chapter .chapter-copy .section-kicker, .art-chapter .chapter-copy > p:last-child",
-  games: ".games-chapter .chapter-copy .section-kicker, .games-chapter .chapter-copy > p:last-child, .games-experiment",
-  closing: ".about-closing .closing-links, .about-closing .back-to-top",
-};
-const revealTargets = new Set();
-for (const [movement, selector] of Object.entries(revealSelectors)) {
-  [...root.querySelectorAll(selector)].forEach((element, index) => {
-    element.dataset.aboutReveal = movement;
-    element.dataset.aboutRevealOrder = String(index + 1);
-    revealTargets.add(element);
-  });
-}
-const supportsViewTimeline = CSS.supports("(animation-timeline: view()) and (animation-range: entry)");
-const revealObserver = supportsViewTimeline ? null : new IntersectionObserver(entries => {
-  entries.forEach(entry => { entry.target.dataset.aboutRevealed = String(entry.isIntersecting); });
-}, { rootMargin: "-12% 0px -18% 0px", threshold: 0 });
-if (revealObserver) revealTargets.forEach(element => revealObserver.observe(element));
-function cameraValue(key, index, progress) {
-  const before = scoreCameraStops[Math.max(0, index - 1)][key];
-  const start = scoreCameraStops[index][key];
-  const end = scoreCameraStops[index + 1][key];
-  const after = scoreCameraStops[Math.min(scoreCameraStops.length - 1, index + 2)][key];
-  const squared = progress * progress;
-  const cubed = squared * progress;
-  const value = .5 * (2 * start + (-before + end) * progress + (2 * before - 5 * start + 4 * end - after) * squared + (-before + 3 * start - 3 * end + after) * cubed);
-  return clamp(value, Math.min(start, end), Math.max(start, end));
-}
-function updateScoreThread(force = false) {
-  if (!scoreThread || motionPaused || reduceMotion.matches) return;
-  const scrollY = window.scrollY;
-  if (!force && !scoreThreadNeedsMeasure && scrollY === scoreThreadLastScrollY) return;
-  if (force || scoreThreadNeedsMeasure || scoreChapterBounds.length !== chapters.length) {
-    scoreChapterBounds = chapters.map(chapter => {
-      const bounds = chapter.getBoundingClientRect();
-      return { top: bounds.top + scrollY, bottom: bounds.bottom + scrollY, height: bounds.height };
-    });
-    scoreThreadNeedsMeasure = false;
-  }
-  scoreThreadLastScrollY = scrollY;
-  const storyPoint = scrollY + window.innerHeight * .52;
-  let chapterIndex = scoreChapterBounds.findIndex(bounds => storyPoint >= bounds.top && storyPoint < bounds.bottom);
-  if (chapterIndex < 0) {
-    chapterIndex = scoreChapterBounds.findIndex(bounds => storyPoint < bounds.top);
-    chapterIndex = chapterIndex < 0 ? scoreChapterBounds.length - 1 : Math.max(0, chapterIndex - 1);
-  }
-  const chapterBounds = scoreChapterBounds[chapterIndex];
-  const chapterProgress = clamp((storyPoint - chapterBounds.top) / Math.max(1, chapterBounds.height), 0, 1);
-  let index = chapterIndex;
-  let progress = 0;
-  if (chapterIndex > 0 && chapterProgress < cameraTransitionPortion) {
-    index = chapterIndex - 1;
-    progress = chapterProgress / cameraTransitionPortion;
-  } else if (chapterIndex === scoreCameraStops.length - 1) {
-    index = chapterIndex - 1;
-    progress = 1;
-  }
-  progress = progress * progress * (3 - 2 * progress);
-  const mainBounds = root.getBoundingClientRect();
-  const enter = clamp((window.innerHeight - mainBounds.top) / (window.innerHeight * .42), 0, 1);
-  const leave = clamp(mainBounds.bottom / (window.innerHeight * .42), 0, 1);
-  const visibility = Math.min(enter, leave);
-  const values = {
-    x: cameraValue("x", index, progress),
-    y: cameraValue("y", index, progress),
-    scale: cameraValue("scale", index, progress),
-    opacity: cameraValue("opacity", index, progress) * visibility,
-    lead: cameraValue("lead", index, progress) * visibility,
-    rotate: cameraValue("rotate", index, progress),
-  };
-  if (window.innerWidth <= 700) {
-    const startScale = mobileScoreScale[chapters[index].dataset.movement];
-    const endScale = mobileScoreScale[chapters[Math.min(chapters.length - 1, index + 1)].dataset.movement];
-    values.scale = startScale + (endScale - startScale) * progress;
-  }
-  const startOffset = scoreStageOffsets(scoreAnchorFor(chapters[index]), values.scale);
-  const endOffset = scoreStageOffsets(scoreAnchorFor(chapters[index + 1]), values.scale);
-  const x = values.x * window.innerWidth + startOffset.x + (endOffset.x - startOffset.x) * progress;
-  const y = values.y * window.innerHeight + startOffset.y + (endOffset.y - startOffset.y) * progress;
-  const signature = `${x.toFixed(2)}|${y.toFixed(2)}|${values.scale.toFixed(4)}|${values.opacity.toFixed(4)}|${values.lead.toFixed(4)}|${values.rotate.toFixed(3)}`;
-  if (signature === scoreThreadLastStyle) return;
-  scoreThreadLastStyle = signature;
-  scoreThread.style.setProperty("--thread-x", `${x.toFixed(2)}px`);
-  scoreThread.style.setProperty("--thread-y", `${y.toFixed(2)}px`);
-  scoreThread.style.setProperty("--thread-scale", values.scale.toFixed(4));
-  scoreThread.style.setProperty("--thread-opacity", values.opacity.toFixed(4));
-  scoreThread.style.setProperty("--thread-rotate", `${values.rotate.toFixed(3)}deg`);
-  scoreLeads.style.setProperty("--thread-x", `${x.toFixed(2)}px`);
-  scoreLeads.style.setProperty("--thread-y", `${y.toFixed(2)}px`);
-  scoreLeads.style.setProperty("--thread-scale", values.scale.toFixed(4));
-  scoreLeads.style.setProperty("--thread-rotate", `${values.rotate.toFixed(3)}deg`);
-  scoreLeads.style.setProperty("--lead-opacity", values.lead.toFixed(4));
-}
-const isPortuguese = document.documentElement.lang === "pt-BR";
-const labels = isPortuguese ? {
-  listen: "Ouvir", heroListen: "Ouvir Dissonância", resume: "Continuar", replay: "Ouvir de novo", pause: "Pausar", loading: "Iniciando…", off: "Som desligado",
-  paused: "Som pausado · retome quando quiser", error: "Não foi possível ativar o som. Tente ouvir novamente.",
-  unavailable: "Som indisponível neste navegador. A página continua em silêncio.",
-  playing: "Tocando", finished: "Música concluída", next: "próximo compasso", muted: "Volume em zero", motion: "Pausar movimento", resumeMotion: "Retomar movimento", preview: "Prévia", bars: "Compassos", bar: "Compasso",
-} : {
-  listen: "Listen", heroListen: "Listen to Dissonância", resume: "Continue", replay: "Play again", pause: "Pause", loading: "Starting…", off: "Sound is off",
-  paused: "Sound paused · resume when you like", error: "Sound could not start. Try listening again.",
-  unavailable: "Sound is unavailable in this browser. Explore in silence.",
-  playing: "Playing", finished: "Piece finished", next: "next bar", muted: "Volume at zero", motion: "Pause motion", resumeMotion: "Resume motion", preview: "Preview", bars: "Bars", bar: "Bar",
-};
-const sectionNames = isPortuguese ? {} : {
-  "Verso I": "Verse I", "Ponte I": "Bridge I", "Refrão I": "Chorus I",
-  "Verso II": "Verse II", "Ponte II": "Bridge II", "Refrão II": "Chorus II", "Pós Refrão": "Post-Chorus",
-};
-const sectionName = name => sectionNames[name] ?? name;
-const soundButtons = [...root.querySelectorAll("[data-sound-toggle]")];
-let displayTimer = 0;
-const audio = createJourneyAudio(score, status => {
-  const active = status.state === "playing" || status.state === "starting";
-  for (const button of soundButtons) {
-    button.setAttribute("aria-pressed", String(active));
-    button.setAttribute("aria-busy", String(status.state === "starting"));
-    button.querySelector("[data-sound-label]").textContent = status.state === "starting" ? labels.loading : active ? labels.pause
-      : status.state === "paused" ? labels.resume : status.state === "finished" ? labels.replay
-      : button.classList.contains("hero-listen") ? labels.heroListen : labels.listen;
-    button.querySelector(".sound-icon").textContent = active ? "Ⅱ" : "▶";
-  }
-  root.querySelector("[data-audio-status]").textContent = status.state === "playing"
-    ? `${status.volume === 0 ? labels.muted : labels.playing} · ${sectionName(status.section)}`
-    : labels[status.state] ?? labels.off;
-  root.querySelectorAll("[data-audio-feedback]").forEach(feedback => {
-    feedback.hidden = !["error", "unavailable"].includes(status.state);
-    feedback.textContent = feedback.hidden ? "" : labels[status.state];
-  });
-  if (status.state === "playing" && !displayTimer) {
-    displayTimer = setInterval(() => syncMixer(audio.snapshot()), 250);
-  } else if (status.state !== "playing") {
-    clearInterval(displayTimer);
-    displayTimer = 0;
-  }
-  syncMixer(audio.snapshot?.());
-  requestScene();
-});
-const experiments = mountExperiments(root, audio, isPortuguese);
-const visual = createScoreVisual(root, score, requestScene);
-const controller = new AbortController();
-const { signal } = controller;
-soundButtons.forEach(button => button.addEventListener("click", () => audio.enabled ? audio.pause() : audio.start(), { signal }));
-root.querySelector("[data-audio-restart]").addEventListener("click", () => audio.restart(), { signal });
-root.querySelector("[data-audio-repeat]").addEventListener("click", event => {
-  const next = event.currentTarget.getAttribute("aria-pressed") !== "true";
-  event.currentTarget.setAttribute("aria-pressed", String(next));
-  audio.setRepeat(next);
-}, { signal });
-const volumeInputs = [...root.querySelectorAll("[data-volume]")];
-volumeInputs.forEach(input => input.addEventListener("input", () => {
-  volumeInputs.forEach(other => { other.value = input.value; });
-  audio.setVolume(Number(input.value) / 100);
-}, { signal }));
-root.querySelectorAll("[data-enhanced]").forEach(element => { element.hidden = false; });
+const page = document.querySelector("[data-about-page]");
+if (!page) throw new Error("About root is missing");
 
-const layerNames = isPortuguese
-  ? { guitar: "Violão", vocal: "Voz", strings: "Cordas", bass: "Baixo", percussion: "Bateria" }
-  : { guitar: "Guitar", vocal: "Voice", strings: "Strings", bass: "Bass", percussion: "Percussion" };
-const mixer = root.querySelector("[data-layer-mixer]");
-const trackMixer = mixer.querySelector("[data-track-mixer]");
+const scoreRibbonPreview = new URLSearchParams(location.search).get("score-ribbon") === "preview";
+if (scoreRibbonPreview) document.body.dataset.scoreRibbonPreview = "true";
+
+const english = document.documentElement.lang.startsWith("en");
+const playLabel = page.querySelector("[data-play-label]")?.textContent.trim() ?? "Listen";
+const pauseLabel = page.querySelector("[data-play-toggle]")?.dataset.pauseLabel ?? "Pause";
+const continueLabel = english ? "Continue Dissonância" : "Continuar Dissonância";
+const scoreCaption = page.querySelector(".score-frame figcaption > span");
+const staticCaption = scoreCaption?.textContent;
+const initialStatus = page.querySelector("[data-audio-status]")?.textContent.trim() ?? "Sound is off";
+const playButtons = [...page.querySelectorAll("[data-play-toggle]")];
+const statusLabels = [...page.querySelectorAll("[data-audio-status]")];
+const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
+const opening = page.querySelector(".about-opening");
+const nativeOpeningFade = CSS.supports(
+  "(view-timeline: --opening-exit block) and (animation-timeline: --opening-exit) and (animation-range: exit 12% exit 72%)",
+);
+if (opening && !nativeOpeningFade) opening.dataset.openingFadeFallback = "true";
+const nativeArtParallax = CSS.supports("(animation-timeline: view()) and (animation-range: entry)");
+const chapters = [...page.querySelectorAll("[data-chapter]")];
+const audio = createJourneyAudio(score, renderPlayback);
+let activeChapter = "opening";
+let framePending = false;
+let motionPaused = false;
+let restoreFocus = null;
+let sceneRuntime = null;
+let pageDisposed = false;
 const initialMix = new Map(score.tracks.map(track => [track.id, audio.getTrackVolume(track.id)]));
-let lastDisplaySecond = -1;
-for (const track of score.tracks) {
-  const strip = document.createElement("div");
-  strip.className = "music-mixer-strip";
-  if (track.voice === "vocal") {
-    strip.classList.add(track.name.endsWith("II") ? "music-mixer-strip--voice-two" : "music-mixer-strip--voice-one");
-  }
-  const label = track.voice === "vocal"
-    ? `${layerNames.vocal} ${track.name.endsWith("II") ? "II" : "I"}`
-    : layerNames[track.voice];
-  const sliderId = `about-track-volume-${track.id}`;
-  const heading = document.createElement("div");
-  heading.className = "music-mixer-strip-heading";
-  const labelElement = document.createElement("label");
-  labelElement.htmlFor = sliderId;
-  labelElement.textContent = label;
-  const value = document.createElement("output");
-  value.htmlFor = sliderId;
-  const initialVolume = Math.round(audio.getTrackVolume(track.id) * 100);
-  value.value = `${initialVolume}%`;
-  value.textContent = value.value;
-  const slider = document.createElement("input");
-  slider.id = sliderId;
-  slider.type = "range";
-  slider.min = "0";
-  slider.max = "100";
-  slider.step = "1";
-  slider.value = String(initialVolume);
-  slider.dataset.trackVolume = String(track.id);
-  slider.setAttribute("aria-valuetext", `${initialVolume}%`);
-  slider.addEventListener("input", () => {
-    const percent = Number(slider.value);
-    audio.setTrackVolume(track.id, percent / 100);
-    value.value = percent === 0 ? (isPortuguese ? "Silenciada" : "Muted") : `${percent}%`;
-    value.textContent = value.value;
-    slider.setAttribute("aria-valuetext", value.value);
-  }, { signal });
-  heading.append(labelElement, value);
-  strip.append(heading, slider);
-  trackMixer.append(strip);
+const mixerRows = new Map();
+
+function formatTime(seconds) {
+  const value = Math.max(0, Math.floor(seconds));
+  return `${Math.floor(value / 60)}:${String(value % 60).padStart(2, "0")}`;
 }
-root.querySelector("[data-mix-reset]").addEventListener("click", () => {
-  for (const slider of trackMixer.querySelectorAll("[data-track-volume]")) {
-    slider.value = String(Math.round(initialMix.get(Number(slider.dataset.trackVolume)) * 100));
-    slider.dispatchEvent(new Event("input", { bubbles: true }));
-    // The source gain is more precise than its rounded slider percentage.
-    audio.setTrackVolume(Number(slider.dataset.trackVolume), initialMix.get(Number(slider.dataset.trackVolume)));
+
+function renderPlayback(state) {
+  const playing = state.state === "playing" || state.state === "starting";
+  for (const button of playButtons) {
+    const label = playing ? pauseLabel : state.state === "paused" ? continueLabel : playLabel;
+    button.setAttribute("aria-label", label);
+    button.setAttribute("aria-pressed", String(playing));
+    const text = button.querySelector("[data-play-label]");
+    if (text) text.textContent = label;
   }
-  root.querySelector("[data-layer-status]").textContent = isPortuguese ? "Mix restaurada." : "Mix restored.";
-}, { signal });
-function formatTime(seconds, round = false) {
-  const safeSeconds = Math.max(0, seconds);
-  const time = round ? Math.round(safeSeconds) : Math.floor(safeSeconds);
-  return `${Math.floor(time / 60)}:${String(time % 60).padStart(2, "0")}`;
+  const status = state.state === "playing" || state.state === "paused"
+    ? `${state.state === "paused" ? (english ? "Paused · " : "Pausado · ") : ""}${state.section} · ${formatTime(audio.snapshot().seconds)}`
+    : state.state === "error" || state.state === "unavailable"
+      ? (english ? "Audio unavailable" : "Áudio indisponível")
+      : initialStatus;
+  statusLabels.forEach(label => { label.textContent = status; });
+  requestSceneFrame();
 }
-function syncMixer(snapshot) {
-  if (!snapshot) return;
-  if (snapshot.state === "off") {
-    root.querySelectorAll("[data-audio-position]").forEach(element => { element.textContent = labels.off; });
+
+function togglePlayback() {
+  if (audio.playing) audio.pause();
+  else audio.start();
+}
+playButtons.forEach(button => button.addEventListener("click", togglePlayback));
+
+const mixer = page.querySelector("[data-track-mixer]");
+if (mixer) {
+  for (const track of score.tracks) {
+    const row = document.createElement("label");
+    row.className = "about-mixer-row";
+    const name = document.createElement("span");
+    name.textContent = track.name;
+    const control = document.createElement("input");
+    control.type = "range";
+    control.min = "0";
+    control.max = "1";
+    control.step = ".01";
+    control.value = String(audio.getTrackVolume(track.id) ?? .5);
+    control.setAttribute("aria-label", `${track.name} ${english ? "volume" : "volume"}`);
+    const output = document.createElement("output");
+    output.value = `${Math.round(Number(control.value) * 100)}%`;
+    control.addEventListener("input", () => {
+      const value = Number(control.value);
+      audio.setTrackVolume(track.id, value);
+      const feedback = page.querySelector("[data-mixer-feedback]");
+      if (feedback) feedback.textContent = "";
+      output.value = `${Math.round(value * 100)}%`;
+    });
+    row.append(name, control, output);
+    mixer.append(row);
+    mixerRows.set(track.id, { control, output });
+  }
+}
+
+const masterVolumes = [...page.querySelectorAll("[data-main-volume]")];
+for (const control of masterVolumes) control.addEventListener("input", () => {
+  const value = Number(control.value);
+  audio.setVolume(value);
+  for (const other of masterVolumes) other.value = String(value);
+});
+page.querySelector("[data-mix-reset]")?.addEventListener("click", () => {
+  for (const [id, value] of initialMix) {
+    audio.setTrackVolume(id, value);
+    const row = mixerRows.get(id);
+    if (row) { row.control.value = String(value); row.output.value = `${Math.round(value * 100)}%`; }
+  }
+  page.querySelector("[data-mixer-feedback]").textContent = english ? "Mix restored." : "Mix restaurada.";
+});
+page.querySelector("[data-repeat]")?.addEventListener("change", event => audio.setRepeat(event.currentTarget.checked));
+page.querySelector("[data-audio-restart]")?.addEventListener("click", () => { audio.restart(); requestSceneFrame(); });
+
+function clamp(value, minimum, maximum) {
+  return Math.max(minimum, Math.min(maximum, value));
+}
+
+function updateOpeningFadeFallback() {
+  if (!opening || nativeOpeningFade) return;
+  if (reducedMotion.matches) {
+    opening.style.setProperty("--opening-image-opacity", "1");
     return;
   }
-  const { seconds: currentSeconds } = playbackPositionForDisplay(snapshot, score);
-  const text = `${sectionName(snapshot.section)} · ${formatTime(currentSeconds, currentSeconds >= score.durationSeconds)} / ${formatTime(score.durationSeconds, true)}`;
-  root.querySelectorAll("[data-audio-position]").forEach(element => { element.textContent = text; });
-}
-syncMixer(audio.snapshot?.() ?? { state: "off", beat: 0, seconds: 0, section: "Intro" });
 
-const hero = root.querySelector(".about-hero");
-const dock = root.querySelector("[data-dock]");
-const panels = [...root.querySelectorAll(".dock-panel")];
-const nativePopover = "popover" in HTMLElement.prototype;
-if (nativePopover) panels.forEach(panel => { panel.hidden = false; });
-function closePanel(panel) {
-  if (nativePopover) { if (panel.matches(":popover-open")) panel.hidePopover(); }
-  else {
-    panel.hidden = true;
-    root.querySelector(`[popovertarget="${panel.id}"]`)?.setAttribute("aria-expanded", "false");
+  const { top, height } = opening.getBoundingClientRect();
+  const exitProgress = clamp(-top / Math.max(1, height), 0, 1);
+  const fadeProgress = clamp(exitProgress / .6, 0, 1);
+  const opacity = (1 - fadeProgress).toFixed(3);
+  if (opening.style.getPropertyValue("--opening-image-opacity") !== opacity) {
+    opening.style.setProperty("--opening-image-opacity", opacity);
   }
 }
-function syncDock() {
-  const focusInControls = dock.contains(document.activeElement) || panels.some(panel => panel.contains(document.activeElement));
-  dock.hidden = hero.getBoundingClientRect().bottom > 96 && !focusInControls;
-}
-const dockObserver = new IntersectionObserver(syncDock, { rootMargin: "-96px 0px 0px", threshold: 0 });
-dockObserver.observe(hero);
-if (!nativePopover) {
-  panels.forEach(panel => { panel.hidden = true; });
-  root.querySelectorAll("[popovertarget]").forEach(button => button.addEventListener("click", () => {
-    const target = root.querySelector(`#${button.getAttribute("popovertarget")}`);
-    const opening = target.hidden;
-    panels.forEach(closePanel);
-    target.hidden = !opening;
-    button.setAttribute("aria-expanded", String(opening));
-  }, { signal }));
-  document.addEventListener("pointerdown", event => {
-    if (!panels.some(panel => panel.contains(event.target)) && !event.target.closest("[popovertarget]")) panels.forEach(closePanel);
-  }, { signal });
-  document.addEventListener("keydown", event => {
-    if (event.key !== "Escape") return;
-    const open = panels.find(panel => !panel.hidden);
-    if (!open) return;
-    closePanel(open);
-    root.querySelector(`[popovertarget="${open.id}"]`).focus();
-  }, { signal });
-}
-root.querySelector("[data-open-mixer]").addEventListener("click", () => {
-  mixer.open = true;
-  panels.forEach(closePanel);
-  requestAnimationFrame(() => mixer.querySelector("summary").focus({ preventScroll: true }));
-}, { signal });
-root.querySelectorAll(".chapter-menu a").forEach(link => link.addEventListener("click", () => panels.forEach(closePanel), { signal }));
-root.addEventListener("focusout", () => requestAnimationFrame(syncDock), { signal });
-syncDock();
-const motionButton = root.querySelector("[data-motion-toggle]");
-const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)");
-const finePointer = matchMedia("(pointer: fine)");
-let motionPaused = reduceMotion.matches;
-let frozenScrollBeat = null;
-let pointerFrame = 0;
-let sceneFrame = 0;
-let desiredPointer = { x: 0, y: 0 };
-function paintScenes() {
-  sceneFrame = 0;
-  updateScoreThread();
-  const snapshot = audio.snapshot?.() ?? null;
-  const mainBounds = root.getBoundingClientRect();
-  const visible = mainBounds.bottom >= 0 && mainBounds.top <= innerHeight;
-  if (visible) {
-    const chapter = root.dataset.activeMovement ?? "opening";
-    // Silence uses the page's reading position as a visual-only score cursor.
-    // Playback remains authoritative whenever audio is active.
-    const scrollBeat = frozenScrollBeat ?? score.bars * score.beatsPerBar * clamp(-mainBounds.top / Math.max(1, root.offsetHeight - innerHeight), 0, 1);
-    const result = visual.update({ chapter, scrollBeat, motionEnabled: !motionPaused && !reduceMotion.matches, reducedMotion: reduceMotion.matches, playbackSnapshot: snapshot });
-    if (!scoreGridStudyMode && chapter === "music" && result && !result.frozen) {
-      const excerptElement = root.querySelector("[data-score-excerpt]");
-      if (excerptElement && result.bars.length) {
-        const first = result.bars[0];
-        const last = result.bars.at(-1);
-        const excerptText = first === last ? `${labels.bar} ${first}` : `${labels.bars} ${first}–${last}`;
-        const label = snapshot?.state === "off" ? `${labels.preview} · ${excerptText}` : excerptText;
-        if (excerptElement.textContent !== label) excerptElement.textContent = label;
-      }
+
+function updateScrollScene() {
+  framePending = false;
+  if (pageDisposed) return;
+  updateOpeningFadeFallback();
+  const index = readingChapterIndex(chapters.map(chapter => chapter.getBoundingClientRect()), innerHeight * .52);
+  if (index >= 0) {
+    activeChapter = chapters[index].dataset.chapter;
+    if (page.dataset.activeChapter !== activeChapter) page.dataset.activeChapter = activeChapter;
+  }
+  const artImage = page.querySelector("[data-art-image]");
+  if (!motionPaused && !reducedMotion.matches) {
+    if (artImage && !nativeArtParallax) {
+      const section = artImage.closest("[data-chapter]");
+      const bounds = section.getBoundingClientRect();
+      const position = (innerHeight * .5 - (bounds.top + bounds.height * .5)) / Math.max(1, innerHeight);
+      artImage.style.setProperty("--art-parallax", `${clamp(position, -1, 1) * 24}px`);
     }
   }
-  if (snapshot && Math.floor(snapshot.seconds) !== lastDisplaySecond) {
-    lastDisplaySecond = Math.floor(snapshot.seconds);
-    syncMixer(snapshot);
+  page.querySelector("[data-player-dock]")?.toggleAttribute("data-visible", scrollY > innerHeight * .58);
+  const playbackSnapshot = audio.snapshot();
+  if (playbackSnapshot.state === "playing") {
+    const status = `${playbackSnapshot.section} · ${formatTime(playbackSnapshot.seconds)}`;
+    for (const label of statusLabels) if (label.textContent !== status) label.textContent = status;
   }
-  if (visible && audio.playing && !motionPaused && !reduceMotion.matches) requestScene();
+  if (scoreCaption) {
+    const caption = ["playing", "paused", "starting"].includes(playbackSnapshot.state)
+      ? `Dissonância · ${playbackSnapshot.section}` : staticCaption;
+    if (scoreCaption.textContent !== caption) scoreCaption.textContent = caption;
+  }
+  sceneRuntime?.update({
+    chapter: activeChapter,
+    motionEnabled: !motionPaused,
+    reducedMotion: reducedMotion.matches,
+    playbackSnapshot,
+    timestamp: performance.now(),
+  });
+  if (audio.playing) requestSceneFrame();
 }
-function requestScene() {
-  if (!sceneFrame && !document.hidden) sceneFrame = requestAnimationFrame(paintScenes);
+
+function requestSceneFrame() {
+  if (pageDisposed || framePending || document.hidden) return;
+  framePending = true;
+  requestAnimationFrame(updateScrollScene);
 }
-function invalidateScoreLayout() {
-  scoreThreadNeedsMeasure = true;
-  requestScene();
-}
-function applyPointer() {
-  pointerFrame = 0;
-  const { x, y } = motionPaused || reduceMotion.matches || !finePointer.matches ? { x: 0, y: 0 } : desiredPointer;
-  hero.style.setProperty("--light-x", `${x * 8}px`);
-  hero.style.setProperty("--light-y", `${y * 8}px`);
-  hero.style.setProperty("--near-x", `${x * 3}px`);
-  hero.style.setProperty("--near-y", `${y * 3}px`);
-}
-function syncMotion() {
-  motionButton.hidden = reduceMotion.matches;
+window.addEventListener("scroll", requestSceneFrame, { passive: true });
+window.addEventListener("resize", () => {
+  sceneRuntime?.invalidate();
+  requestSceneFrame();
+}, { passive: true });
+reducedMotion.addEventListener?.("change", requestSceneFrame);
+
+const motionButton = page.querySelector("[data-motion-toggle]");
+motionButton?.addEventListener("click", () => {
+  motionPaused = !motionPaused;
+  page.dataset.visualPaused = String(motionPaused);
   document.documentElement.dataset.motionPaused = String(motionPaused);
   motionButton.setAttribute("aria-pressed", String(motionPaused));
-  motionButton.textContent = motionPaused ? labels.resumeMotion : labels.motion;
-  frozenScrollBeat = motionPaused
-    ? score.bars * score.beatsPerBar * clamp(-root.getBoundingClientRect().top / Math.max(1, root.offsetHeight - innerHeight), 0, 1)
-    : null;
-  applyPointer();
-  if (!motionPaused && !reduceMotion.matches) {
-    invalidateScoreLayout();
-  }
-  requestScene();
-}
-motionButton.addEventListener("click", () => { motionPaused = !motionPaused; syncMotion(); }, { signal });
-reduceMotion.addEventListener("change", () => { motionPaused = reduceMotion.matches; syncMotion(); }, { signal });
-finePointer.addEventListener("change", applyPointer, { signal });
-hero.addEventListener("pointermove", event => {
-  if (motionPaused || reduceMotion.matches || !finePointer.matches) return;
-  const bounds = hero.getBoundingClientRect();
-  desiredPointer = { x: Math.max(-1, Math.min(1, (event.clientX - bounds.left) / bounds.width * 2 - 1)), y: Math.max(-1, Math.min(1, (event.clientY - bounds.top) / bounds.height * 2 - 1)) };
-  if (!pointerFrame) pointerFrame = requestAnimationFrame(applyPointer);
-}, { signal, passive: true });
-hero.addEventListener("pointerleave", () => { desiredPointer = { x: 0, y: 0 }; applyPointer(); }, { signal });
-syncMotion();
+  motionButton.textContent = motionPaused
+    ? (english ? "Resume movement" : "Retomar movimento")
+    : (english ? "Pause movement" : "Pausar movimento");
+  requestSceneFrame();
+});
 
-const links = [...root.querySelectorAll(".journey-nav a")];
-let activeMovement = "opening";
-function selectMovement() {
-  const line = Math.max(180, window.innerHeight * .35);
-  let active = chapters[0];
-  for (const chapter of chapters) {
-    if (chapter.getBoundingClientRect().top <= line) active = chapter;
+const worldDialog = page.querySelector("[data-world-dialog]");
+const worldButton = page.querySelector("[data-world-open]");
+const worldEntry = page.querySelector("[data-world-entry]");
+const worldStage = page.querySelector("[data-world-stage]");
+const worldPlay = page.querySelector("[data-world-play]");
+let worldScroll = null;
+worldButton?.addEventListener("click", () => {
+  if (!worldDialog || worldDialog.open) return;
+  restoreFocus = worldButton;
+  worldScroll = { x: window.scrollX, y: window.scrollY };
+  worldDialog.dataset.worldStarted = "false";
+  if (worldEntry) worldEntry.hidden = false;
+  if (worldStage) worldStage.hidden = true;
+  document.documentElement.classList.add("about-world-open");
+  worldDialog.showModal();
+  worldPlay?.focus({ preventScroll: true });
+});
+worldPlay?.addEventListener("click", () => {
+  if (!worldDialog?.open || worldDialog.dataset.worldStarted === "true") return;
+  // A future game bundle belongs here, after the explicit Play gesture.
+  for (const image of worldDialog.querySelectorAll("[data-world-src]")) {
+    if (!image.hasAttribute("src")) image.setAttribute("src", image.dataset.worldSrc);
   }
-  const movement = active.dataset.movement;
-  root.dataset.activeMovement = movement;
-  if (movement !== activeMovement) {
-    activeMovement = movement;
-    if (movement !== "closing") audio.setMovement(movement);
-  }
-  links.forEach(link => {
-    if (link.hash === `#${movement}`) link.setAttribute("aria-current", "location");
-    else link.removeAttribute("aria-current");
+  worldDialog.dataset.worldStarted = "true";
+  if (worldEntry) worldEntry.hidden = true;
+  if (worldStage) worldStage.hidden = false;
+  worldDialog.querySelector("[data-world-close]")?.focus({ preventScroll: true });
+});
+page.querySelectorAll("[data-world-close]").forEach(button => {
+  button.addEventListener("click", () => worldDialog?.close());
+});
+worldDialog?.addEventListener("click", event => {
+  if (event.target === worldDialog) worldDialog.close();
+});
+worldDialog?.addEventListener("close", () => {
+  if (worldScroll) window.scrollTo(worldScroll.x, worldScroll.y);
+  document.documentElement.classList.remove("about-world-open");
+  restoreFocus?.focus({ preventScroll: true });
+});
+
+for (const disclosure of page.querySelectorAll("details")) {
+  disclosure.addEventListener("toggle", () => {
+    sceneRuntime?.invalidate();
+    requestSceneFrame();
   });
-  syncDock();
 }
-const observer = new IntersectionObserver(selectMovement, { rootMargin: "-30% 0px -60% 0px", threshold: 0 });
-chapters.forEach(chapter => observer.observe(chapter));
-window.addEventListener("scrollend", selectMovement, { signal });
-window.addEventListener("scroll", requestScene, { signal, passive: true });
-window.addEventListener("resize", () => { selectMovement(); invalidateScoreLayout(); }, { signal });
-window.addEventListener("hashchange", () => { selectMovement(); invalidateScoreLayout(); }, { signal });
-root.querySelectorAll("details").forEach(details => details.addEventListener("toggle", invalidateScoreLayout, { signal }));
-document.fonts?.ready.then(invalidateScoreLayout);
-selectMovement();
-requestScene();
+const layoutObserver = new ResizeObserver(() => {
+  sceneRuntime?.invalidate();
+  requestSceneFrame();
+});
+layoutObserver.observe(page);
+document.fonts.ready.then(() => {
+  if (pageDisposed) return;
+  sceneRuntime?.invalidate();
+  requestSceneFrame();
+});
 document.addEventListener("visibilitychange", () => {
-  if (document.hidden) {
-    audio.pause();
-    cancelAnimationFrame(pointerFrame); pointerFrame = 0;
-    cancelAnimationFrame(sceneFrame); sceneFrame = 0;
-  } else requestScene();
-}, { signal });
-// A BFCache restoration keeps the controls mounted, but never resumes sound.
-window.addEventListener("pagehide", event => {
-  audio.pause();
-  if (event.persisted) return;
-  clearInterval(displayTimer);
-  controller.abort(); observer.disconnect(); dockObserver.disconnect(); revealObserver?.disconnect(); cancelAnimationFrame(pointerFrame); cancelAnimationFrame(sceneFrame);
-  experiments.dispose(); visual.dispose(); audio.dispose();
-}, { signal });
-
-if (scoreGridStudyMode) {
-  import("./score-grid-study.js");
+  if (document.hidden) audio.pause();
+  else requestSceneFrame();
+});
+window.addEventListener("pagehide", () => {
+  pageDisposed = true;
+  document.documentElement.classList.remove("about-world-open");
+  layoutObserver.disconnect();
+  sceneRuntime?.dispose();
+  audio.dispose();
+}, { once: true });
+if (scoreRibbonPreview) {
+  mountAboutScene(page).then(runtime => {
+    if (pageDisposed) { runtime.dispose(); return; }
+    sceneRuntime = runtime;
+    requestSceneFrame();
+  }).catch(error => {
+    console.warn("The About score scene could not start; the chapter score remains available.", error);
+  });
 }
+requestSceneFrame();

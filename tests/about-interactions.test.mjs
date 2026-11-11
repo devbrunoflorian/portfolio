@@ -1,8 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { score } from "../assets/about/score.js";
-import { activeNotesAt, beatToSeconds, createScoreTransport, harmonyNotes, secondsToBeat } from "../assets/about/transport.js";
-import { knightChallenges, knightMoves } from "../assets/about/experiments.js";
+import { score } from "../assets/about-legacy/score.js";
+import { activeNotesAt, beatToSeconds, createScoreTransport, harmonyNotes, secondsToBeat } from "../assets/about-legacy/transport.js";
+import { knightChallenges, knightMoves } from "../assets/about-legacy/experiments.js";
 
 test("transport replaces unscheduled movement requests at the next bar", () => {
   const source = {

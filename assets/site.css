@@ -29,6 +29,12 @@ a:focus-visible { outline: 3px solid #a1bbff; outline-offset: 4px; border-radius
   color: var(--word-ink, currentColor);
 }
 
+.scroll-fill-syllable {
+  display: inline-block;
+  white-space: nowrap;
+  color: var(--word-ink, currentColor);
+}
+
 @supports ((background-clip: text) or (-webkit-background-clip: text)) and (-webkit-text-stroke: 1px transparent) {
   .scroll-fill[data-scroll-fill-ready="true"] .scroll-fill-word {
     background-image: linear-gradient(90deg, var(--word-ink, currentColor) 0%, var(--word-ink, currentColor) var(--word-fill, 100%), transparent var(--word-fill, 100%), transparent 100%);
@@ -38,6 +44,45 @@ a:focus-visible { outline: 3px solid #a1bbff; outline-offset: 4px; border-radius
     -webkit-text-fill-color: transparent;
     -webkit-text-stroke: .65px color-mix(in srgb, var(--word-ink, currentColor) 44%, transparent);
   }
+
+}
+
+@supports (color: color-mix(in srgb, white 50%, transparent)) {
+  .scroll-fill[data-scroll-fill-ready="true"][data-scroll-fill-mode="once"] .scroll-fill-syllable {
+    background: none;
+    color: var(--word-ink, currentColor);
+    -webkit-text-fill-color: color-mix(in srgb, var(--word-ink, currentColor) var(--word-fill, 0%), transparent);
+    -webkit-text-stroke: .65px color-mix(in srgb, var(--word-ink, currentColor) 48%, transparent);
+  }
+}
+
+@supports not (color: color-mix(in srgb, white 50%, transparent)) {
+  .scroll-fill[data-scroll-fill-ready="true"][data-scroll-fill-mode="once"][data-intro-stage="fill"] .scroll-fill-syllable {
+    color: var(--word-ink, currentColor);
+    -webkit-text-fill-color: var(--word-ink, currentColor);
+    opacity: var(--word-fill, 0%);
+  }
+}
+
+.scroll-fill[data-scroll-fill-ready="true"][data-scroll-fill-mode="once"][data-intro-stage="waiting"] .scroll-fill-syllable { opacity: 0; }
+.scroll-fill[data-scroll-fill-ready="true"][data-scroll-fill-mode="once"][data-intro-stage="appear"] .scroll-fill-syllable {
+  animation: opening-syllable-enter 190ms cubic-bezier(.2,.72,.2,1) var(--syllable-delay, 0ms) both;
+}
+.scroll-fill[data-scroll-fill-ready="true"][data-scroll-fill-mode="once"] .scroll-fill-syllable { transition: none; }
+.scroll-fill[data-scroll-fill-ready="true"][data-scroll-fill-mode="once"][data-scroll-fill-complete="true"] .scroll-fill-syllable {
+  background: none !important;
+  background-image: none !important;
+  color: var(--word-ink, currentColor) !important;
+  -webkit-text-fill-color: var(--word-ink, currentColor) !important;
+  -webkit-text-stroke: 0 transparent !important;
+  opacity: 1;
+  transform: none;
+  animation: none;
+}
+
+@keyframes opening-syllable-enter {
+  from { opacity: 0; transform: translateY(.16em); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .home-page { --site-scroll-ink: #f1f1f2; }

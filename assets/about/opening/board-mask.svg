@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1535 1024" preserveAspectRatio="none">
+  <defs>
+    <mask id="board" maskUnits="userSpaceOnUse" x="0" y="0" width="1535" height="1024">
+      <rect width="1535" height="1024" fill="#000" />
+      <path d="M1040 680 C1038 698 1038 714 1042 730 C1048 745 1056 761 1064 777 C1072 793 1076 810 1074 827 C1072 846 1078 866 1083 888 C1088 911 1098 936 1112 958 C1130 984 1158 1008 1197 1024 L1535 1024 L1535 620 L1200 620 L1168 646 L1125 660 Z" fill="#fff" />
+    </mask>
+  </defs>
+  <rect width="1535" height="1024" fill="#fff" mask="url(#board)" />
+</svg>
