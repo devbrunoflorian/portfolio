@@ -37,3 +37,16 @@ test('the approaching branch cannot explode across the reading surface',()=>{
     assert.ok(zoom<=options.zoom);
   }
 });
+
+test('the phone frontal opens up smoothly without changing desktop or close turns', async () => {
+  const { viewportStaffScale } = await import('../assets/about-legacy/score-travel-geometry.js');
+  assert.equal(viewportStaffScale(1280, 2.25, 1), 1);
+  assert.equal(viewportStaffScale(390, 2.25, .5), 1.4);
+  assert.ok(Math.abs(viewportStaffScale(390, 2.25, 1) - 2.66) < 1e-9);
+  let previous = viewportStaffScale(390, 2.25, .85);
+  for (let i = 86; i <= 100; i++) {
+    const next = viewportStaffScale(390, 2.25, i / 100);
+    assert.ok(next >= previous && next - previous < .13);
+    previous = next;
+  }
+});

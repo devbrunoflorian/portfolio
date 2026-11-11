@@ -1,9 +1,9 @@
-import { createTravelProjector } from './score-travel-geometry.js';
+import { createTravelProjector, viewportStaffScale } from './score-travel-geometry.js?v=staff-scale-1';
 
 export function projectedHeadWidth({width,height,score,pose,view,anchor,headWidth,zoom}, scratch = {}) {
   const project = createTravelProjector(width,height,score,pose,view,.2,true,scratch,zoom);
   const middle = (score.staffLines[0]+score.staffLines.at(-1))/2;
-  const staffScale = width<=700 ? Math.min(1.8,1+Math.max(0,zoom-1)*.32) : 1;
+  const staffScale = viewportStaffScale(width, zoom, pose);
   const point = project(anchor.u,middle+(anchor.v-middle)*staffScale);
   return point.depth>=0 ? Infinity : headWidth*point.scale*staffScale;
 }
@@ -22,7 +22,7 @@ export function fitCloseZoom(options, targetWidth = 28, scratch = {}) {
 export function maximumProjectedHeadWidth({width,height,score,pose,view,headWidth,zoom}, scratch={}) {
   const project=createTravelProjector(width,height,score,pose,view,.2,true,scratch,zoom);
   const middle=(score.staffLines[0]+score.staffLines.at(-1))/2;
-  const staffScale=width<=700?Math.min(1.8,1+Math.max(0,zoom-1)*.32):1;
+  const staffScale=viewportStaffScale(width, zoom, pose);
   let maximum=0;
   for(let sample=0;sample<=32;sample++) for(const v of [-14,8]) {
     const point=project(view.x0+(view.x1-view.x0)*sample/32,middle+(v-middle)*staffScale);

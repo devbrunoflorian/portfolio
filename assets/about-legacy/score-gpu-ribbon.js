@@ -1,5 +1,5 @@
 import * as THREE from './vendor/three-score.min.js';
-import { createTravelProjector } from './score-travel-geometry.js';
+import { createTravelProjector, viewportStaffScale } from './score-travel-geometry.js?v=staff-scale-1';
 import { readingFocus } from './score-focus-profile.js';
 import { buildRibbonGeometry, scoreSourceRange, trebleClefFromTimeline } from './score-gpu-ribbon-geometry.js?v=organic-spatter-1';
 import { createPixelSpriteAtlas, SCORE_MATERIAL, scoreMaterialShader } from './score-gpu-materials.js?v=watercolor-journey-5';
@@ -427,7 +427,7 @@ export async function mountGpuRibbon(host, { score, view, points, groups, engrav
     uniforms.arcSpan.value = project.arcLength;
     const arrive = Math.max(0, Math.min(1, (pose - .65) / .2));
     const sourceWidth = readingView.x1 - readingView.x0;
-    const mobileStaffScale = width <= 700 ? Math.min(1.8, 1 + Math.max(0, cameraZoom - 1) * .32) : 1;
+    const mobileStaffScale = viewportStaffScale(width, cameraZoom, pose);
     uniforms.unit.value = (width * 1.5 * (1 - arrive) + project.arcLength * arrive) / sourceWidth * mobileStaffScale;
     uniforms.aspect.value = project.uvAspect;
     uniforms.focus.value = readingFocus(project, readingView, width, height, marker, pose, focusScratch).distance;

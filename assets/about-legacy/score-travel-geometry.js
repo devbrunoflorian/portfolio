@@ -131,3 +131,11 @@ export function createTravelProjector(width,height,study,progress,view=study,min
   else project.camera={position,target:center,forward:cameraForward};
   return project;
 }
+
+/** Open up the staff in the frontal phone view; keep close turns at their existing scale. */
+export function viewportStaffScale(width, zoom, pose) {
+  if (width > 700) return 1;
+  const base = Math.min(1.8, 1 + Math.max(0, zoom - 1) * .32);
+  const t = Math.max(0, Math.min(1, (pose - .85) / .15));
+  return base * (1 + .9 * t * t * (3 - 2 * t));
+}

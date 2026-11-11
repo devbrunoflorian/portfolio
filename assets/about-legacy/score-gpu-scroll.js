@@ -4,8 +4,8 @@ import { scorePlaybackWindowAtBeat, scorePositionAtBeat, scoreWindowAtBeat } fro
 import { drawScoreRibbon, staffYForMidi, visualVoiceSegments, voiceRibbonPoints } from './score-ribbon-renderer.js';
 import { buildEngraving } from './score-engraving.js';
 import { buildCompoundGroups } from './score-compound-groups.js';
-import { createTravelProjector } from './score-travel-geometry.js';
-import { fitCloseZoom, projectedHeadWidth, limitCloseZoom } from './score-close-framing.js?v=near-limit-1';
+import { createTravelProjector, viewportStaffScale } from './score-travel-geometry.js?v=staff-scale-1';
+import { fitCloseZoom, projectedHeadWidth, limitCloseZoom } from './score-close-framing.js?v=mobile-staff-2';
 import { createAdaptiveDpr, initialGpuPixelRatio } from './score-gpu-budget.js';
 import { shouldEnableScoreLight } from './score-gpu-route.js?v=score-light-1';
 import { scoreSourceRange, trebleClefFromTimeline } from './score-gpu-ribbon-geometry.js?v=header-clef-space-4';
@@ -201,7 +201,7 @@ export async function mountAboutGpuScroll(root, host = root.querySelector('[data
     if(closeWeight>0) {
       if(width<=700)host.dataset.scoreCloseWidth=projectedHeadWidth({...options,zoom:drawZoom},closeProjectionScratch).toFixed(2);
       const projector=createTravelProjector(width,height,score,pose,view,.2,true,closeProjectionScratch,drawZoom);
-      const mobileScale=width<=700?Math.min(1.8,1+Math.max(0,drawZoom-1)*.32):1;
+      const mobileScale=viewportStaffScale(width, drawZoom, pose);
       const target=projector(anchor.u,middle+(anchor.v-middle)*mobileScale);
       // One camera correction follows the musical anchor; every piece keeps its UV.
       frameX+=(width*.5-target.x-frameX)*closeWeight;
@@ -246,7 +246,7 @@ export async function mountAboutGpuScroll(root, host = root.querySelector('[data
     if (disposed || gpu || gpuLoading || gpuFailed || state.reducedMotion) return;
     gpuLoading = true;
     try {
-      const { mountGpuRibbon } = await import('./score-gpu-ribbon.js?v=reading-protection-1');
+      const { mountGpuRibbon } = await import('./score-gpu-ribbon.js?v=mobile-staff-2');
       if (disposed) return;
       gpu = await mountGpuRibbon(host, {
         score,

@@ -1,12 +1,12 @@
 import { visibleReadingRegions } from "./reading.js";
-import { createAboutCamera } from "./camera.js?v=reading-protection-1";
+import { createAboutCamera } from "./camera.js?v=mobile-staff-2";
 
 export async function mountAboutScene(root) {
   const host = root.querySelector("[data-score-thread]");
   if (!host) throw new Error("The About score scene needs its canvas host.");
 
   const camera = createAboutCamera(root);
-  const { mountAboutGpuScroll } = await import("../../about-legacy/score-gpu-scroll.js?v=reading-protection-1");
+  const { mountAboutGpuScroll } = await import("../../about-legacy/score-gpu-scroll.js?v=mobile-staff-2");
   const renderer = await mountAboutGpuScroll(root, host);
   let disposed = false;
   let readingKey = "";

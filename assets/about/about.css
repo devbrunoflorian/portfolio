@@ -366,3 +366,7 @@ html[data-motion-paused="true"] .forest-foreground { animation: none; transform:
   .world-dialog[data-world-started="true"] .world-dialog-scene { width: min(calc(100dvh - 140px), calc((100vw - 24px) * 1672 / 941)); aspect-ratio: 1672 / 941; transform: translate(-50%,-50%) rotate(90deg); }
   .world-dialog[data-world-started="true"] .world-dialog-scene .knight-sprite { width: clamp(48px,9%,84px); left: 40%; bottom: 8%; }
 }
+
+@media (max-width: 700px) {
+  .about-music .score-window { min-height: 210px; }
+}

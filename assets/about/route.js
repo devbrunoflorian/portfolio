@@ -1,1 +1,1 @@
-import "./main.js?about-reading-protection-1";
+import "./main.js?about-mobile-staff-2";
