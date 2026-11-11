@@ -6,7 +6,7 @@ export async function mountAboutScene(root) {
   if (!host) throw new Error("The About score scene needs its canvas host.");
 
   const camera = createAboutCamera(root);
-  const { mountAboutGpuScroll } = await import("../../about-legacy/score-gpu-scroll.js?v=about-mobile-framing-4");
+  const { mountAboutGpuScroll } = await import("../../about-legacy/score-gpu-scroll.js?v=art-focus-follow-2");
   const renderer = await mountAboutGpuScroll(root, host);
   let disposed = false;
   let readingKey = "";

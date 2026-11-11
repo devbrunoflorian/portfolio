@@ -206,8 +206,10 @@ export async function mountAboutGpuScroll(root, host = root.querySelector('[data
       const mobileScale=viewportStaffScale(width, drawZoom, pose);
       const target=projector(anchor.u,middle+(anchor.v-middle)*mobileScale);
       // One camera correction follows the musical anchor; every piece keeps its UV.
-      frameX+=(width*.5-target.x-frameX)*closeWeight;
-      frameY+=(height*.54-target.y-frameY)*closeWeight;
+      const targetX=width*(width<=700?.5:.42);
+      const targetY=height*(width<=700?.54:.46);
+      frameX+=(targetX-target.x-frameX)*closeWeight;
+      frameY+=(targetY-target.y-frameY)*closeWeight;
     }
     const readingChanged = gpu.setReadingRegions(state.readingRegions);
     if (!readingChanged && lastPose === pose && lastZoom === drawZoom && lastJourney === state.journey && lastFrameX === frameX && lastFrameY === frameY
@@ -248,7 +250,7 @@ export async function mountAboutGpuScroll(root, host = root.querySelector('[data
     if (disposed || gpu || gpuLoading || gpuFailed || state.reducedMotion) return;
     gpuLoading = true;
     try {
-      const { mountGpuRibbon } = await import('./score-gpu-ribbon.js?v=about-mobile-framing-4');
+      const { mountGpuRibbon } = await import('./score-gpu-ribbon.js?v=art-pigment-light-1');
       if (disposed) return;
       gpu = await mountGpuRibbon(host, {
         score,

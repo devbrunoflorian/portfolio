@@ -117,7 +117,7 @@ const fragmentShader = `
     float along=clamp((vSourceX-sourceRange.x)/(sourceRange.y-sourceRange.x),0.,1.);
     vec4 chapters=scoreChapterWeights(scorePigmentJourney(journey,along));
     float codeWeight=chapters.x,musicWeight=chapters.y,artWeight=chapters.z,gameWeight=chapters.w;
-    float chapterGlow=clamp(1.-artWeight*.68-gameWeight*.82,.18,1.);
+    float chapterGlow=clamp(1.-artWeight*.90-gameWeight*.82,.08,1.);
     float clef=step(${(SCORE_MATERIAL.CLEF - 0.5).toFixed(1)},vMaterialType)*(1.-step(${(SCORE_MATERIAL.CLEF + 0.5).toFixed(1)},vMaterialType));
     float triplet=step(${(SCORE_MATERIAL.TRIPLET - 0.5).toFixed(1)},vMaterialType)*(1.-step(${(SCORE_MATERIAL.TRIPLET + 0.5).toFixed(1)},vMaterialType));
     float splatter=(1.-step(9.5,vMaterialType))*step(${(SCORE_MATERIAL.SPATTER - 0.5).toFixed(1)},vMaterialType);

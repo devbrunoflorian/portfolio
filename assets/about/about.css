@@ -135,8 +135,9 @@ html[data-content-id="about"] .site-footer { width: min(100% - 2 * var(--about-g
 .closing-links a { display: flex; justify-content: space-between; gap: 30px; padding: 14px 0; border-bottom: 1px solid rgb(193 154 255 / 42%); color: var(--about-ink); font-size: 17px; text-decoration: none; }
 .closing-links a:hover { color: var(--about-violet); }
 
-.player-dock { position: fixed; z-index: 40; right: max(18px, env(safe-area-inset-right)); bottom: max(14px, env(safe-area-inset-bottom)); left: max(18px, env(safe-area-inset-left)); width: min(860px, calc(100% - 36px)); min-height: 58px; display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-inline: auto; padding: 6px 9px 6px 12px; border: 1px solid rgb(191 162 232 / 26%); border-radius: 999px; background: rgb(12 10 18 / 88%); box-shadow: 0 10px 42px rgb(0 0 0 / 45%); backdrop-filter: blur(16px); opacity: 0; transform: translateY(18px); pointer-events: none; transition: opacity 220ms ease, transform 220ms ease; }
+.player-dock { position: fixed; z-index: 40; right: max(18px, env(safe-area-inset-right)); bottom: max(14px, env(safe-area-inset-bottom)); left: max(18px, env(safe-area-inset-left)); width: min(860px, calc(100% - 36px)); min-height: 58px; display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-inline: auto; padding: 6px 9px 6px 12px; border: 1px solid rgb(191 162 232 / 26%); border-radius: 999px; background: rgb(12 10 18 / 88%); box-shadow: 0 10px 42px rgb(0 0 0 / 45%); backdrop-filter: blur(16px); opacity: 0; transform: translateY(18px); pointer-events: none; transition: opacity 220ms ease, transform 220ms ease, left 220ms ease, right 220ms ease, top 220ms ease, width 220ms ease; }
 .player-dock[data-visible] { opacity: 1; transform: translateY(0); pointer-events: auto; }
+.about-rebuild[data-active-chapter="art"] .player-dock { right: auto; left: max(18px, env(safe-area-inset-left)); width: min(640px, calc(100% - 36px)); margin-inline: 0; }
 .player-dock .about-play { min-height: 42px; white-space: nowrap; }
 .dock-status { flex: 1; min-width: 0; overflow: hidden; color: var(--about-muted); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 .dock-volume { display: flex; align-items: center; gap: 9px; color: var(--about-muted); font-size: 11px; white-space: nowrap; }
@@ -231,6 +232,10 @@ body[data-score-gpu-scroll="true"] .about-rebuild .stack-panel::before { content
   .world-dialog-scene { inset: 62px 8px 54px; }
   .world-dialog-label { right: 12px; bottom: 12px; }
   body[data-score-gpu-scroll="true"] .about-rebuild :is(.chapter-copy, .opening-copy h1, .opening-intro, .opening-actions, .chapter-heading > div, .chapter-heading > p, .art-copy, .games-copy, .closing-links, .music-controls > p, .about-mixer, .score-frame figcaption)::before { inset: -20px -22px; }
+}
+
+@media (max-width: 900px) {
+  .about-rebuild[data-active-chapter="art"] .player-dock { top: calc(70px + env(safe-area-inset-top)); right: max(10px, env(safe-area-inset-right)); bottom: auto; left: max(10px, env(safe-area-inset-left)); width: min(640px, calc(100% - 20px)); margin-inline: auto; }
 }
 
 @media (max-width: 360px) {
