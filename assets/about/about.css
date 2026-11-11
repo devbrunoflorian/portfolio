@@ -345,3 +345,24 @@ html[data-motion-paused="true"] .forest-foreground { animation: none; transform:
 /* The chapter is a cover; only an explicitly opened preview runs its idle. */
 .games-scene .knight-sprite,
 .world-dialog:not([open]) .knight-sprite { animation: none; }
+
+.world-entry { position: absolute; inset: 50% auto auto 50%; transform: translate(-50%,-50%); width: min(calc(100vw - 36px), calc((100dvh - 144px) * 16 / 9)); aspect-ratio: 16 / 9; display: grid; place-items: center; overflow: hidden; background: #101022 url("/assets/about-legacy/forest/forest-world-wide.png") center / cover; border: 1px solid rgb(193 154 255 / 30%); }
+.world-entry::before { content: ""; position: absolute; inset: 0; background: radial-gradient(ellipse at center,rgb(6 6 9 / 83%),rgb(6 6 9 / 22%) 80%); }
+.world-entry-copy { position: relative; text-align: center; padding: 28px; }
+.world-entry h2 { margin: 12px 0 25px; color: #f0edf5; font-size: clamp(32px,5vw,70px); font-weight: 550; letter-spacing: -.05em; line-height: 1; }
+.world-play { min-width: 150px; min-height: 52px; display: inline-flex; align-items: center; justify-content: center; gap: 14px; border: 1px solid #c19aff; border-radius: 4px; background: #40225f; color: #fff1ff; font: inherit; font-size: 18px; cursor: pointer; box-shadow: 0 4px 0 #1c102e; }
+.world-play:hover { background: #56317b; }
+.world-play:active { transform: translateY(2px); box-shadow: 0 2px 0 #1c102e; }
+.world-play:focus-visible { outline: 2px solid #f0edf5; outline-offset: 5px; }
+.about-rebuild .world-entry-note { margin-top: 22px; color: #e1d8ee; font-size: 13px; line-height: 1.5; }
+.world-entry[hidden], .world-dialog-scene[hidden] { display: none !important; }
+.world-dialog[data-world-started="false"] .knight-sprite { animation: none; }
+@media (max-width: 680px) {
+  .world-entry { width: calc(100vw - 20px); min-height: 260px; }
+  .world-entry-copy { padding: 24px 18px; }
+  .world-entry h2 { font-size: 34px; margin-bottom: 22px; }
+}
+@media (max-width: 680px) and (orientation: portrait) {
+  .world-dialog[data-world-started="true"] .world-dialog-scene { width: min(calc(100dvh - 140px), calc((100vw - 24px) * 1672 / 941)); aspect-ratio: 1672 / 941; transform: translate(-50%,-50%) rotate(90deg); }
+  .world-dialog[data-world-started="true"] .world-dialog-scene .knight-sprite { width: clamp(48px,9%,84px); left: 40%; bottom: 8%; }
+}

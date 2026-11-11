@@ -189,20 +189,31 @@ motionButton?.addEventListener("click", () => {
 
 const worldDialog = page.querySelector("[data-world-dialog]");
 const worldButton = page.querySelector("[data-world-open]");
+const worldEntry = page.querySelector("[data-world-entry]");
+const worldStage = page.querySelector("[data-world-stage]");
+const worldPlay = page.querySelector("[data-world-play]");
 let worldScroll = null;
 worldButton?.addEventListener("click", () => {
   if (!worldDialog || worldDialog.open) return;
-  // The About owns only the cover. Load the separate world preview on demand.
-  for (const source of worldDialog.querySelectorAll("[data-world-srcset]")) {
-    if (!source.hasAttribute("srcset")) source.setAttribute("srcset", source.dataset.worldSrcset);
-  }
+  restoreFocus = worldButton;
+  worldScroll = { x: window.scrollX, y: window.scrollY };
+  worldDialog.dataset.worldStarted = "false";
+  if (worldEntry) worldEntry.hidden = false;
+  if (worldStage) worldStage.hidden = true;
+  document.documentElement.classList.add("about-world-open");
+  worldDialog.showModal();
+  worldPlay?.focus({ preventScroll: true });
+});
+worldPlay?.addEventListener("click", () => {
+  if (!worldDialog?.open || worldDialog.dataset.worldStarted === "true") return;
+  // A future game bundle belongs here, after the explicit Play gesture.
   for (const image of worldDialog.querySelectorAll("[data-world-src]")) {
     if (!image.hasAttribute("src")) image.setAttribute("src", image.dataset.worldSrc);
   }
-  restoreFocus = worldButton;
-  worldScroll = { x: window.scrollX, y: window.scrollY };
-  document.documentElement.classList.add("about-world-open");
-  worldDialog.showModal();
+  worldDialog.dataset.worldStarted = "true";
+  if (worldEntry) worldEntry.hidden = true;
+  if (worldStage) worldStage.hidden = false;
+  worldDialog.querySelector("[data-world-close]")?.focus({ preventScroll: true });
 });
 page.querySelectorAll("[data-world-close]").forEach(button => {
   button.addEventListener("click", () => worldDialog?.close());

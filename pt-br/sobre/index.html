@@ -70,7 +70,7 @@
       </section>
 
       <section class="about-chapter about-games" id="games" data-chapter="games" aria-labelledby="games-title">
-        <div class="games-copy"><p class="about-eyebrow">04 · GAMES</p><h2 id="games-title" class="scroll-fill">Jogar também<br>é <em>pensar.</em></h2><p>Jogos e xadrez também têm seu lugar: estratégia, leitura de padrões e novas perspectivas.</p><button class="world-open" type="button" data-world-open>Explorar o mundo <span aria-hidden="true">↗</span></button></div>
+        <div class="games-copy"><p class="about-eyebrow">04 · GAMES</p><h2 id="games-title" class="scroll-fill">Jogar também<br>é <em>pensar.</em></h2><p>Jogos e xadrez também têm seu lugar: estratégia, leitura de padrões e novas perspectivas.</p><button class="world-open" type="button" data-world-open>Jogar <span aria-hidden="true">↗</span></button></div>
         <figure class="games-scene" data-score-anchor><img class="games-landscape" src="/assets/about-legacy/forest/forest-world-wide.png" alt="Floresta pixelada, caminho de pedra e portal iluminado" loading="lazy" decoding="async"/><span class="knight-sprite" aria-hidden="true"></span><span class="forest-foreground" aria-hidden="true"></span></figure>
       </section>
 
@@ -78,7 +78,15 @@
 
       <div class="player-dock" data-player-dock><button class="about-play" type="button" data-play-toggle data-pause-label="Pausar Dissonância" aria-label="Ouvir Dissonância" aria-pressed="false"><span aria-hidden="true">▶</span><span data-play-label>Ouvir Dissonância</span></button><span class="dock-status" data-audio-status>Som desligado</span><label class="dock-volume">Volume <input type="range" min="0" max="1" step=".01" value=".35" data-main-volume aria-label="Volume"/></label><button type="button" data-motion-toggle aria-pressed="false">Pausar movimento</button></div>
 
-      <dialog class="world-dialog" data-world-dialog aria-labelledby="world-title"><button type="button" class="world-close" data-world-close>Voltar à história</button><div class="world-dialog-scene"><picture><source media="(max-width: 680px)" data-world-srcset="/assets/about-legacy/forest/forest-world-portrait.png"/><img data-world-src="/assets/about-legacy/forest/forest-world-wide.png" alt="Floresta pixelada, caminho de pedra e portal iluminado" decoding="async"/><span class="knight-sprite" aria-hidden="true"></span></picture><span class="forest-foreground" aria-hidden="true"></span></div><span class="world-dialog-label" id="world-title">Floresta Antiga · PIXEL WORLD</span></dialog>
+      <dialog class="world-dialog" data-world-dialog aria-labelledby="world-title"><button type="button" class="world-close" data-world-close>Voltar à história</button>
+        <div class="world-entry" data-world-entry>
+          <div class="world-entry-copy"><p class="about-eyebrow">UM MUNDO EM CONSTRUÇÃO</p><h2 id="world-title">Floresta Antiga</h2>
+          <button class="world-play" type="button" data-world-play><span aria-hidden="true">▶</span> Play</button>
+          <p class="world-entry-note">Prévia visual · O jogo ainda está em desenvolvimento.</p></div>
+        </div>
+        <div class="world-dialog-scene" data-world-stage hidden><picture><img data-world-src="/assets/about-legacy/forest/forest-world-wide.png" alt="Floresta pixelada, caminho de pedra e portal iluminado" decoding="async"/><span class="knight-sprite" aria-hidden="true"></span></picture><span class="forest-foreground" aria-hidden="true"></span></div>
+        <span class="world-dialog-label">Floresta Antiga · PRÉVIA VISUAL</span>
+      </dialog>
     </main>
       <footer class="site-footer"><span>© 2026 Bruno Florian</span><nav aria-label="Perfis externos"><a href="https://github.com/devbrunoflorian" target="_blank" rel="noopener noreferrer">GitHub</a><a href="https://github.com/engineering-proof-labs" target="_blank" rel="noopener noreferrer">Engineering Labs</a></nav></footer>
     </div>
