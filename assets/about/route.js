@@ -1,1 +1,1 @@
-import "./main.js?about-opening-fill-once-1";
+import "./main.js?opening-exit-fade-1";

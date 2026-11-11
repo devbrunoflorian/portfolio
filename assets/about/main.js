@@ -19,6 +19,11 @@ const initialStatus = page.querySelector("[data-audio-status]")?.textContent.tri
 const playButtons = [...page.querySelectorAll("[data-play-toggle]")];
 const statusLabels = [...page.querySelectorAll("[data-audio-status]")];
 const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
+const opening = page.querySelector(".about-opening");
+const nativeOpeningFade = CSS.supports(
+  "(view-timeline: --opening-exit block) and (animation-timeline: --opening-exit) and (animation-range: exit 12% exit 72%)",
+);
+if (opening && !nativeOpeningFade) opening.dataset.openingFadeFallback = "true";
 const nativeArtParallax = CSS.supports("(animation-timeline: view()) and (animation-range: entry)");
 const chapters = [...page.querySelectorAll("[data-chapter]")];
 const audio = createJourneyAudio(score, renderPlayback);
@@ -110,9 +115,26 @@ function clamp(value, minimum, maximum) {
   return Math.max(minimum, Math.min(maximum, value));
 }
 
+function updateOpeningFadeFallback() {
+  if (!opening || nativeOpeningFade) return;
+  if (reducedMotion.matches) {
+    opening.style.setProperty("--opening-image-opacity", "1");
+    return;
+  }
+
+  const { top, height } = opening.getBoundingClientRect();
+  const exitProgress = clamp(-top / Math.max(1, height), 0, 1);
+  const fadeProgress = clamp((exitProgress - .12) / (.72 - .12), 0, 1);
+  const opacity = (1 - fadeProgress).toFixed(3);
+  if (opening.style.getPropertyValue("--opening-image-opacity") !== opacity) {
+    opening.style.setProperty("--opening-image-opacity", opacity);
+  }
+}
+
 function updateScrollScene() {
   framePending = false;
   if (pageDisposed) return;
+  updateOpeningFadeFallback();
   const index = readingChapterIndex(chapters.map(chapter => chapter.getBoundingClientRect()), innerHeight * .52);
   if (index >= 0) {
     activeChapter = chapters[index].dataset.chapter;

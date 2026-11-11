@@ -687,6 +687,37 @@ body[data-score-gpu-scroll="true"] .about-rebuild .opening-copy :is(h1, .opening
 @media (max-width: 700px) and (orientation: landscape) {
   .about-opening { min-block-size: max(100svh, 780px); }
 }
+
+@media (prefers-reduced-motion: no-preference) {
+  @supports (view-timeline: --opening-exit block) and (animation-timeline: --opening-exit) and (animation-range: exit 12% exit 72%) {
+    .about-opening { view-timeline: --opening-exit block; }
+
+    @keyframes opening-photo-exit {
+      from { opacity: 1; }
+      to { opacity: 0; }
+    }
+
+    .opening-portrait-frame,
+    .opening-board-layer {
+      animation: opening-photo-exit auto linear both;
+      animation-timeline: --opening-exit;
+      animation-range: exit 12% exit 72%;
+    }
+  }
+}
+
+.about-opening[data-opening-fade-fallback="true"] :is(.opening-portrait-frame, .opening-board-layer) {
+  opacity: var(--opening-image-opacity, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .about-opening .opening-portrait-frame,
+  .about-opening .opening-board-layer {
+    animation: none !important;
+    opacity: 1 !important;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .opening-portrait-image { animation: none !important; transform: none !important; }
 }
