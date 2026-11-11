@@ -207,7 +207,8 @@ export async function mountAboutGpuScroll(root, host = root.querySelector('[data
       frameX+=(width*.5-target.x-frameX)*closeWeight;
       frameY+=(height*.54-target.y-frameY)*closeWeight;
     }
-    if (lastPose === pose && lastZoom === drawZoom && lastJourney === state.journey && lastFrameX === frameX && lastFrameY === frameY
+    const readingChanged = gpu.setReadingRegions(state.readingRegions);
+    if (!readingChanged && lastPose === pose && lastZoom === drawZoom && lastJourney === state.journey && lastFrameX === frameX && lastFrameY === frameY
       && lastPlaybackBeat === playbackBeat && lastPlaybackActive === playbackActive
       && lastChapter === state.chapter
       && lastFlowPhase === flowPhase
@@ -245,7 +246,7 @@ export async function mountAboutGpuScroll(root, host = root.querySelector('[data
     if (disposed || gpu || gpuLoading || gpuFailed || state.reducedMotion) return;
     gpuLoading = true;
     try {
-      const { mountGpuRibbon } = await import('./score-gpu-ribbon.js?v=art-close-tone-2');
+      const { mountGpuRibbon } = await import('./score-gpu-ribbon.js?v=reading-protection-1');
       if (disposed) return;
       gpu = await mountGpuRibbon(host, {
         score,

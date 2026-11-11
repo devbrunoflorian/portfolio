@@ -253,9 +253,22 @@ const completeFragmentShader = `${scoreMaterialShader}\n${fragmentShader}`;
 
 const postFragment = `
   uniform sampler2D image,depths,glowImage;
-  uniform vec2 texel;
-  uniform float focus,viewportWidth,blur,near,far,pixelRatio,glowStrength;
   varying vec2 vUv;
+  uniform vec2 texel, readingViewport;
+  uniform vec4 readingRegions[16];
+  uniform int readingRegionCount;
+  vec3 protectReading(vec3 ink) {
+    vec2 p = vec2(vUv.x, 1. - vUv.y) * readingViewport;
+    float visibility = 1.;
+    for (int i = 0; i < 16; i++) {
+      if (i >= readingRegionCount) break;
+      vec4 r = readingRegions[i];
+      vec2 outside = max(max(r.xy - p, p - r.zw), vec2(0.));
+      visibility = min(visibility, smoothstep(0., 54., length(outside)));
+    }
+    return mix(vec3(6./255., 6./255., 9./255.), ink, visibility);
+  }
+  uniform float focus,viewportWidth,blur,near,far,pixelRatio,glowStrength;
   float distanceAt(vec2 uv){float z=texture2D(depths,uv).x;return near*far/(far-z*(far-near));}
   vec3 glowAt(vec2 uv){
     vec2 spread=texel*2.2*pixelRatio;
@@ -269,7 +282,7 @@ const postFragment = `
     vec4 original=texture2D(image,vUv);float d=distanceAt(vUv)/viewportWidth;
     float radius=clamp((d-focus-.05)/.2,0.,3.)/3.*2.8*pixelRatio*blur;
     vec3 glow=glowAt(vUv)*glowStrength;
-    if(original.a>0.||d<=focus+.05||radius<.01){gl_FragColor=vec4(original.rgb+glow,1.);return;}
+    if(original.a>0.||d<=focus+.05||radius<.01){gl_FragColor=vec4(protectReading(original.rgb+glow),1.);return;}
     vec3 total=vec3(0.);float weights=0.;
     for(int y=-2;y<=2;y++)for(int x=-2;x<=2;x++){
       vec2 offset=vec2(float(x),float(y));float weight=exp(-dot(offset,offset)/2.);
@@ -278,7 +291,7 @@ const postFragment = `
       if(distanceAt(uv)/viewportWidth<=focus+.05||sampleInk.a>0.)sampleInk=original;
       total+=sampleInk.rgb*weight;weights+=weight;
     }
-    gl_FragColor=vec4(total/weights+glow,1.);
+    gl_FragColor=vec4(protectReading(total/weights+glow),1.);
   }`;
 
 export async function mountGpuRibbon(host, { score, view, points, groups, engraving, voicePaths = [], width, height, pixelRatio = 1, diagnostics = true, markerId = DEFAULT_MARKER }) {
@@ -357,6 +370,8 @@ export async function mountGpuRibbon(host, { score, view, points, groups, engrav
   const postMaterial = new THREE.ShaderMaterial({ depthTest: false, depthWrite: false,
     uniforms: { image: { value: target.texture }, depths: { value: target.depthTexture }, glowImage: { value: glowTarget.texture },
       texel: { value: new THREE.Vector2(1, 1) },
+      readingViewport: { value: new THREE.Vector2(width, height) },
+      readingRegions: { value: new Float32Array(64) }, readingRegionCount: { value: 0 },
       focus: uniforms.focus, viewportWidth: uniforms.viewportWidth, blur: { value: 0 }, near: { value: near },
       far: { value: far }, pixelRatio: { value: pixelRatio }, glowStrength: { value: 0 } },
     vertexShader: 'varying vec2 vUv;void main(){vUv=uv;gl_Position=vec4(position.xy,0.,1.);}', fragmentShader: postFragment });
@@ -539,6 +554,20 @@ export async function mountGpuRibbon(host, { score, view, points, groups, engrav
     return sample;
   }
 
+  function setReadingRegions(regions = []) {
+    const values = postMaterial.uniforms.readingRegions.value;
+    const count = Math.min(16, regions.length);
+    let changed = postMaterial.uniforms.readingRegionCount.value !== count;
+    for (let i = 0; i < count; i++) for (let j = 0; j < 4; j++) {
+      const value = regions[i][j];
+      if (values[i * 4 + j] !== Math.fround(value)) changed = true;
+      values[i * 4 + j] = value;
+    }
+    postMaterial.uniforms.readingRegionCount.value = count;
+    if (changed) lastSample = null;
+    return changed;
+  }
+
   // Explicit diagnostic readback is outside draw/timing. Returned rows are screen-down.
   function readPixels({ mask = false } = {}) {
     if (disposed || metrics.contextLost || cachedPose === null) throw new Error('Draw an available GPU frame before readback.');
@@ -581,5 +610,5 @@ export async function mountGpuRibbon(host, { score, view, points, groups, engrav
     target.depthTexture.dispose();target.dispose();glowTarget.dispose();output.dispose();renderer.dispose();renderer.forceContextLoss();canvas.remove();
     for(const [method,original] of originalGL)gl[method]=original;
   }
-  return { canvas, draw, pollGPU, metrics, dispose, setPixelRatio, setNotation, setSourceRange, readPixels,loseContext,restoreContext };
+  return { canvas, draw, pollGPU, metrics, dispose, setPixelRatio, setNotation, setSourceRange, setReadingRegions, readPixels,loseContext,restoreContext };
 }

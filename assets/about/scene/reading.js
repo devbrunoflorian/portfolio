@@ -12,3 +12,12 @@ export function readingChapterIndex(bounds, readingLine) {
   });
   return best;
 }
+
+/** Rectangles reserve the actual copy, not the empty space of its chapter. */
+export function visibleReadingRegions(root, width, height) {
+  const selector = ".opening-copy h1, .opening-intro, .opening-actions, .chapter-copy, .stack-panel, .chapter-heading > div, .chapter-heading > p, .art-copy, .games-copy, .about-closing h2, .closing-links, .score-frame figcaption, .music-controls > p, .about-mixer";
+  return [...root.querySelectorAll(selector)].map(element => element.getBoundingClientRect())
+    .filter(rect => rect.width > 0 && rect.height > 0 && rect.bottom > 0 && rect.top < height && rect.right > 0 && rect.left < width)
+    .slice(0, 16)
+    .map(rect => [rect.left - 10, rect.top - 10, rect.right + 10, rect.bottom + 10]);
+}

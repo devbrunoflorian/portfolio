@@ -1,1 +1,1 @@
-import "./main.js?about-material-close-7";
+import "./main.js?about-reading-protection-1";
