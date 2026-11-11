@@ -369,6 +369,13 @@ html[data-motion-paused="true"] .forest-foreground { animation: none; transform:
   .world-entry h2 { font-size: 34px; margin-bottom: 22px; }
 }
 @media (max-width: 680px) and (orientation: portrait) {
+  .world-entry {
+    width: min(calc(100dvh - 140px), calc((100vw - 24px) * 16 / 9));
+    min-height: 0;
+    transform: translate(-50%, -50%) rotate(90deg);
+  }
+}
+@media (max-width: 680px) and (orientation: portrait) {
   .world-dialog[data-world-started="true"] .world-dialog-scene { width: min(calc(100dvh - 140px), calc((100vw - 24px) * 1672 / 941)); aspect-ratio: 1672 / 941; transform: translate(-50%,-50%) rotate(90deg); }
   .world-dialog[data-world-started="true"] .world-dialog-scene .knight-sprite { width: clamp(48px,9%,84px); left: 40%; bottom: 8%; }
 }
