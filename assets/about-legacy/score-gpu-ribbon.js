@@ -31,7 +31,7 @@ const vertexShader = `
   uniform vec4 staffLinesA;
   uniform float staffLineE;
   uniform float ribbonLength, arcStart, arcSpan, unit, aspect, middle, focal, viewportWidth, journey;
-  uniform vec2 sourceRange, viewport, frameOffset;
+  uniform vec2 sourceRange, paintRange, viewport, frameOffset;
   attribute vec2 sourceUV, glyphOffset, spriteUV, segmentEnd, stroke, feature, protection, role;
   attribute float remap, segmentRemap, beat, segmentBeat, noteDuration;
   varying float vDistance, vGold, vHead, vKind, vArrival, vVoice, vSourceX, vSourceY;
@@ -74,7 +74,8 @@ const vertexShader = `
     float scale=unit*focal/(-view.z);
     vDistance=-view.z;vGold=gold;vHead=frontHead;vKind=kind;vArrival=arrivalBar;vVoice=voice;
     vMaterialType=materialType;vBeat=beat;vDuration=noteDuration;vSegmentProgress=position.z;
-    vSpriteUV=materialType>5.5&&materialType<6.5?vec2(position.z,.5+stroke.x*.45):spriteUV;vGlyphOffset=glyphOffset;
+    vSpriteUV=materialType<.5?vec2(0.,.5+stroke.x*.45)
+      :materialType>5.5&&materialType<6.5?vec2(position.z,.5+stroke.x*.45):spriteUV;vGlyphOffset=glyphOffset;
     if(kind<3.5||(kind>4.5&&kind<5.5))view.xyz*=(-view.z-1.)/(-view.z);
     vec4 clip=projectionMatrix*view;
     if(kind>.5&&kind<1.5)clip=screenOffset(clip,glyphOffset,scale);
@@ -92,7 +93,10 @@ const vertexShader = `
       vSourceY=mix(source.y,segmentEnd.y,t);
       vBeat=mix(beat,segmentBeat,t);
       vDistance=depth+1.;
-      clip.xy+=normal*stroke.x*stroke.y*.5*(unit*focal/depth)*2./viewport*clip.w;
+      float artPass=smoothstep(2.12,2.94,journey);
+      float brushScale=materialType<.5?mix(1.,1.92,artPass)
+        :(materialType>5.5&&materialType<7.5?mix(1.,1.32,artPass):1.);
+      clip.xy+=normal*stroke.x*stroke.y*brushScale*.5*(unit*focal/depth)*2./viewport*clip.w;
     }
     clip.xy+=frameOffset*vec2(2.,-2.)/viewport*clip.w;
     gl_Position=clip;
@@ -105,6 +109,7 @@ const fragmentShader = `
   uniform float journey, playbackBeat, playbackActive;
   uniform vec4 staffLinesA;
   uniform float staffLineE;
+  uniform vec2 paintRange;
   uniform vec2 viewport, sourceRange;
   varying float vDistance,vGold,vHead,vKind,vArrival,vVoice,vSourceX,vSourceY;
   varying float vMaterialType,vBeat,vDuration,vSegmentProgress;
@@ -117,7 +122,7 @@ const fragmentShader = `
     float along=clamp((vSourceX-sourceRange.x)/(sourceRange.y-sourceRange.x),0.,1.);
     vec4 chapters=scoreChapterWeights(scorePigmentJourney(journey,along));
     float codeWeight=chapters.x,musicWeight=chapters.y,artWeight=chapters.z,gameWeight=chapters.w;
-    float chapterGlow=clamp(1.-artWeight*.90-gameWeight*.82,.08,1.);
+    float chapterGlow=clamp(1.-artWeight*.98-gameWeight*.90,.02,1.);
     float clef=step(${(SCORE_MATERIAL.CLEF - 0.5).toFixed(1)},vMaterialType)*(1.-step(${(SCORE_MATERIAL.CLEF + 0.5).toFixed(1)},vMaterialType));
     float triplet=step(${(SCORE_MATERIAL.TRIPLET - 0.5).toFixed(1)},vMaterialType)*(1.-step(${(SCORE_MATERIAL.TRIPLET + 0.5).toFixed(1)},vMaterialType));
     float splatter=(1.-step(9.5,vMaterialType))*step(${(SCORE_MATERIAL.SPATTER - 0.5).toFixed(1)},vMaterialType);
@@ -179,6 +184,10 @@ const fragmentShader = `
     vec3 staffGradient=mix(vec3(.35,.58,1.),vec3(.73,.43,1.),smoothstep(.04,.96,sourceProgress));
     source=mix(source,staffGradient,staffLine);
     vec2 local=clamp(vSpriteUV,vec2(0.),vec2(1.));
+    if(vMaterialType<.5&&vKind>1.5&&vKind<2.5){
+      float scoreProgress=(vSourceX-paintRange.x)/(paintRange.y-paintRange.x);
+      local.x=fract(scoreProgress*36.);
+    }
     float trace=scoreCodeTrace(local);
     if(vMaterialType>5.5){
       float grid=1.-smoothstep(.025,.07,abs(fract(vSourceY*5.)-.5));
@@ -190,8 +199,8 @@ const fragmentShader = `
     // Pigment overlays the same score geometry. Preserve enough value and hue
     // separation for the notation to stay readable on the dark page.
     // Texture coordinates belong to the engraved piece, so pigment bends with it.
-    vec2 paint=vec2(vSourceX*.065,vSourceY*.48);
-    float grain=scoreBrushNoise(paint)+.32*scoreBrushNoise(paint*2.7);
+    vec2 paint=vec2(vSourceX*.42,vSourceY*3.4);
+    float grain=scoreBrushNoise(paint)+.42*scoreBrushNoise(paint*2.7);
     float rim=1.-smoothstep(.66,.96,length((local-.5)*2.));
     float pool=clamp(grain*.72+(1.-rim)*.28,0.,1.);
     vec3 pigment=mix(vec3(.27,.30,.63),vec3(.77,.49,.85),pool);
@@ -209,12 +218,15 @@ const fragmentShader = `
       pigment=mix(pigment,vec3(.80,.72,.92),dry);
     }
     float paintedCoverage=1.;
-    if(pigmentReady>.5 && ((vMaterialType>.5&&vMaterialType<1.5)||(vMaterialType>5.5&&vMaterialType<7.5))){
-      bool brush=vMaterialType>5.5;
-      vec2 cell=vec2(vVoice>1.5?1.:0.,brush?0.:1.);
+    bool staffInk=vMaterialType<.5;
+    bool brushInk=(vMaterialType>5.5&&vMaterialType<7.5);
+    bool headInk=(vMaterialType>.5&&vMaterialType<1.5);
+    if(pigmentReady>.5 && (staffInk||headInk||brushInk)){
+      bool brush=staffInk||brushInk;
+      vec2 cell=vec2(vVoice>1.5?1.:0.,brush?1.:0.);
       vec4 paintSample=texture2D(pigmentAtlas,(cell+clamp(local,vec2(.02),vec2(.98)))*.5);
-      pigment=mix(pigment,paintSample.rgb,.78);
-      paintedCoverage=mix(.38,1.,paintSample.a);
+      pigment=mix(pigment,paintSample.rgb,brush?.98:.88);
+      paintedCoverage=mix(brush?.035:.18,1.,paintSample.a);
     }
     source=mix(source,pigment,artWeight*.96);
     source*=mix(1.,mix(.68,1.16,pool),artWeight*.65);
@@ -242,7 +254,7 @@ const fragmentShader = `
     edgeOpacity*=ribbonFade;
     // The same note mesh gets uneven pigment coverage instead of a separate
     // painted score image; the source geometry and event anchors stay intact.
-    edgeOpacity*=mix(1.,clamp((.74+.26*grain-dry)*paintedCoverage,.24,1.),artWeight*.82);
+    edgeOpacity*=mix(1.,clamp((.48+.52*grain-dry*.78)*paintedCoverage,.12,1.),artWeight*.94);
     edgeOpacity=mix(edgeOpacity,1.,clef);
     ink=mix(vec3(${BACKGROUND.join(',')}),ink,edgeOpacity);
     ink=min(vec3(1.),ink+source*beatAttack*musicWeight*.72);
@@ -348,7 +360,8 @@ export async function mountGpuRibbon(host, { score, view, points, groups, engrav
     focal: { value: focal }, viewportWidth: { value: width }, viewport: { value: new THREE.Vector2(width, height) },
     frameOffset: { value: new THREE.Vector2(0, 0) },
     pixelRatio: { value: pixelRatio },
-    sourceRange: { value: new THREE.Vector2(...Object.values(scoreSourceRange(view, score.bars, score.staffLines, true, trebleClefFromTimeline(score).glyph))) }, focus: { value: 0 },
+    sourceRange: { value: new THREE.Vector2(...Object.values(scoreSourceRange(view, score.bars, score.staffLines, true, trebleClefFromTimeline(score).glyph))) },
+    paintRange: { value: new THREE.Vector2(score.bars[0].xStart, score.bars.at(-1).xEnd) }, focus: { value: 0 },
     staffLinesA: { value: new Float32Array(score.staffLines.slice(0, 4)) },
     staffLineE: { value: score.staffLines[4] },
     fade: { value: 0 }, halo: { value: 0 }, pose: { value: 0 },
