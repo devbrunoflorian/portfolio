@@ -1,7 +1,7 @@
 import * as THREE from './vendor/three-score.min.js';
 import { glyphContours } from './score-compound-groups.js';
 import { HALO_HALF_WIDTH } from './score-depth-cues.js';
-import { SCORE_MATERIAL } from './score-gpu-materials.js?v=painted-stems-1';
+import { SCORE_MATERIAL } from './score-gpu-materials.js?v=painted-heads-1';
 
 const DEFAULT_MARKER = 'guitar-33-4-1';
 
@@ -269,7 +269,7 @@ export function buildRibbonGeometry(score, view, groups, engraving, voicePaths =
         materialType, gold: protect, head: g.noteId && materialType === SCORE_MATERIAL.HEAD ? 1 : 0 }))), emit);
     };
     for (const h of group.heads) {
-      glyph(h, SCORE_MATERIAL.HEAD_WASH, 0, h.anchor, [0, 0], 1.3);
+      glyph(h, SCORE_MATERIAL.HEAD_WASH, 0, h.anchor, [0, 0], 1);
       glyph(h, SCORE_MATERIAL.HEAD, h.noteId === markerId ? 1 : 0);
       const contours = h.contours.flat();
       const width = Math.max(...contours.map(p => p.u)) - Math.min(...contours.map(p => p.u));

@@ -1,8 +1,8 @@
 import * as THREE from './vendor/three-score.min.js';
 import { createTravelProjector, viewportStaffScale } from './score-travel-geometry.js?v=staff-scale-1';
 import { readingFocus } from './score-focus-profile.js';
-import { buildRibbonGeometry, scoreSourceRange, trebleClefFromTimeline } from './score-gpu-ribbon-geometry.js?v=painted-stems-1';
-import { createPixelSpriteAtlas, SCORE_MATERIAL, scoreMaterialShader } from './score-gpu-materials.js?v=painted-stems-1';
+import { buildRibbonGeometry, scoreSourceRange, trebleClefFromTimeline } from './score-gpu-ribbon-geometry.js?v=painted-heads-1';
+import { createPixelSpriteAtlas, SCORE_MATERIAL, scoreMaterialShader } from './score-gpu-materials.js?v=painted-heads-1';
 import { resolutionShader } from './score-resolution.js?v=journey-resolution-1';
 
 const BACKGROUND = [6 / 255, 6 / 255, 9 / 255];

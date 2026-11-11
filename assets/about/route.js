@@ -1,1 +1,1 @@
-import "./main.js?about-painted-stems-1";
+import "./main.js?about-painted-heads-1";
