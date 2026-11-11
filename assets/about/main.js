@@ -6,6 +6,9 @@ import { mountAboutScene } from "./scene/runtime.js?v=about-mobile-framing-4";
 const page = document.querySelector("[data-about-page]");
 if (!page) throw new Error("About root is missing");
 
+const scoreRibbonPreview = new URLSearchParams(location.search).get("score-ribbon") === "preview";
+if (scoreRibbonPreview) document.body.dataset.scoreRibbonPreview = "true";
+
 const english = document.documentElement.lang.startsWith("en");
 const playLabel = page.querySelector("[data-play-label]")?.textContent.trim() ?? "Listen";
 const pauseLabel = page.querySelector("[data-play-toggle]")?.dataset.pauseLabel ?? "Pause";
@@ -236,11 +239,13 @@ window.addEventListener("pagehide", () => {
   sceneRuntime?.dispose();
   audio.dispose();
 }, { once: true });
-mountAboutScene(page).then(runtime => {
-  if (pageDisposed) { runtime.dispose(); return; }
-  sceneRuntime = runtime;
-  requestSceneFrame();
-}).catch(error => {
-  console.warn("The About score scene could not start; the chapter score remains available.", error);
-});
+if (scoreRibbonPreview) {
+  mountAboutScene(page).then(runtime => {
+    if (pageDisposed) { runtime.dispose(); return; }
+    sceneRuntime = runtime;
+    requestSceneFrame();
+  }).catch(error => {
+    console.warn("The About score scene could not start; the chapter score remains available.", error);
+  });
+}
 requestSceneFrame();
