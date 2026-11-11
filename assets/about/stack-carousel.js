@@ -145,6 +145,7 @@ export function mountStackCarousel(page) {
     let resumeAt = 0;
     let resumeTimer = 0;
     let copyWidth = 0;
+    let contentWidth = 0;
     let expectedProgrammaticScroll = null;
     let autoScrollPosition = 0;
     let lastWrittenScrollLeft = 0;
@@ -178,32 +179,49 @@ export function mountStackCarousel(page) {
 
     function refresh() {
       if (disposedState || !viewport.clientWidth) return;
+      const previousScrollLeft = viewport.scrollLeft;
+      const previousCopyWidth = copyWidth;
+      const previousContentWidth = contentWidth;
+      const previousPhase = previousCopyWidth > 0
+        ? ((previousScrollLeft % previousCopyWidth) + previousCopyWidth) % previousCopyWidth
+        : previousScrollLeft;
       for (const clone of clones.splice(0)) clone.remove();
       track.dataset.static = "false";
       viewport.dataset.overflow = "false";
+      contentWidth = baseList.getBoundingClientRect().width;
       overflow = baseList.scrollWidth > viewport.clientWidth + 1;
       controls.hidden = !overflow;
       if (!overflow) {
         track.dataset.static = "true";
         copyWidth = 0;
+        contentWidth = baseList.getBoundingClientRect().width;
         autoScrollPosition = 0;
         setScrollLeft(0);
         return;
       }
-      const firstClone = baseList.cloneNode(true);
-      const secondClone = baseList.cloneNode(true);
-      for (const clone of [firstClone, secondClone]) {
-        clone.removeAttribute("id");
-        clone.setAttribute("aria-hidden", "true");
-        clone.inert = true;
-        clone.dataset.stackClone = "true";
-        track.append(clone);
-        clones.push(clone);
+      const reducedMotion = motionPreference.matches;
+      motionButton.hidden = reducedMotion;
+      if (!reducedMotion) {
+        const firstClone = baseList.cloneNode(true);
+        const secondClone = baseList.cloneNode(true);
+        for (const clone of [firstClone, secondClone]) {
+          clone.removeAttribute("id");
+          clone.setAttribute("aria-hidden", "true");
+          clone.inert = true;
+          clone.dataset.stackClone = "true";
+          track.append(clone);
+          clones.push(clone);
+        }
       }
-      copyWidth = baseList.getBoundingClientRect().width;
+      copyWidth = reducedMotion ? 0 : baseList.getBoundingClientRect().width;
+      contentWidth = baseList.getBoundingClientRect().width;
       viewport.dataset.overflow = "true";
-      setScrollLeft(copyWidth);
-      autoScrollPosition = copyWidth;
+      const phase = previousContentWidth > 0 ? previousPhase : 0;
+      const nextScrollLeft = copyWidth > 0
+        ? copyWidth + Math.min(phase, copyWidth - 1)
+        : Math.min(phase, Math.max(0, contentWidth - viewport.clientWidth));
+      setScrollLeft(nextScrollLeft);
+      autoScrollPosition = nextScrollLeft;
       setMotionLabel();
     }
 
@@ -382,7 +400,14 @@ export function mountStackCarousel(page) {
     schedule();
   });
   const onVisibility = () => { frameTime = 0; if (!document.hidden) schedule(); };
-  const onMotionPreference = () => { frameTime = 0; schedule(); };
+  const onMotionPreference = () => {
+    frameTime = 0;
+    const active = collections.find(collection => collection.dataset.stackCollection === activeCollection);
+    const tabState = active && collectionStates.get(active);
+    const panel = active && tabState?.panels[tabState.activeIndex];
+    panelStates.get(panel)?.refresh();
+    schedule();
+  };
   document.addEventListener("visibilitychange", onVisibility);
   motionPreference.addEventListener?.("change", onMotionPreference);
 
