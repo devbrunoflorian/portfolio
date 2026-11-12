@@ -28,10 +28,13 @@ const nativeOpeningFade = CSS.supports(
 if (opening && !nativeOpeningFade) opening.dataset.openingFadeFallback = "true";
 const nativeArtParallax = CSS.supports("(animation-timeline: view()) and (animation-range: entry)");
 const chapters = [...page.querySelectorAll("[data-chapter]")];
+const artImage = page.querySelector("[data-art-image]");
+const artSection = artImage?.closest('[data-chapter="art"]');
 const audio = createJourneyAudio(score, renderPlayback);
 let activeChapter = "opening";
 let framePending = false;
 let motionPaused = false;
+let pendingMusicStart = false;
 let restoreFocus = null;
 let sceneRuntime = null;
 let pageDisposed = false;
@@ -65,8 +68,22 @@ function renderPlayback(state) {
 }
 
 function togglePlayback() {
-  if (audio.playing) audio.pause();
-  else audio.start();
+  const state = audio.snapshot().state;
+  if (audio.playing || state === "starting") {
+    pendingMusicStart = false;
+    audio.pause();
+    return;
+  }
+  if (activeChapter === "music") {
+    pendingMusicStart = false;
+    void audio.start();
+    return;
+  }
+  pendingMusicStart = true;
+  page.querySelector('[data-chapter="music"]')?.scrollIntoView({
+    behavior: reducedMotion.matches ? "auto" : "smooth",
+    block: "center",
+  });
 }
 playButtons.forEach(button => button.addEventListener("click", togglePlayback));
 
@@ -145,16 +162,33 @@ function updateScrollScene() {
     activeChapter = chapters[index].dataset.chapter;
     if (page.dataset.activeChapter !== activeChapter) page.dataset.activeChapter = activeChapter;
   }
-  const artImage = page.querySelector("[data-art-image]");
+  if (pendingMusicStart && activeChapter === "music") {
+    pendingMusicStart = false;
+    void audio.start();
+  } else if (pendingMusicStart && ["art", "games", "closing"].includes(activeChapter)) {
+    pendingMusicStart = false;
+  }
+  const artBounds = artSection?.getBoundingClientRect();
+  if (artImage && artBounds) {
+    const overlap = Math.min(innerHeight * .46, 420);
+    const revealStart = innerHeight + overlap;
+    const revealEnd = innerHeight * .14;
+    const progress = clamp((revealStart - artBounds.top) / Math.max(1, revealStart - revealEnd), 0, 1);
+    const dissolve = reducedMotion.matches ? Number(artBounds.top <= innerHeight * .52) : progress;
+    artImage.parentElement?.style.setProperty("--art-dissolve", dissolve.toFixed(3));
+  }
   if (!motionPaused && !reducedMotion.matches) {
     if (artImage && !nativeArtParallax) {
-      const section = artImage.closest("[data-chapter]");
-      const bounds = section.getBoundingClientRect();
-      const position = (innerHeight * .5 - (bounds.top + bounds.height * .5)) / Math.max(1, innerHeight);
+      const bounds = artBounds ?? artImage.closest("[data-chapter]")?.getBoundingClientRect();
+      const position = bounds ? (innerHeight * .5 - (bounds.top + bounds.height * .5)) / Math.max(1, innerHeight) : 0;
       artImage.style.setProperty("--art-parallax", `${clamp(position, -1, 1) * 24}px`);
     }
   }
-  const playbackSnapshot = audio.snapshot();
+  let playbackSnapshot = audio.snapshot();
+  if (activeChapter !== "music" && ["playing", "starting"].includes(playbackSnapshot.state)) {
+    audio.pause();
+    playbackSnapshot = audio.snapshot();
+  }
   if (playbackSnapshot.state === "playing") {
     const status = `${playbackSnapshot.section} · ${formatTime(playbackSnapshot.seconds)}`;
     for (const label of statusLabels) if (label.textContent !== status) label.textContent = status;
@@ -168,7 +202,7 @@ function updateScrollScene() {
     chapter: activeChapter,
     motionEnabled: !motionPaused,
     reducedMotion: reducedMotion.matches,
-    playbackSnapshot,
+    playbackSnapshot: activeChapter === "music" ? playbackSnapshot : null,
     timestamp: performance.now(),
   });
   if (audio.playing) requestSceneFrame();
