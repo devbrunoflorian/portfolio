@@ -272,7 +272,7 @@ export function mountStackCarousel(page) {
       schedule();
     }, { passive: true });
 
-    viewport.addEventListener("focusin", () => setManualPause());
+    carousel.addEventListener("focusin", () => setManualPause());
     const findTrackedTouch = (touchList, identifier) =>
       Array.from(touchList).find(touch => touch.identifier === identifier);
     viewport.addEventListener("touchstart", event => {

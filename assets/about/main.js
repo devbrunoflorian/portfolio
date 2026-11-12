@@ -2,7 +2,7 @@ import { createJourneyAudio } from "../about-legacy/audio.js";
 import { score } from "../about-legacy/score.js";
 import { readingChapterIndex } from "./scene/reading.js";
 import { mountAboutScene } from "./scene/runtime.js?v=about-mobile-framing-4";
-import { mountStackCarousel } from "./stack-carousel.js?v=stack-category-carousel-4";
+import { mountStackCarousel } from "./stack-carousel.js?v=stack-category-carousel-5";
 
 const page = document.querySelector("[data-about-page]");
 if (!page) throw new Error("About root is missing");
