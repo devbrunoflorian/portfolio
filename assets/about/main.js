@@ -138,7 +138,7 @@ function clamp(value, minimum, maximum) {
 
 function loadArtDissolve() {
   if (!artImage || artDissolveRuntime || artDissolveLoad || reducedMotion.matches) return;
-  artDissolveLoad = import("./scene/art-dissolve.js?v=about-art-dissolve-2")
+  artDissolveLoad = import("./scene/art-dissolve.js?v=about-art-mask-cleanup-1")
     .then(({ mountArtDissolve }) => mountArtDissolve(artImage, artDissolve))
     .then(runtime => {
       if (pageDisposed) { runtime.dispose(); return; }

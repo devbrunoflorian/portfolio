@@ -146,8 +146,8 @@ html[data-content-id="about"] .site-footer { width: min(100% - 2 * var(--about-g
 
 .about-art { display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1fr); align-items: center; min-height: 100svh; background: linear-gradient(100deg, transparent 0%, rgb(6 6 9 / 22%) 47%, var(--about-bg) 76%); }
 .art-image-layer { position: absolute; z-index: 0; inset: max(-60svh, -520px) 32% 0 0; overflow: hidden; mask-image: linear-gradient(90deg, #000 0%, #000 59%, transparent 100%); pointer-events: none; }
-.art-image-layer::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, var(--about-bg) 0%, transparent 5%), linear-gradient(90deg, transparent 42%, var(--about-bg) 100%), linear-gradient(0deg, rgb(6 6 9 / 46%), transparent 54%); }
-.art-image-layer img { width: 100%; height: 112%; object-fit: var(--art-image-fit, contain); object-position: var(--art-image-focus, 50% 50%); opacity: .58; transform: translateY(var(--art-parallax, 0px)) scale(1.04); will-change: transform; }
+.art-image-layer::after { content: none; }
+.art-image-layer img { width: 100%; height: 112%; object-fit: var(--art-image-fit, contain); object-position: var(--art-image-focus, 50% 50%); opacity: 1; transform: translateY(var(--art-parallax, 0px)) scale(1.04); will-change: transform; }
 .art-dissolve-canvas { position: absolute; inset: 0 auto auto 0; display: block; width: 100%; height: 112%; transform: translateY(var(--art-parallax, 0px)) scale(1.04); transform-origin: center; pointer-events: none; }
 .art-dissolve-canvas[hidden] { display: none; }
 .art-image-layer[data-art-dissolve-ready="true"] img { opacity: 0; }
@@ -278,7 +278,7 @@ body[data-score-gpu-scroll="true"] .about-rebuild .opening-copy::before { conten
   .score-transition { min-height: 16svh; }
   .about-art { display: flex; align-items: end; min-height: 92svh; padding-top: 42svh; background: linear-gradient(0deg, var(--about-bg) 0%, rgb(6 6 9 / 88%) 32%, transparent 75%); }
   .art-image-layer { inset: max(-60svh, -520px) 0 25%; mask-image: linear-gradient(180deg, #000 0%, #000 58%, transparent 100%); }
-  .art-image-layer::after { background: linear-gradient(180deg, var(--about-bg) 0%, transparent 5%), linear-gradient(0deg, var(--about-bg) 0%, transparent 57%); }
+  .art-image-layer::after { content: none; }
   .art-image-layer img { --art-image-focus: 50% 30%; }
   .art-copy { max-width: 590px; transform: translateY(-20px); }
   .art-copy h2 { font-size: clamp(17.5px, 5.6vw, 23px); line-height: 1.12; }

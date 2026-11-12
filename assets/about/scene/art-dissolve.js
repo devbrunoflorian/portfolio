@@ -14,7 +14,7 @@ const fragmentShader = `
   uniform vec2 uImageResolution;
   uniform float uDissolve;
   varying vec2 vUv;
-  const float imageOpacity = 0.58;
+  const float imageOpacity = 1.0;
 
   mat3 sobelX = mat3(-1.0, 0.0, 1.0, -2.0, 0.0, 2.0, -1.0, 0.0, 1.0);
   mat3 sobelY = mat3(-1.0, -2.0, -1.0, 0.0, 0.0, 0.0, 1.0, 2.0, 1.0);
