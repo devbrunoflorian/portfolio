@@ -111,14 +111,14 @@ export async function mountAboutGpuScroll(root, host = root.querySelector('[data
 
   function animateFlow(timestamp) {
     flowFrame = 0;
-    if (disposed || !gpu || gpuFailed || !pageVisible || document.hidden || state.reducedMotion || !state.motionEnabled) return;
+    if (disposed || !gpu || gpuFailed || !pageVisible || document.hidden || state.reducedMotion || !state.motionEnabled || state.chapter !== 'music') return;
     const phase = (timestamp / 11500) % 1;
     renderPose(state.pose, null, phase);
     flowFrame = requestAnimationFrame(animateFlow);
   }
 
   function startFlow() {
-    if (flowFrame || disposed || !gpu || gpuFailed || !pageVisible || document.hidden || state.reducedMotion || !state.motionEnabled) return;
+    if (flowFrame || disposed || !gpu || gpuFailed || !pageVisible || document.hidden || state.reducedMotion || !state.motionEnabled || state.chapter !== 'music') return;
     flowFrame = requestAnimationFrame(animateFlow);
   }
 
@@ -328,7 +328,7 @@ export async function mountAboutGpuScroll(root, host = root.querySelector('[data
       return;
     }
     renderPose(state.pose, state.timestamp);
-    if (state.playbackSnapshot?.state === "playing") stopFlow();
+    if (state.playbackSnapshot?.state === "playing" || state.chapter !== 'music') stopFlow();
     else startFlow();
   }
 
