@@ -293,6 +293,7 @@ html[data-motion-paused="true"] .knight-sprite { animation: none; }
 .about-code .stack-intro { max-width: 980px; }
 .about-code .stack-panel .about-eyebrow { color: var(--about-violet); font-size: 11px; font-weight: 650; letter-spacing: .17em; }
 .about-code .stack-title { max-width: 20ch; margin-top: 16px; color: var(--about-ink); font-size: clamp(42px, 5vw, 64px); font-weight: 520; line-height: 1.02; letter-spacing: -.045em; }
+.about-code .stack-title em { color: var(--about-violet); font-style: normal; }
 .about-code .stack-description { max-width: 62ch; margin: 16px 0 0; color: var(--about-muted); font-size: 18px; line-height: 1.5; }
 .stack-collections { margin-top: 42px; }
 .stack-collection[hidden], .stack-tabpanel[hidden], .stack-controls[hidden] { display: none !important; }
