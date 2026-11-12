@@ -36,7 +36,6 @@ function wrapTextNodes(root) {
       const ink = getComputedStyle(node.parentElement).color;
       word.style.setProperty("--word-ink", ink);
       word.style.setProperty("--word-fill", "0%");
-      appendFillLayer(word, part);
       fragment.append(word);
       words.push(word);
     }
@@ -57,7 +56,6 @@ function wrapWords(heading) {
       syllable.classList.add("scroll-fill-syllable");
       syllable.style.setProperty("--word-ink", intendedInk);
       syllable.style.setProperty("--word-fill", "0%");
-      appendFillLayer(syllable, syllable.textContent);
       syllable.style.setProperty("--syllable-index", String(index));
       syllable.style.setProperty("--syllable-delay", `${INTRO_DELAY + index * SYLLABLE_STAGGER}ms`);
     }));
@@ -75,14 +73,6 @@ function wrapWords(heading) {
   const words = wrapTextNodes(heading);
   heading.dataset.scrollFillReady = "true";
   fillWords.set(heading, words);
-}
-
-function appendFillLayer(element, text) {
-  const fill = document.createElement("span");
-  fill.className = "scroll-fill-ink";
-  fill.setAttribute("aria-hidden", "true");
-  fill.textContent = text;
-  element.append(fill);
 }
 
 function clamp(value, min, max) {
@@ -124,10 +114,10 @@ function startIntro(heading, state) {
   if (!document.hidden && !isMotionPaused()) requestFillUpdate();
 }
 
-function updateFill(force = false, timestamp = performance.now()) {
+function updateFill(timestamp = performance.now()) {
   frameRequested = false;
   const paused = isMotionPaused() || document.hidden;
-  if (paused && !force) {
+  if (paused) {
     introFills.forEach(state => { state.lastTime = null; });
     return;
   }
@@ -219,7 +209,7 @@ if (headings.length) {
     requestFillUpdate();
   });
   const motionStateObserver = new MutationObserver(() => {
-    if (isMotionPaused()) updateFill(true);
+    if (isMotionPaused()) updateFill();
     else requestFillUpdate();
   });
   motionStateObserver.observe(documentRoot, { attributes: true, attributeFilter: ["data-motion-paused"] });
