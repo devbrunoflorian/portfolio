@@ -2,16 +2,18 @@ import { createJourneyAudio } from "../about-legacy/audio.js";
 import { score } from "../about-legacy/score.js";
 import { readingChapterIndex } from "./scene/reading.js";
 import { mountAboutScene } from "./scene/runtime.js?v=about-mobile-framing-4";
+import { mountStackCarousel } from "./stack-carousel.js?v=stack-category-carousel-5";
 
 const page = document.querySelector("[data-about-page]");
 if (!page) throw new Error("About root is missing");
+const stackCarousel = mountStackCarousel(page);
 
 const scoreRibbonPreview = new URLSearchParams(location.search).get("score-ribbon") === "preview";
 if (scoreRibbonPreview) document.body.dataset.scoreRibbonPreview = "true";
 
 const english = document.documentElement.lang.startsWith("en");
-const playLabel = page.querySelector("[data-play-label]")?.textContent.trim() ?? "Listen";
-const pauseLabel = page.querySelector("[data-play-toggle]")?.dataset.pauseLabel ?? "Pause";
+const playLabel = english ? "Play Dissonância" : "Reproduzir Dissonância";
+const pauseLabel = english ? "Pause Dissonância" : "Pausar Dissonância";
 const continueLabel = english ? "Continue Dissonância" : "Continuar Dissonância";
 const scoreCaption = page.querySelector(".score-frame figcaption > span");
 const staticCaption = scoreCaption?.textContent;
@@ -46,9 +48,12 @@ function renderPlayback(state) {
   for (const button of playButtons) {
     const label = playing ? pauseLabel : state.state === "paused" ? continueLabel : playLabel;
     button.setAttribute("aria-label", label);
+    button.setAttribute("title", label);
     button.setAttribute("aria-pressed", String(playing));
-    const text = button.querySelector("[data-play-label]");
-    if (text) text.textContent = label;
+    button.dataset.playing = String(playing);
+    for (const icon of button.querySelectorAll("[data-sound-icon]")) {
+      icon.hidden = icon.dataset.soundIcon === "on" ? !playing : playing;
+    }
   }
   const status = state.state === "playing" || state.state === "paused"
     ? `${state.state === "paused" ? (english ? "Paused · " : "Pausado · ") : ""}${state.section} · ${formatTime(audio.snapshot().seconds)}`
@@ -149,7 +154,6 @@ function updateScrollScene() {
       artImage.style.setProperty("--art-parallax", `${clamp(position, -1, 1) * 24}px`);
     }
   }
-  page.querySelector("[data-player-dock]")?.toggleAttribute("data-visible", scrollY > innerHeight * .58);
   const playbackSnapshot = audio.snapshot();
   if (playbackSnapshot.state === "playing") {
     const status = `${playbackSnapshot.section} · ${formatTime(playbackSnapshot.seconds)}`;
@@ -188,9 +192,15 @@ motionButton?.addEventListener("click", () => {
   page.dataset.visualPaused = String(motionPaused);
   document.documentElement.dataset.motionPaused = String(motionPaused);
   motionButton.setAttribute("aria-pressed", String(motionPaused));
-  motionButton.textContent = motionPaused
+  const label = motionPaused
     ? (english ? "Resume movement" : "Retomar movimento")
     : (english ? "Pause movement" : "Pausar movimento");
+  motionButton.setAttribute("aria-label", label);
+  motionButton.setAttribute("title", label);
+  for (const icon of motionButton.querySelectorAll("[data-motion-icon]")) {
+    icon.hidden = icon.dataset.motionIcon === "resume" ? !motionPaused : motionPaused;
+  }
+  stackCarousel.setMotionPaused(motionPaused);
   requestSceneFrame();
 });
 
@@ -258,6 +268,7 @@ window.addEventListener("pagehide", () => {
   pageDisposed = true;
   document.documentElement.classList.remove("about-world-open");
   layoutObserver.disconnect();
+  stackCarousel.dispose();
   sceneRuntime?.dispose();
   audio.dispose();
 }, { once: true });

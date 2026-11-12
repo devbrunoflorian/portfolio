@@ -23,46 +23,32 @@ a:focus-visible { outline: 3px solid #a1bbff; outline-offset: 4px; border-radius
   color: var(--scroll-fill-active);
 }
 
-.scroll-fill-word {
-  display: inline-block;
-  white-space: nowrap;
-  color: var(--word-ink, currentColor);
-}
-
+.scroll-fill-word,
 .scroll-fill-syllable {
+  position: relative;
   display: inline-block;
+  isolation: isolate;
   white-space: nowrap;
+  color: color-mix(in srgb, var(--word-ink, currentColor) 44%, #817d88);
+}
+
+.scroll-fill-ink {
+  position: absolute;
+  inset: 0;
+  display: block;
+  overflow: hidden;
+  width: 100%;
   color: var(--word-ink, currentColor);
+  white-space: nowrap;
+  clip-path: inset(0 calc(100% - var(--word-fill, 0%)) 0 0);
+  pointer-events: none;
 }
 
-@supports ((background-clip: text) or (-webkit-background-clip: text)) and (-webkit-text-stroke: 1px transparent) {
-  .scroll-fill[data-scroll-fill-ready="true"] .scroll-fill-word {
-    background-image: linear-gradient(90deg, var(--word-ink, currentColor) 0%, var(--word-ink, currentColor) var(--word-fill, 100%), transparent var(--word-fill, 100%), transparent 100%);
-    background-clip: text;
-    -webkit-background-clip: text;
-    color: var(--word-ink, currentColor);
-    -webkit-text-fill-color: transparent;
-    -webkit-text-stroke: .65px color-mix(in srgb, var(--word-ink, currentColor) 44%, transparent);
-  }
-
-}
-
-@supports (color: color-mix(in srgb, white 50%, transparent)) {
-  .scroll-fill[data-scroll-fill-ready="true"][data-scroll-fill-mode="once"] .scroll-fill-syllable {
-    background: none;
-    color: var(--word-ink, currentColor);
-    -webkit-text-fill-color: color-mix(in srgb, var(--word-ink, currentColor) var(--word-fill, 0%), transparent);
-    -webkit-text-stroke: .65px color-mix(in srgb, var(--word-ink, currentColor) 48%, transparent);
-  }
-}
-
-@supports not (color: color-mix(in srgb, white 50%, transparent)) {
-  .scroll-fill[data-scroll-fill-ready="true"][data-scroll-fill-mode="once"][data-intro-stage="fill"] .scroll-fill-syllable {
-    color: var(--word-ink, currentColor);
-    -webkit-text-fill-color: var(--word-ink, currentColor);
-    opacity: var(--word-fill, 0%);
-  }
-}
+.scroll-fill[data-scroll-fill-ready="true"] .scroll-fill-ink { transition: clip-path 100ms linear; }
+.scroll-fill-word[data-filled="true"],
+.scroll-fill-syllable[data-filled="true"] { color: var(--word-ink, currentColor); }
+.scroll-fill-word[data-filled="true"] .scroll-fill-ink,
+.scroll-fill-syllable[data-filled="true"] .scroll-fill-ink { visibility: hidden; }
 
 .scroll-fill[data-scroll-fill-ready="true"][data-scroll-fill-mode="once"][data-intro-stage="waiting"] .scroll-fill-syllable { opacity: 0; }
 .scroll-fill[data-scroll-fill-ready="true"][data-scroll-fill-mode="once"][data-intro-stage="appear"] .scroll-fill-syllable {
@@ -70,11 +56,7 @@ a:focus-visible { outline: 3px solid #a1bbff; outline-offset: 4px; border-radius
 }
 .scroll-fill[data-scroll-fill-ready="true"][data-scroll-fill-mode="once"] .scroll-fill-syllable { transition: none; }
 .scroll-fill[data-scroll-fill-ready="true"][data-scroll-fill-mode="once"][data-scroll-fill-complete="true"] .scroll-fill-syllable {
-  background: none !important;
-  background-image: none !important;
   color: var(--word-ink, currentColor) !important;
-  -webkit-text-fill-color: var(--word-ink, currentColor) !important;
-  -webkit-text-stroke: 0 transparent !important;
   opacity: 1;
   transform: none;
   animation: none;
@@ -160,10 +142,7 @@ h1 span { color: #9cb8ff; }
 @media (prefers-reduced-motion: reduce) {
   .button { transition: none; }
   .scroll-fill { color: var(--scroll-fill-active); }
-  .scroll-fill-word {
-    background: none !important;
-    color: var(--word-ink, currentColor) !important;
-    -webkit-text-fill-color: var(--word-ink, currentColor) !important;
-    -webkit-text-stroke: 0 !important;
-  }
+  .scroll-fill-word,
+  .scroll-fill-syllable { color: var(--word-ink, currentColor) !important; }
+  .scroll-fill-ink { display: none; }
 }
