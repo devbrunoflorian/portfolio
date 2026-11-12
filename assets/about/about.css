@@ -61,22 +61,15 @@ html[data-content-id="about"] .site-footer { width: min(100% - 2 * var(--about-g
 .chapter-copy h2, .about-art h2, .about-games h2, .about-closing h2, .chapter-heading h2 { margin-top: 19px; color: var(--about-ink); font-size: clamp(48px, 6.2vw, 88px); font-weight: 520; line-height: .98; }
 .chapter-copy > p:not(.about-eyebrow), .art-copy > p:not(.about-eyebrow), .games-copy > p:not(.about-eyebrow) { max-width: 42ch; margin-top: 24px; }
 
-.about-code { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(300px, .8fr); align-items: center; gap: clamp(42px, 8vw, 132px); background: radial-gradient(ellipse at 68% 50%, rgb(30 61 122 / 11%), transparent 50%); }
-.about-code .chapter-copy { grid-column: 2; grid-row: 1; }
-.code-stage { grid-column: 1; grid-row: 1; position: relative; min-height: 580px; display: grid; align-items: center; isolation: isolate; }
-.stack-panel { position: relative; padding: clamp(24px, 3vw, 42px); border-block: 1px solid rgb(176 148 237 / 28%); background: linear-gradient(108deg, rgb(7 8 15 / 87%), rgb(7 8 15 / 46%)); backdrop-filter: blur(10px); }
-.stack-panel h3 { margin-top: 13px; color: var(--about-ink); font-size: clamp(24px, 2.5vw, 34px); font-weight: 520; letter-spacing: -.035em; }
-.stack-panel > p:not(.about-eyebrow) { margin-top: 10px; font-size: 14px; }
-.stack-groups, .stack-more-groups { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 19px 24px; margin-top: 24px; }
-.stack-group-title { margin-bottom: 7px !important; color: rgb(207 195 228 / 84%) !important; font-size: 9px !important; font-weight: 650; letter-spacing: .13em; text-transform: uppercase; }
-.stack-grid { display: flex; flex-wrap: wrap; gap: 5px 10px; margin: 0; padding: 0; list-style: none; }
-.stack-item { min-height: 22px; display: inline-flex; align-items: center; gap: 6px; color: #e0dbe8; font-size: 11px; }
-.stack-icon { width: 14px; height: 14px; color: var(--about-blue); opacity: .9; }
-.stack-mark { color: #aebeff; font-size: 9px; font-weight: 700; }
-.stack-more { margin-top: 18px; border-top: 1px solid rgb(255 255 255 / 12%); }
-.stack-more summary, .about-mixer summary { display: flex; align-items: center; justify-content: space-between; min-height: 44px; color: var(--about-ink); font-size: 13px; cursor: pointer; list-style: none; }
-.stack-more summary::-webkit-details-marker, .about-mixer summary::-webkit-details-marker { display: none; }
-.stack-more-groups { padding-bottom: 8px; }
+.about-code { display: block; min-height: 0; padding-bottom: calc(140px + env(safe-area-inset-bottom, 0px)); background: radial-gradient(ellipse at 82% 47%, rgb(30 61 122 / 9%), transparent 56%); }
+.code-stage { position: relative; width: min(100%, 1480px); min-height: 0; margin-inline: auto; isolation: isolate; }
+.stack-panel { position: relative; width: 100%; max-width: none; padding: 0; border: 0; background: transparent; backdrop-filter: none; }
+.stack-intro { max-width: 980px; }
+.stack-panel .about-eyebrow { margin: 0; color: var(--about-violet); font-size: 11px; font-weight: 650; letter-spacing: .17em; }
+.stack-title { max-width: 20ch; margin: 16px 0 0; color: var(--about-ink); font-size: clamp(42px, 5vw, 64px); font-weight: 520; line-height: 1.02; letter-spacing: -.045em; }
+.stack-description { max-width: 62ch; margin: 16px 0 0; color: var(--about-muted); font-size: 18px; line-height: 1.5; }
+.about-mixer summary { display: flex; align-items: center; justify-content: space-between; min-height: 44px; color: var(--about-ink); font-size: 13px; cursor: pointer; list-style: none; }
+.about-mixer summary::-webkit-details-marker { display: none; }
 
 .about-music { background: radial-gradient(ellipse at 50% 68%, rgb(83 50 136 / 16%), transparent 56%); }
 .chapter-heading { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, .72fr); align-items: end; gap: 56px; width: min(100%, 1450px); margin: 0 auto 34px; }
@@ -276,34 +269,18 @@ html[data-motion-paused="true"] .knight-sprite { animation: none; }
   to { transform: translateY(24px) scale(1.04); }
 }
 
-/* Code stack: one calm category stage, with native touch scrolling for overflow. */
+/* Code stack: editorial introduction followed by one category-led showcase. */
 .about-code {
   display: block;
   min-height: 0;
   padding-inline: var(--about-gutter);
-  padding-bottom: calc(140px + env(safe-area-inset-bottom, 0px));
   background: radial-gradient(ellipse at 82% 47%, rgb(30 61 122 / 11%), transparent 56%);
 }
-.about-code .chapter-copy {
-  display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(280px, .85fr);
-  align-items: end;
-  column-gap: clamp(32px, 6vw, 96px);
-  row-gap: 14px;
-  grid-column: auto;
-  grid-row: auto;
-  width: min(100%, 1480px);
-  max-width: none;
-  margin: 0 auto 36px;
-}
-.about-code .chapter-copy > .about-eyebrow { grid-column: 1 / -1; }
-.about-code .chapter-copy h2 { grid-column: 1; margin-top: 0; font-size: clamp(44px, 4.7vw, 66px); line-height: .98; }
-.about-code .chapter-copy > p:not(.about-eyebrow) { grid-column: 2; max-width: 42ch; margin: 0; padding-bottom: 7px; }
 .about-code .code-stage {
   display: block;
   width: min(100%, 1480px);
   min-height: 0;
-  margin: 0 auto;
+  margin-inline: auto;
 }
 .about-code .stack-panel {
   width: 100%;
@@ -313,20 +290,11 @@ html[data-motion-paused="true"] .knight-sprite { animation: none; }
   background: transparent;
   backdrop-filter: none;
 }
-.about-code .stack-panel h3 {
-  margin-top: 12px;
-  color: var(--about-ink);
-  font-size: clamp(25px, 2.6vw, 35px);
-  font-weight: 500;
-  letter-spacing: -.04em;
-}
-.about-code .stack-panel > p:not(.about-eyebrow) {
-  max-width: 60ch;
-  margin-top: 10px;
-  font-size: 16px;
-  line-height: 1.55;
-}
-.stack-collections { margin-top: 34px; }
+.about-code .stack-intro { max-width: 980px; }
+.about-code .stack-panel .about-eyebrow { color: var(--about-violet); font-size: 11px; font-weight: 650; letter-spacing: .17em; }
+.about-code .stack-title { max-width: 20ch; margin-top: 16px; color: var(--about-ink); font-size: clamp(42px, 5vw, 64px); font-weight: 520; line-height: 1.02; letter-spacing: -.045em; }
+.about-code .stack-description { max-width: 62ch; margin: 16px 0 0; color: var(--about-muted); font-size: 18px; line-height: 1.5; }
+.stack-collections { margin-top: 42px; }
 .stack-collection[hidden], .stack-tabpanel[hidden], .stack-controls[hidden] { display: none !important; }
 .stack-tabs {
   display: flex;
@@ -459,12 +427,9 @@ html[data-motion-paused="true"] .knight-sprite { animation: none; }
 
 @media (max-width: 700px) {
   .about-code { padding-inline: 24px; padding-bottom: calc(90px + env(safe-area-inset-bottom, 0px)); }
-  .about-code .chapter-copy { display: block; margin-bottom: 25px; }
-  .about-code .chapter-copy h2 { margin-top: 14px; font-size: clamp(40px, 11vw, 48px); }
-  .about-code .chapter-copy > p:not(.about-eyebrow) { margin-top: 16px; font-size: 15px; line-height: 1.5; }
-  .about-code .stack-panel h3 { margin-top: 8px; font-size: clamp(21px, 5.8vw, 24px); line-height: 1.16; }
-  .about-code .stack-panel > p:not(.about-eyebrow) { margin-top: 8px; font-size: 15px; line-height: 1.45; }
-  .stack-collections { margin-top: 18px; }
+  .about-code .stack-title { max-width: 18ch; margin-top: 12px; font-size: clamp(34px, 9.4vw, 42px); line-height: 1.06; }
+  .about-code .stack-description { max-width: 38ch; margin-top: 12px; font-size: 15px; line-height: 1.5; }
+  .stack-collections { margin-top: 28px; }
   .stack-tabs { gap: 4px; }
   .stack-tab { min-height: 48px; padding-inline: 12px; font-size: 13px; }
   .stack-panels, .stack-tabpanel { min-height: 194px; }
@@ -540,11 +505,9 @@ html[data-motion-paused="true"] .forest-foreground { animation: none; transform:
 
 /* Compact windows need a readable stack before a mirrored editorial layout. */
 @media (min-width: 681px) and (max-width: 1099px) {
-  .about-code { display: flex; flex-direction: column; align-items: stretch; gap: 46px; }
-  .about-code .chapter-copy { max-width: 680px; }
   .about-code .code-stage { width: 100%; min-height: 0; }
-  .about-code .stack-groups, .about-code .stack-more-groups { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; }
-  .about-code .stack-panel { padding: 30px 26px; }
+  .about-code .stack-title { font-size: clamp(42px, 5.4vw, 56px); }
+  .stack-collections { margin-top: 34px; }
 }
 
 .about-rebuild .score-frame { margin-inline: auto; }
