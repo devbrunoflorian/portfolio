@@ -9,7 +9,7 @@ html[data-content-id="contact"] { --header-accent: #09d596; }
   z-index: 50;
   inset: 0 0 auto;
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: clamp(18px, 2vw, 32px);
   width: 100%;
@@ -64,6 +64,26 @@ html[data-content-id="contact"] { --header-accent: #09d596; }
   border-left-color: rgba(255, 255, 255, .25);
 }
 
+.site-header .header-utilities { display: flex; align-items: center; gap: 6px; }
+.site-header .about-sound-toggle {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  color: rgba(244, 244, 245, .78);
+  background: transparent;
+  cursor: pointer;
+  transition: color 160ms ease, background-color 160ms ease;
+}
+.site-header .about-sound-toggle:hover,
+.site-header .about-sound-toggle[data-playing="true"] { color: var(--header-accent); background: color-mix(in srgb, var(--header-accent) 10%, transparent); }
+.site-header .about-sound-toggle svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.site-header .about-sound-toggle svg[hidden] { display: none; }
+
 .site-header .locale-nav a[aria-current="page"] {
   color: var(--header-accent);
   font-weight: 600;
@@ -72,7 +92,7 @@ html[data-content-id="contact"] { --header-accent: #09d596; }
 
 .site-header .locale-nav a:not([aria-current="page"]) { color: rgba(244, 244, 245, .4); }
 .site-header .mobile-menu { display: none; }
-.site-header :is(a, summary):focus-visible { outline-color: var(--header-accent); }
+.site-header :is(a, summary, button):focus-visible { outline-color: var(--header-accent); }
 .site-header summary:focus-visible { outline: 3px solid var(--header-accent); outline-offset: 3px; }
 .skip-link { z-index: 60; }
 
@@ -93,6 +113,7 @@ html[data-content-id="contact"] { --header-accent: #09d596; }
   .site-header .desktop-nav { display: none; }
   .site-header .locale-nav { gap: 7px; padding-left: 0; border-left: 0; }
   .site-header .locale-nav a { min-height: 44px; font-size: 13px; }
+  .site-header .header-utilities { gap: 2px; }
   .site-header .mobile-menu { position: relative; display: block; }
   .site-header .menu-toggle {
     display: inline-flex;
@@ -206,6 +227,14 @@ html[data-content-id="contact"] { --header-accent: #09d596; }
 
   .site-header .mobile-nav a,
   .site-header .mobile-github { min-height: 48px; padding: 0; }
+}
+
+@media (max-width: 360px) {
+  .site-header { gap: 4px; padding-inline: 10px; }
+  .site-header .brand { font-size: 15px; white-space: nowrap; }
+  .site-header .brand span { margin-left: 3px; font-size: 18px; }
+  .site-header .header-utilities { gap: 0; }
+  .site-header .locale-nav a { min-width: 30px; font-size: 10px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

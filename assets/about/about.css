@@ -8,7 +8,6 @@ html[data-content-id="about"] {
   --about-blue: #6ea7ff;
   --about-line: rgba(200, 184, 225, .42);
   --about-gutter: clamp(22px, 6vw, 108px);
-  --about-dock-height: 64px;
   --site-scroll-ink: var(--about-violet);
   background: var(--about-bg);
 }
@@ -21,7 +20,7 @@ html[data-content-id="about"] .site-footer { width: min(100% - 2 * var(--about-g
   position: relative;
   width: 100%;
   overflow: clip;
-  padding-bottom: calc(var(--about-dock-height) + env(safe-area-inset-bottom));
+  padding-bottom: env(safe-area-inset-bottom);
   color: var(--about-ink);
   background: var(--about-bg);
   isolation: isolate;
@@ -51,18 +50,13 @@ html[data-content-id="about"] .site-footer { width: min(100% - 2 * var(--about-g
 .opening-copy h1 em { color: #b65cff; font-style: normal; }
 .opening-title-narrow { display: none; }
 .opening-intro { max-width: 680px; margin-top: 24px !important; color: rgb(240 237 245 / 88%) !important; font-size: clamp(18px, 1.15vw, 22px) !important; line-height: 1.5 !important; }
-.opening-actions { display: flex; align-items: center; margin-top: 28px; }
-.about-play, .opening-scroll, .world-open, .player-dock button, .about-mixer summary { min-height: 46px; display: inline-flex; align-items: center; justify-content: center; gap: 11px; border: 1px solid rgb(193 154 255 / 45%); border-radius: 999px; background: rgb(24 17 37 / 74%); color: var(--about-ink); font: inherit; font-size: 14px; text-decoration: none; cursor: pointer; transition: background-color 180ms ease, border-color 180ms ease, color 180ms ease; }
-.opening-actions .about-play { width: 208px; min-height: 44px; justify-content: flex-start; gap: 8px; padding: 0; border: 0; border-radius: 0; background: transparent; }
-.opening-actions .about-play > span:first-child { width: 28px; height: 28px; flex: 0 0 28px; display: inline-grid; place-items: center; border: 1px solid rgb(193 154 255 / 68%); border-radius: 50%; color: #f0edf5; font-size: 10px; }
-.opening-actions .about-play:hover { border-color: transparent; background: transparent; color: #fff; }
-.opening-actions .about-play:focus-visible, .opening-scroll:focus-visible { outline: 2px solid #b65cff; outline-offset: 4px; }
-.about-play { padding: 0 19px; background: rgb(193 154 255 / 12%); }
-.about-play:hover, .opening-scroll:hover, .world-open:hover, .player-dock button:hover { border-color: var(--about-violet); background: rgb(193 154 255 / 19%); }
+.opening-scroll, .world-open, .about-mixer summary { min-height: 46px; display: inline-flex; align-items: center; justify-content: center; gap: 11px; border: 1px solid rgb(193 154 255 / 45%); border-radius: 999px; background: rgb(24 17 37 / 74%); color: var(--about-ink); font: inherit; font-size: 14px; text-decoration: none; cursor: pointer; transition: background-color 180ms ease, border-color 180ms ease, color 180ms ease; }
+.opening-scroll:focus-visible, .world-open:focus-visible, .about-mixer summary:focus-visible { outline: 2px solid #b65cff; outline-offset: 4px; }
+.opening-scroll:hover, .world-open:hover, .about-mixer summary:hover { border-color: var(--about-violet); background: rgb(193 154 255 / 19%); }
 .opening-scroll { position: absolute; z-index: 2; left: 50%; bottom: 16px; width: 44px; height: 44px; min-height: 44px; padding: 0; transform: translateX(-50%); border-color: transparent; border-radius: 50%; background: transparent; color: rgb(240 237 245 / 82%); }
 .opening-scroll svg { width: 17px; height: 17px; }
 
-.about-chapter { position: relative; min-height: 88svh; padding: clamp(86px, 10vw, 148px) var(--about-gutter) calc(clamp(86px, 10vw, 148px) + var(--about-dock-height) + env(safe-area-inset-bottom)); isolation: isolate; }
+.about-chapter { position: relative; min-height: 88svh; padding: clamp(86px, 10vw, 148px) var(--about-gutter) calc(clamp(86px, 10vw, 148px) + env(safe-area-inset-bottom)); isolation: isolate; }
 .chapter-copy, .art-copy, .games-copy { position: relative; z-index: 2; max-width: 510px; }
 .chapter-copy h2, .about-art h2, .about-games h2, .about-closing h2, .chapter-heading h2 { margin-top: 19px; color: var(--about-ink); font-size: clamp(48px, 6.2vw, 88px); font-weight: 520; line-height: .98; }
 .chapter-copy > p:not(.about-eyebrow), .art-copy > p:not(.about-eyebrow), .games-copy > p:not(.about-eyebrow) { max-width: 42ch; margin-top: 24px; }
@@ -70,9 +64,6 @@ html[data-content-id="about"] .site-footer { width: min(100% - 2 * var(--about-g
 .about-code { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(300px, .8fr); align-items: center; gap: clamp(42px, 8vw, 132px); background: radial-gradient(ellipse at 68% 50%, rgb(30 61 122 / 11%), transparent 50%); }
 .about-code .chapter-copy { grid-column: 2; grid-row: 1; }
 .code-stage { grid-column: 1; grid-row: 1; position: relative; min-height: 580px; display: grid; align-items: center; isolation: isolate; }
-.code-circuit { position: absolute; z-index: -1; inset: 0 -4% 0 -7%; opacity: .54; }
-.code-circuit svg { width: 100%; height: 100%; overflow: visible; fill: none; stroke: rgb(84 135 228 / 52%); stroke-width: 1; }
-.code-circuit circle { fill: var(--about-blue); stroke: none; filter: drop-shadow(0 0 7px var(--about-blue)); }
 .stack-panel { position: relative; padding: clamp(24px, 3vw, 42px); border-block: 1px solid rgb(176 148 237 / 28%); background: linear-gradient(108deg, rgb(7 8 15 / 87%), rgb(7 8 15 / 46%)); backdrop-filter: blur(10px); }
 .stack-panel h3 { margin-top: 13px; color: var(--about-ink); font-size: clamp(24px, 2.5vw, 34px); font-weight: 520; letter-spacing: -.035em; }
 .stack-panel > p:not(.about-eyebrow) { margin-top: 10px; font-size: 14px; }
@@ -100,6 +91,13 @@ html[data-content-id="about"] .site-footer { width: min(100% - 2 * var(--about-g
 .music-controls { display: flex; align-items: flex-start; justify-content: space-between; gap: 32px; width: min(100%, 1450px); margin: 23px auto 0; }
 .music-controls > p { max-width: 45ch; font-size: 14px; }
 .about-mixer { width: min(100%, 560px); }
+.music-tools { display: flex; align-items: flex-start; gap: 14px; width: min(100%, 620px); }
+.music-tools .about-mixer { width: auto; flex: 1 1 auto; }
+.about-motion-toggle { display: grid; flex: 0 0 44px; place-items: center; width: 44px; height: 44px; padding: 0; border: 1px solid rgb(193 154 255 / 30%); border-radius: 50%; color: var(--about-muted); background: transparent; cursor: pointer; }
+.about-motion-toggle:hover, .about-motion-toggle[aria-pressed="true"] { color: var(--about-violet); border-color: rgb(193 154 255 / 62%); }
+.about-motion-toggle:focus-visible { outline: 2px solid var(--about-violet); outline-offset: 3px; }
+.about-motion-toggle svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.about-motion-toggle [data-motion-icon="resume"] path { fill: currentColor; stroke: none; }
 .about-mixer summary { width: 100%; padding: 0 16px; border-radius: 6px; background: rgb(255 255 255 / 4%); }
 .mixer-content { position: relative; isolation: isolate; padding: 14px 4px 4px; }
 .mixer-content > p { margin-bottom: 14px; font-size: 12px; }
@@ -124,20 +122,12 @@ html[data-content-id="about"] .site-footer { width: min(100% - 2 * var(--about-g
 @keyframes about-knight-idle { to { background-position: 120% 0%; } }
 .world-open { margin-top: 28px; padding: 0 18px; }
 
-.about-closing { display: flex; align-items: end; justify-content: space-between; gap: 44px; min-height: 63svh; padding: 92px var(--about-gutter) calc(100px + var(--about-dock-height) + env(safe-area-inset-bottom)); background: radial-gradient(ellipse at 50% 110%, rgb(77 47 137 / 16%), transparent 58%); }
+.about-closing { display: flex; align-items: end; justify-content: space-between; gap: 44px; min-height: 63svh; padding: 92px var(--about-gutter) calc(100px + env(safe-area-inset-bottom)); background: radial-gradient(ellipse at 50% 110%, rgb(77 47 137 / 16%), transparent 58%); }
 .about-closing h2 { max-width: 900px; }
 .closing-links { display: grid; gap: 11px; min-width: 190px; }
 .closing-links a { display: flex; justify-content: space-between; gap: 30px; padding: 14px 0; border-bottom: 1px solid rgb(193 154 255 / 42%); color: var(--about-ink); font-size: 17px; text-decoration: none; }
 .closing-links a:hover { color: var(--about-violet); }
 
-.player-dock { position: fixed; z-index: 40; right: max(18px, env(safe-area-inset-right)); bottom: max(14px, env(safe-area-inset-bottom)); left: max(18px, env(safe-area-inset-left)); width: min(860px, calc(100% - 36px)); min-height: 58px; display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-inline: auto; padding: 6px 9px 6px 12px; border: 1px solid rgb(191 162 232 / 26%); border-radius: 999px; background: rgb(12 10 18 / 88%); box-shadow: 0 10px 42px rgb(0 0 0 / 45%); backdrop-filter: blur(16px); opacity: 0; transform: translateY(18px); pointer-events: none; transition: opacity 220ms ease, transform 220ms ease, left 220ms ease, right 220ms ease, top 220ms ease, width 220ms ease; }
-.player-dock[data-visible] { opacity: 1; transform: translateY(0); pointer-events: auto; }
-.about-rebuild[data-active-chapter="art"] .player-dock { right: auto; left: max(18px, env(safe-area-inset-left)); width: min(640px, calc(100% - 36px)); margin-inline: 0; }
-.player-dock .about-play { min-height: 42px; white-space: nowrap; }
-.dock-status { flex: 1; min-width: 0; overflow: hidden; color: var(--about-muted); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
-.dock-volume { display: flex; align-items: center; gap: 9px; color: var(--about-muted); font-size: 11px; white-space: nowrap; }
-.dock-volume input { width: 90px; accent-color: var(--about-violet); }
-.player-dock button[data-motion-toggle] { min-height: 42px; padding: 0 13px; font-size: 11px; white-space: nowrap; }
 .world-dialog { position: fixed; inset: 0; width: 100%; height: 100%; max-width: none; max-height: none; padding: clamp(16px, 3vw, 42px); border: 0; color: var(--about-ink); background: #060609; }
 .world-dialog::backdrop { background: rgb(0 0 0 / 88%); }
 .world-dialog-scene { position: absolute; inset: 58px 18px 58px; overflow: hidden; background: #101022; }
@@ -207,12 +197,11 @@ body[data-score-gpu-scroll="true"] .about-rebuild .opening-copy::before { conten
   .opening-title-break { display: none; }
   html[lang="en"] .opening-copy h1 { font-size: clamp(50px, 8vw, 60px); }
   .opening-intro { margin-top: 20px !important; font-size: 16px !important; }
-  .opening-actions { gap: 12px; margin-top: 24px; }
 }
 
 @media (max-width: 680px) {
-  html[data-content-id="about"] { --about-gutter: 22px; --about-dock-height: 62px; }
-  .about-rebuild { padding-bottom: calc(var(--about-dock-height) + env(safe-area-inset-bottom)); }
+  html[data-content-id="about"] { --about-gutter: 22px; }
+  .about-rebuild { padding-bottom: env(safe-area-inset-bottom); }
   .about-opening { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(300px, 42svh) auto; align-content: end; min-height: max(790px, calc(100svh - 54px)); padding: 76px var(--about-gutter) 84px; }
   .opening-scene { inset: 5% -21% 42% -18%; overflow: visible; background: radial-gradient(ellipse 60% 76% at 38% 48%, rgb(79 34 123 / 22%), transparent 75%), radial-gradient(ellipse 48% 76% at 77% 48%, rgb(28 71 148 / 18%), transparent 78%), linear-gradient(0deg, var(--about-bg) 0%, rgb(6 6 9 / 24%) 22%, transparent 68%); }
   .opening-scene::after { background: linear-gradient(0deg, var(--about-bg) 0%, rgb(6 6 9 / 76%) 18%, transparent 63%), linear-gradient(90deg, transparent 40%, rgb(6 6 9 / 26%) 100%); }
@@ -224,13 +213,11 @@ body[data-score-gpu-scroll="true"] .about-rebuild .opening-copy::before { conten
   .opening-title-break { display: none; }
   html[lang="en"] .opening-copy h1 { font-size: clamp(50px, 14.3vw, 66px); }
   .opening-intro { margin-top: 20px !important; font-size: 16px !important; }
-  .opening-actions { gap: 12px; margin-top: 24px; }
   .opening-index { bottom: 26px; }
-  .about-chapter { min-height: auto; padding: 92px var(--about-gutter) calc(92px + var(--about-dock-height) + env(safe-area-inset-bottom)); }
+  .about-chapter { min-height: auto; padding: 92px var(--about-gutter) calc(92px + env(safe-area-inset-bottom)); }
   .chapter-copy h2, .about-art h2, .about-games h2, .about-closing h2, .chapter-heading h2 { font-size: clamp(44px, 12.5vw, 62px); }
   .about-code { display: flex; flex-direction: column; align-items: stretch; gap: 42px; }
   .code-stage { min-height: 0; }
-  .code-circuit { inset: -12% -12%; }
   .stack-panel { padding: 22px 16px; }
   .stack-groups, .stack-more-groups { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 15px 12px; }
   .stack-item { font-size: 10px; }
@@ -250,20 +237,12 @@ body[data-score-gpu-scroll="true"] .about-rebuild .opening-copy::before { conten
   .about-games { display: flex; flex-direction: column; align-items: stretch; gap: 32px; }
   .games-scene { min-height: 62vw; }
   .knight-sprite { width: clamp(64px, 20%, 84px); }
-  .about-closing { display: block; min-height: 68svh; padding: 82px var(--about-gutter) calc(90px + var(--about-dock-height) + env(safe-area-inset-bottom)); }
+  .about-closing { display: block; min-height: 68svh; padding: 82px var(--about-gutter) calc(90px + env(safe-area-inset-bottom)); }
   .closing-links { margin-top: 35px; }
-  .player-dock { right: max(10px, env(safe-area-inset-right)); bottom: max(8px, env(safe-area-inset-bottom)); left: max(10px, env(safe-area-inset-left)); width: calc(100% - 20px); gap: 8px; padding: 5px 7px; }
-  .player-dock .about-play { min-height: 42px; padding: 0 12px; font-size: 12px; }
-  .dock-status, .dock-volume { display: none; }
-  .player-dock button[data-motion-toggle] { min-height: 42px; padding-inline: 10px; font-size: 10px; }
   .world-dialog { padding: 10px; }
   .world-dialog-scene { inset: 62px 8px 54px; }
   .world-dialog-label { right: 12px; bottom: 12px; }
   body[data-score-gpu-scroll="true"] .about-rebuild :is(.chapter-copy, .opening-copy h1, .opening-intro, .opening-actions, .chapter-heading > div, .chapter-heading > p, .art-copy, .games-copy, .closing-links, .music-controls > p, .about-mixer, .score-frame figcaption)::before { inset: -20px -22px; }
-}
-
-@media (max-width: 900px) {
-  .about-rebuild[data-active-chapter="art"] .player-dock { top: calc(70px + env(safe-area-inset-top)); right: max(10px, env(safe-area-inset-right)); bottom: auto; left: max(10px, env(safe-area-inset-left)); width: min(640px, calc(100% - 20px)); margin-inline: auto; }
 }
 
 @media (max-width: 360px) {
@@ -275,8 +254,6 @@ body[data-score-gpu-scroll="true"] .about-rebuild .opening-copy::before { conten
   .stack-groups, .stack-more-groups { gap: 13px 8px; }
   .stack-item { gap: 4px; font-size: 9px; }
   .score-frame .score-window { width: 150%; }
-  .player-dock .about-play { padding-inline: 9px; font-size: 11px; }
-  .player-dock button[data-motion-toggle] { padding-inline: 7px; font-size: 9px; }
 }
 
 html[data-motion-paused="true"] .knight-sprite { animation: none; }
@@ -328,7 +305,6 @@ html[data-motion-paused="true"] .knight-sprite { animation: none; }
   min-height: 0;
   margin: 0 auto;
 }
-.about-code .code-circuit { inset: -10% -6%; opacity: .28; pointer-events: none; }
 .about-code .stack-panel {
   width: 100%;
   max-width: none;
@@ -440,9 +416,10 @@ html[data-motion-paused="true"] .knight-sprite { animation: none; }
   min-height: 120px;
   color: var(--about-ink);
 }
-.stack-icon { width: 52px; height: 52px; color: var(--about-blue); opacity: .96; }
+.stack-icon { width: 52px; height: 52px; color: var(--about-blue); opacity: .96; filter: drop-shadow(0 0 1.5px rgb(255 255 255 / 32%)) drop-shadow(0 0 5px rgb(238 234 255 / 11%)); }
 .stack-icon-csharp, .stack-icon-brand { object-fit: contain; }
-.stack-mark { display: grid; width: 52px; height: 52px; place-items: center; color: var(--about-violet); font-size: 19px; font-weight: 650; letter-spacing: -.06em; }
+.stack-icon-rest-api { filter: brightness(0) invert(1) drop-shadow(0 0 1.5px rgb(255 255 255 / 38%)) drop-shadow(0 0 5px rgb(238 234 255 / 14%)); }
+.stack-mark { display: grid; width: 52px; height: 52px; place-items: center; color: var(--about-violet); font-size: 19px; font-weight: 650; letter-spacing: -.06em; filter: drop-shadow(0 0 1.5px rgb(255 255 255 / 32%)) drop-shadow(0 0 5px rgb(238 234 255 / 11%)); }
 .stack-name { max-width: 100%; color: var(--about-ink); font-size: 17px; line-height: 1.25; text-align: center; text-wrap: balance; }
 .stack-controls { display: flex; align-items: center; justify-content: flex-end; gap: 8px; min-height: 48px; margin-top: 0; }
 .stack-controls[hidden], .stack-controls button[hidden] { display: none; }
@@ -764,7 +741,6 @@ html[lang="en"] .opening-copy h1 { font-size: clamp(3.625rem, calc(4vw + .375rem
   line-height: 1.5 !important;
 }
 .opening-intro-break { display: block; }
-.opening-actions { display: flex; align-items: center; margin-block-start: 28px; }
 .about-opening [data-audio-status] {
   position: absolute !important;
   width: 1px !important;
@@ -776,7 +752,6 @@ html[lang="en"] .opening-copy h1 { font-size: clamp(3.625rem, calc(4vw + .375rem
   white-space: nowrap !important;
   border: 0 !important;
 }
-.opening-actions .about-play {
   width: 208px;
   min-height: 44px;
   justify-content: flex-start;
@@ -786,7 +761,6 @@ html[lang="en"] .opening-copy h1 { font-size: clamp(3.625rem, calc(4vw + .375rem
   border-radius: 0;
   background: transparent;
 }
-.opening-actions .about-play > span:first-child {
   width: 28px;
   height: 28px;
   flex: 0 0 28px;
@@ -797,8 +771,6 @@ html[lang="en"] .opening-copy h1 { font-size: clamp(3.625rem, calc(4vw + .375rem
   color: #f0edf5;
   font-size: 10px;
 }
-.opening-actions .about-play:hover { border-color: transparent; background: transparent; color: #fff; }
-.opening-actions .about-play:focus-visible, .opening-scroll:focus-visible { outline: 2px solid #b65cff; outline-offset: 4px; }
 .opening-scroll {
   position: absolute;
   z-index: 3;
@@ -888,13 +860,11 @@ body[data-score-gpu-scroll="true"] .about-rebuild .opening-copy :is(h1, .opening
   .opening-title-narrow { display: block; }
   html[lang="en"] .opening-copy h1 { font-size: clamp(1.625rem, 8.2vw, 2rem); }
   .opening-intro { max-width: 34ch; margin: 18px auto 0 !important; text-align: center; font-size: clamp(15px, 4.1vw, 16px) !important; line-height: 1.5 !important; }
-  .opening-actions { justify-content: center; margin-block-start: 20px; }
   .opening-scroll { inset-block-end: 16px; }
 }
 @media (max-width: 360px) {
   .about-opening { padding-block-start: 90px; }
   .opening-intro { margin-block-start: 16px !important; }
-  .opening-actions { margin-block-start: 16px; }
 }
 @media (max-width: 700px) and (orientation: landscape) {
   .about-opening { min-block-size: max(100svh, 780px); }

@@ -36,6 +36,7 @@ function wrapTextNodes(root) {
       const ink = getComputedStyle(node.parentElement).color;
       word.style.setProperty("--word-ink", ink);
       word.style.setProperty("--word-fill", "0%");
+      appendFillLayer(word, part);
       fragment.append(word);
       words.push(word);
     }
@@ -56,6 +57,7 @@ function wrapWords(heading) {
       syllable.classList.add("scroll-fill-syllable");
       syllable.style.setProperty("--word-ink", intendedInk);
       syllable.style.setProperty("--word-fill", "0%");
+      appendFillLayer(syllable, syllable.textContent);
       syllable.style.setProperty("--syllable-index", String(index));
       syllable.style.setProperty("--syllable-delay", `${INTRO_DELAY + index * SYLLABLE_STAGGER}ms`);
     }));
@@ -75,6 +77,14 @@ function wrapWords(heading) {
   fillWords.set(heading, words);
 }
 
+function appendFillLayer(element, text) {
+  const fill = document.createElement("span");
+  fill.className = "scroll-fill-ink";
+  fill.setAttribute("aria-hidden", "true");
+  fill.textContent = text;
+  element.append(fill);
+}
+
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
 }
@@ -87,11 +97,15 @@ function writeFill(words, progress) {
   words.forEach((word, index) => {
     const wordProgress = clamp(progress * words.length - index, 0, 1);
     word.style.setProperty("--word-fill", `${(wordProgress * 100).toFixed(1)}%`);
+    word.dataset.filled = String(wordProgress >= 1);
   });
 }
 
 function finishIntro(state) {
-  state.groups.forEach(group => group.forEach(syllable => syllable.style.setProperty("--word-fill", "100%")));
+  state.groups.forEach(group => group.forEach(syllable => {
+    syllable.style.setProperty("--word-fill", "100%");
+    syllable.dataset.filled = "true";
+  }));
   state.heading.dataset.introStage = "complete";
   state.heading.dataset.scrollFillComplete = "true";
   state.complete = true;
@@ -149,7 +163,10 @@ function updateFill(force = false, timestamp = performance.now()) {
     }
     if (state.elapsed < state.fillStart) {
       state.heading.dataset.introStage = state.elapsed < state.appearanceEnd ? "appear" : "fill";
-      state.groups.forEach(group => group.forEach(syllable => syllable.style.setProperty("--word-fill", "0%")));
+      state.groups.forEach(group => group.forEach(syllable => {
+        syllable.style.setProperty("--word-fill", "0%");
+        syllable.dataset.filled = "false";
+      }));
       introRunning = true;
       continue;
     }
@@ -158,6 +175,7 @@ function updateFill(force = false, timestamp = performance.now()) {
     state.groups.forEach(group => group.forEach((syllable, index) => {
       const progress = clamp((state.elapsed - state.fillStart - index * SYLLABLE_FILL_STAGGER) / SYLLABLE_FILL_DURATION, 0, 1);
       syllable.style.setProperty("--word-fill", `${(progress * 100).toFixed(1)}%`);
+      syllable.dataset.filled = String(progress >= 1);
     }));
     if (state.elapsed >= state.totalDuration) finishIntro(state);
     else introRunning = true;
