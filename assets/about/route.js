@@ -1,1 +1,1 @@
-import "./main.js?art-dissolve-stack-center-3";
+import "./main.js?about-art-dissolve-1";

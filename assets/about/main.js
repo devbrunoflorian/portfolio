@@ -1,15 +1,11 @@
 import { createJourneyAudio } from "../about-legacy/audio.js";
 import { score } from "../about-legacy/score.js";
 import { readingChapterIndex } from "./scene/reading.js";
-import { mountAboutScene } from "./scene/runtime.js?v=about-mobile-framing-4";
 import { mountStackCarousel } from "./stack-carousel.js?v=stack-category-carousel-5";
 
 const page = document.querySelector("[data-about-page]");
 if (!page) throw new Error("About root is missing");
 const stackCarousel = mountStackCarousel(page);
-
-const scoreRibbonPreview = new URLSearchParams(location.search).get("score-ribbon") === "preview";
-if (scoreRibbonPreview) document.body.dataset.scoreRibbonPreview = "true";
 
 const english = document.documentElement.lang.startsWith("en");
 const playLabel = english ? "Play Dissonância" : "Reproduzir Dissonância";
@@ -30,13 +26,17 @@ const nativeArtParallax = CSS.supports("(animation-timeline: view()) and (animat
 const chapters = [...page.querySelectorAll("[data-chapter]")];
 const artImage = page.querySelector("[data-art-image]");
 const artSection = artImage?.closest('[data-chapter="art"]');
+const musicSection = page.querySelector('[data-chapter="music"]');
 const audio = createJourneyAudio(score, renderPlayback);
 let activeChapter = "opening";
 let framePending = false;
 let motionPaused = false;
 let pendingMusicStart = false;
+let artDissolve = 0;
+let artDissolveRuntime = null;
+let artDissolveLoading = false;
+let artDissolveFailed = false;
 let restoreFocus = null;
-let sceneRuntime = null;
 let pageDisposed = false;
 const initialMix = new Map(score.tracks.map(track => [track.id, audio.getTrackVolume(track.id)]));
 const mixerRows = new Map();
@@ -137,6 +137,24 @@ function clamp(value, minimum, maximum) {
   return Math.max(minimum, Math.min(maximum, value));
 }
 
+function loadArtDissolve() {
+  if (!artImage || artDissolveRuntime || artDissolveLoading || artDissolveFailed || reducedMotion.matches) return;
+  artDissolveLoading = true;
+  import("./scene/art-dissolve.js?v=about-art-dissolve-1")
+    .then(({ mountArtDissolve }) => mountArtDissolve(artImage, artDissolve))
+    .then(runtime => {
+      artDissolveLoading = false;
+      if (pageDisposed) { runtime.dispose(); return; }
+      artDissolveRuntime = runtime;
+      runtime.update(artDissolve, { reducedMotion: reducedMotion.matches, motionPaused });
+    })
+    .catch(error => {
+      artDissolveLoading = false;
+      artDissolveFailed = true;
+      console.warn("The Art dissolve is unavailable; the original image remains visible.", error);
+    });
+}
+
 function updateOpeningFadeFallback() {
   if (!opening || nativeOpeningFade) return;
   if (reducedMotion.matches) {
@@ -169,13 +187,16 @@ function updateScrollScene() {
     pendingMusicStart = false;
   }
   const artBounds = artSection?.getBoundingClientRect();
-  if (artImage && artBounds) {
-    const overlap = Math.min(innerHeight * .46, 420);
-    const revealStart = innerHeight + overlap;
-    const revealEnd = innerHeight * .14;
-    const progress = clamp((revealStart - artBounds.top) / Math.max(1, revealStart - revealEnd), 0, 1);
-    const dissolve = reducedMotion.matches ? Number(artBounds.top <= innerHeight * .52) : progress;
-    artImage.parentElement?.style.setProperty("--art-dissolve", dissolve.toFixed(3));
+  const musicBounds = musicSection?.getBoundingClientRect();
+  if (artImage && artBounds && musicBounds) {
+    const readingLine = innerHeight * .5;
+    const musicCenter = musicBounds.top + musicBounds.height * .5;
+    const artCenter = artBounds.top + artBounds.height * .5;
+    artDissolve = reducedMotion.matches
+      ? Number(activeChapter === "art")
+      : clamp((readingLine - musicCenter) / Math.max(1, artCenter - musicCenter), 0, 1);
+    if (!reducedMotion.matches && (activeChapter === "music" || artDissolve > 0)) loadArtDissolve();
+    artDissolveRuntime?.update(artDissolve, { reducedMotion: reducedMotion.matches, motionPaused });
   }
   if (!motionPaused && !reducedMotion.matches) {
     if (artImage && !nativeArtParallax) {
@@ -198,13 +219,6 @@ function updateScrollScene() {
       ? `Dissonância · ${playbackSnapshot.section}` : staticCaption;
     if (scoreCaption.textContent !== caption) scoreCaption.textContent = caption;
   }
-  sceneRuntime?.update({
-    chapter: activeChapter,
-    motionEnabled: !motionPaused,
-    reducedMotion: reducedMotion.matches,
-    playbackSnapshot: activeChapter === "music" ? playbackSnapshot : null,
-    timestamp: performance.now(),
-  });
   if (audio.playing) requestSceneFrame();
 }
 
@@ -215,7 +229,6 @@ function requestSceneFrame() {
 }
 window.addEventListener("scroll", requestSceneFrame, { passive: true });
 window.addEventListener("resize", () => {
-  sceneRuntime?.invalidate();
   requestSceneFrame();
 }, { passive: true });
 reducedMotion.addEventListener?.("change", requestSceneFrame);
@@ -280,18 +293,15 @@ worldDialog?.addEventListener("close", () => {
 
 for (const disclosure of page.querySelectorAll("details")) {
   disclosure.addEventListener("toggle", () => {
-    sceneRuntime?.invalidate();
     requestSceneFrame();
   });
 }
 const layoutObserver = new ResizeObserver(() => {
-  sceneRuntime?.invalidate();
   requestSceneFrame();
 });
 layoutObserver.observe(page);
 document.fonts.ready.then(() => {
   if (pageDisposed) return;
-  sceneRuntime?.invalidate();
   requestSceneFrame();
 });
 document.addEventListener("visibilitychange", () => {
@@ -303,16 +313,7 @@ window.addEventListener("pagehide", () => {
   document.documentElement.classList.remove("about-world-open");
   layoutObserver.disconnect();
   stackCarousel.dispose();
-  sceneRuntime?.dispose();
+  artDissolveRuntime?.dispose();
   audio.dispose();
 }, { once: true });
-if (scoreRibbonPreview) {
-  mountAboutScene(page).then(runtime => {
-    if (pageDisposed) { runtime.dispose(); return; }
-    sceneRuntime = runtime;
-    requestSceneFrame();
-  }).catch(error => {
-    console.warn("The About score scene could not start; the chapter score remains available.", error);
-  });
-}
 requestSceneFrame();
