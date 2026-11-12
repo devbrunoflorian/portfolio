@@ -1,1 +1,1 @@
-import "./main.js?about-art-dissolve-1";
+import "./main.js?about-art-dissolve-2";

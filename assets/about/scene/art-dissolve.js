@@ -13,12 +13,8 @@ const fragmentShader = `
   uniform vec2 uResolution;
   uniform vec2 uImageResolution;
   uniform float uDissolve;
-  uniform vec2 uCenter;
-  uniform float uGrayscale;
-  uniform float uEdgeIntensity;
-  uniform float uEdgeBrightness;
-  uniform float uOpacity;
   varying vec2 vUv;
+  const float imageOpacity = 0.58;
 
   mat3 sobelX = mat3(-1.0, 0.0, 1.0, -2.0, 0.0, 2.0, -1.0, 0.0, 1.0);
   mat3 sobelY = mat3(-1.0, -2.0, -1.0, 0.0, 0.0, 0.0, 1.0, 2.0, 1.0);
@@ -87,10 +83,8 @@ const fragmentShader = `
     }
 
     vec4 texColor = texture2D(uTexture, clamp(uv, 0.0, 1.0));
-    float gray = getImageLuminance(texColor.rgb);
-    texColor.rgb = mix(texColor.rgb, vec3(gray), uGrayscale);
 
-    vec2 centeredUv = uv - uCenter;
+    vec2 centeredUv = uv - vec2(0.5);
     centeredUv.x *= imageAspect;
     float dist = length(centeredUv);
     float angle = atan(centeredUv.y, centeredUv.x);
@@ -100,22 +94,25 @@ const fragmentShader = `
     float angularNoise = fbm(vec2(angle * 5.0, 0.0)) * 0.15;
     float normalizedDist = (dist + blockNoise + angularNoise) / length(vec2(imageAspect * 0.5, 0.5));
     float threshold = uDissolve * 1.5;
+    float fade = 1.0 - uDissolve;
 
     float edge = clamp(pow(sobel(uv, 1.0 / uImageResolution), 0.7) * 2.0, 0.0, 1.0);
-    vec3 finalColor = mix(texColor.rgb, vec3(0.0), uGrayscale);
-    float edgeGlow = edge * uEdgeIntensity * 2.0 * (1.0 + uGrayscale * 3.0);
-    finalColor += vec3(edgeGlow * uEdgeBrightness);
+    vec3 finalColor = texColor.rgb;
+    float edgeGlow = edge * fade;
+    finalColor += vec3(edgeGlow * fade);
 
     float dissolveMask = 1.0 - smoothstep(threshold - 0.03, threshold, normalizedDist);
     float edgeZoneWidth = 0.15 * (1.0 - uDissolve) + 0.02;
     float edgeZone = 1.0 - smoothstep(edgeZoneWidth, edgeZoneWidth + 0.04, abs(normalizedDist - threshold));
     float sparkle = hash(floor(uv * uImageResolution / 4.0)) * edgeZone;
-    float edgeBrightness = (1.0 - uDissolve) * uEdgeBrightness * (1.0 + uGrayscale * 2.0);
-    finalColor += vec3(sparkle * 3.0 * edgeBrightness);
+    finalColor += vec3(sparkle * 3.0 * fade);
 
-    gl_FragColor = vec4(finalColor, dissolveMask * texColor.a * insideImage * uOpacity);
+    gl_FragColor = vec4(finalColor, dissolveMask * texColor.a * insideImage * imageOpacity);
   }
 `;
+
+// LinearFilter is not exported by the reduced Three.js bundle used here.
+const LINEAR_FILTER = 1006;
 
 function createImageTexture(image) {
   const source = document.createElement("canvas");
@@ -128,8 +125,8 @@ function createImageTexture(image) {
   const texture = new THREE.DataTexture(pixels.data, source.width, source.height, THREE.RGBAFormat, THREE.UnsignedByteType);
   texture.flipY = true;
   texture.generateMipmaps = false;
-  texture.minFilter = 1006;
-  texture.magFilter = 1006;
+  texture.minFilter = LINEAR_FILTER;
+  texture.magFilter = LINEAR_FILTER;
   texture.colorSpace = "srgb";
   texture.needsUpdate = true;
   return texture;
@@ -143,22 +140,17 @@ export async function mountArtDissolve(image, initialProgress = 0) {
   const canvas = document.createElement("canvas");
   canvas.className = "art-dissolve-canvas";
   canvas.setAttribute("aria-hidden", "true");
+  const texture = createImageTexture(image);
   const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: false, powerPreference: "low-power" });
   renderer.setPixelRatio(Math.min(1.5, window.devicePixelRatio || 1));
   renderer.setClearColor(0x000000, 0);
   if ("outputColorSpace" in renderer) renderer.outputColorSpace = "srgb";
 
-  const texture = createImageTexture(image);
   const uniforms = {
     uTexture: { value: texture },
     uResolution: { value: new THREE.Vector2(1, 1) },
     uImageResolution: { value: new THREE.Vector2(image.naturalWidth, image.naturalHeight) },
     uDissolve: { value: 1 },
-    uCenter: { value: new THREE.Vector2(0.5, 0.5) },
-    uGrayscale: { value: 1 },
-    uEdgeIntensity: { value: 0.5 },
-    uEdgeBrightness: { value: 0 },
-    uOpacity: { value: 0.58 },
   };
   const scene = new THREE.Scene();
   const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 10);
@@ -180,9 +172,8 @@ export async function mountArtDissolve(image, initialProgress = 0) {
   let lastProgress = Number.NaN;
   let lastWidth = 0;
   let lastHeight = 0;
-  let lastMotionEnabled = true;
 
-  function render(progress, motionEnabled = true) {
+  function render(progress) {
     if (disposed || !contextAvailable) return;
     const width = Math.max(1, host.clientWidth);
     const height = Math.max(1, Math.round(host.clientHeight * 1.12));
@@ -193,16 +184,10 @@ export async function mountArtDissolve(image, initialProgress = 0) {
       lastHeight = height;
       lastProgress = Number.NaN;
     }
-    const nextProgress = motionEnabled ? Math.max(0, Math.min(1, progress)) : lastProgress;
-    if (nextProgress === lastProgress && motionEnabled === lastMotionEnabled) return;
-    if (motionEnabled) {
-      uniforms.uDissolve.value = nextProgress;
-      uniforms.uGrayscale.value = 0;
-      uniforms.uEdgeIntensity.value = (1 - nextProgress) * 0.5;
-      uniforms.uEdgeBrightness.value = 1 - nextProgress;
-      lastProgress = nextProgress;
-    }
-    lastMotionEnabled = motionEnabled;
+    const nextProgress = Math.max(0, Math.min(1, progress));
+    if (nextProgress === lastProgress) return;
+    uniforms.uDissolve.value = nextProgress;
+    lastProgress = nextProgress;
     renderer.render(scene, camera);
   }
 
@@ -218,12 +203,11 @@ export async function mountArtDissolve(image, initialProgress = 0) {
   });
 
   host.append(canvas);
-  renderer.render(scene, camera);
-  render(initialProgress, true);
+  render(initialProgress);
   canvas.hidden = false;
   host.dataset.artDissolveReady = "true";
 
-  const resizeObserver = new ResizeObserver(() => render(lastProgress, true));
+  const resizeObserver = new ResizeObserver(() => render(lastProgress));
   resizeObserver.observe(host);
 
   return {
@@ -236,7 +220,7 @@ export async function mountArtDissolve(image, initialProgress = 0) {
       if (motionPaused) return;
       canvas.hidden = false;
       host.dataset.artDissolveReady = "true";
-      render(progress, true);
+      render(progress);
     },
     dispose() {
       if (disposed) return;

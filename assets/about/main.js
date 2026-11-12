@@ -34,8 +34,7 @@ let motionPaused = false;
 let pendingMusicStart = false;
 let artDissolve = 0;
 let artDissolveRuntime = null;
-let artDissolveLoading = false;
-let artDissolveFailed = false;
+let artDissolveLoad = null;
 let restoreFocus = null;
 let pageDisposed = false;
 const initialMix = new Map(score.tracks.map(track => [track.id, audio.getTrackVolume(track.id)]));
@@ -138,19 +137,15 @@ function clamp(value, minimum, maximum) {
 }
 
 function loadArtDissolve() {
-  if (!artImage || artDissolveRuntime || artDissolveLoading || artDissolveFailed || reducedMotion.matches) return;
-  artDissolveLoading = true;
-  import("./scene/art-dissolve.js?v=about-art-dissolve-1")
+  if (!artImage || artDissolveRuntime || artDissolveLoad || reducedMotion.matches) return;
+  artDissolveLoad = import("./scene/art-dissolve.js?v=about-art-dissolve-2")
     .then(({ mountArtDissolve }) => mountArtDissolve(artImage, artDissolve))
     .then(runtime => {
-      artDissolveLoading = false;
       if (pageDisposed) { runtime.dispose(); return; }
       artDissolveRuntime = runtime;
       runtime.update(artDissolve, { reducedMotion: reducedMotion.matches, motionPaused });
     })
     .catch(error => {
-      artDissolveLoading = false;
-      artDissolveFailed = true;
       console.warn("The Art dissolve is unavailable; the original image remains visible.", error);
     });
 }
