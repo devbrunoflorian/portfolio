@@ -1,0 +1,60 @@
+---
+import SiteLayout from '../../layouts/SiteLayout.astro';
+import { routes, type Locale } from '../../content/site';
+interface Props { locale: Locale }
+const { locale } = Astro.props;
+const pt = locale === 'pt-br';
+const copy = pt ? {
+  title: 'Bruno Florian | Engenharia de Software',
+  description: 'Portfólio de engenharia de software de Bruno Florian: projetos, laboratórios e evidências.',
+  sceneAlt: 'Chess Knight 006, por Vijay Saini, com luzes brancas e vermelhas e reflexo; cena decorativa.',
+  caption: 'MODELO EM AVALIAÇÃO', eyebrow: 'Engenharia de software', from: 'Da', thought: 'ideia', to: 'à', form: 'forma.', intro: 'Desenvolvo software com implementações claras, testes reproduzíveis e', explore: 'Explorar projetos', github: 'Ver GitHub', stage1: 'IDEIA', stage2: 'ESTRUTURA', stage3: 'FORMA', model: 'Modelo 3D', optimized: 'otimizado e recolorido', scroll: 'Role para explorar', status: 'Preview estático disponível. Projetos e navegação continuam acessíveis.', previewEyebrow: 'Projetos e laboratórios', heading: 'Engenharia que você pode explorar.', previewText: 'Projetos, laboratórios e evidências técnicas ficam a um clique de distância.', projects: 'Ver projetos', labs: 'Ver laboratórios', noscript: 'JavaScript está desativado. O preview estático do cavalo e todos os links continuam disponíveis.'
+} : {
+  title: 'Bruno Florian | Software Engineering',
+  description: "Bruno Florian's software engineering portfolio: projects, labs, and evidence.",
+  sceneAlt: 'Chess Knight 006 by Vijay Saini with white and red lighting and a reflection; decorative scene.',
+  caption: 'MODEL UNDER REVIEW', eyebrow: 'Software engineering', from: 'From', thought: 'thought', to: 'to', form: 'form.', intro: 'I build software with clear implementations, reproducible tests, and documented trade-offs.', explore: 'Explore projects', github: 'View GitHub', stage1: 'IDEA', stage2: 'STRUCTURE', stage3: 'FORM', model: '3D model', optimized: 'optimized and recolored', scroll: 'Scroll to explore', status: 'Static preview is available. Projects and navigation remain accessible.', previewEyebrow: 'Projects and labs', heading: 'Engineering you can explore.', previewText: 'Projects, labs, and technical evidence are one click away.', projects: 'Explore projects', labs: 'Explore labs', noscript: 'JavaScript is disabled. The static knight preview and all links remain available.'
+};
+const base = routes[locale];
+---
+<SiteLayout locale={locale} page="home" title={copy.title} description={copy.description} bodyClass="home-page" styles={['/assets/site.css?v=word-fill-skeleton-review-2026-11-12-3', '/assets/home.css?v=shared-header-64', '/assets/home-environment.css?v=pbr-tight-1', '/assets/home-mobile.css?v=shared-header-64', '/assets/site-header.css?v=shared-header-64']}>
+  <div class="home-opening-void" aria-hidden="true"><span class="home-opening-void__signal"></span></div>
+  <script slot="head" is:inline type="importmap">{"imports":{"three":"/assets/vendor/three/build/three.module.js","three/addons/":"/assets/vendor/three/examples/jsm/"}}</script>
+  <script slot="after-base-scripts" is:inline type="module" src="/assets/media-skeleton.js?v=media-skeleton-2026-11-12-3"></script>
+  <script slot="after-base-scripts" is:inline type="module" src="/assets/home-hero.js?v=pbr-tight-1"></script>
+  <main id="main-content" tabindex="-1">
+    <section class="hero-track" id="hero-track" aria-labelledby="hero-title" data-stage="0">
+      <div class="hero-screen">
+        <div class="hero-art" id="scene-frame" data-scene-state="poster" data-model-ready="false" data-media-skeleton role="img" aria-label={copy.sceneAlt}>
+          <picture class="hero-poster" id="hero-poster" aria-hidden="true">
+            <source type="image/webp" media="(max-width: 900px) and (orientation: landscape) and (max-height: 520px)" srcset="/assets/models/chess-knight-006-poster-mobile-landscape.webp?v=mobile-compose-1" />
+            <source type="image/webp" media="(max-width: 640px)" srcset="/assets/models/chess-knight-006-poster-mobile.webp?v=mobile-compose-1" />
+            <img id="hero-poster-image" src="/assets/models/home-opening-void.svg" alt="" fetchpriority="high" decoding="async" width="1094" height="900" />
+          </picture>
+          <img class="scene-fallback" id="scene-fallback" alt="" hidden />
+          <canvas id="scene-canvas" hidden aria-hidden="true"></canvas>
+          <div class="scene-grid" aria-hidden="true"></div>
+          <span class="scene-caption" aria-hidden="true"><span id="scene-stage">01 / {copy.stage1}</span><span>{copy.caption}</span></span>
+        </div>
+        <div class="hero-copy">
+          <p class="eyebrow"><span aria-hidden="true"></span> {copy.eyebrow} <i aria-hidden="true">·</i> {pt ? 'Portfólio' : 'Portfolio'}</p>
+          <h1 id="hero-title"><span class="hero-word">{copy.from}</span> <span class="hero-word">{copy.thought}</span><br /><span class="hero-word">{copy.to}</span> <span class="hero-word hero-form">{copy.form}</span></h1>
+          {pt ? <p class="intro">{copy.intro} <span lang="en">trade-offs</span> documentados.</p> : <p class="intro">{copy.intro}</p>}
+          <div class="hero-actions">
+            <a class="button primary" href={base.projects}><span class="button-content"><span class="button-label">{copy.explore}</span><span class="button-icon" aria-hidden="true"><svg viewBox="0 0 20 10" focusable="false"><defs><filter id="home-cta-noise"><feTurbulence type="fractalNoise" baseFrequency="1.8" numOctaves="6" stitchTiles="stitch" /><feColorMatrix type="saturate" values="0" /><feComponentTransfer><feFuncA type="table" tableValues="0 .16" /></feComponentTransfer></filter></defs><path d="M14.84 0 13.76 1.06l3.3 3.2H0v1.49h17.05l-3.3 3.2L14.84 10 20 5z" /></svg></span></span></a>
+            <a class="button secondary" href="https://github.com/devbrunoflorian" target="_blank" rel="noopener noreferrer"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 .8a11.2 11.2 0 0 0-3.54 21.83c.56.1.77-.24.77-.54v-2.1c-3.13.68-3.79-1.33-3.79-1.33-.51-1.3-1.25-1.65-1.25-1.65-1.02-.7.08-.69.08-.69 1.13.08 1.72 1.16 1.72 1.16 1 .1.72 1.99 3.5 1.99.5 0 .9-.1 1.21-.27.1-.78.39-1.32.7-1.62-2.5-.29-5.13-1.25-5.13-5.57 0-1.23.44-2.24 1.16-3.03-.12-.29-.5-1.44.11-3 0 0 .95-.3 3.08 1.16a10.7 10.7 0 0 1 5.61 0c2.14-1.45 3.08-1.16 3.08-1.16.62 1.56.23 2.71.12 3 .72.79 1.15 1.8 1.15 3.03 0 4.33-2.63 5.28-5.14 5.56.4.35.75 1.03.75 2.08v3.08c0 .3.2.65.78.54A11.2 11.2 0 0 0 12 .8Z" /></svg> {copy.github}</a>
+          </div>
+        </div>
+        <div class="hero-side-note" aria-hidden="true"><span><span data-scene-state="0">01&nbsp; {copy.stage1}</span><br /><span data-scene-state="1">02&nbsp; {copy.stage2}</span><br /><span data-scene-state="2">03&nbsp; {copy.stage3}</span></span><i></i></div>
+        <p class="temporary-note">{copy.model} <a href="https://skfb.ly/pEJVJ" target="_blank" rel="noopener noreferrer">Chess Knight 006</a>{pt ? ', por' : ' by'} Vijay Saini · <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">CC BY 4.0</a> · {copy.optimized}</p>
+        <a class="scroll-cue" href="#work-preview"><span class="scroll-mark" aria-hidden="true"></span> {copy.scroll} <span class="mobile-stage-progress" aria-hidden="true">01 / 03</span></a>
+        <p class="scene-status visually-hidden" id="scene-status" role="status" aria-live="polite">{copy.status}</p>
+      </div>
+    </section>
+    <section class="work-preview" id="work-preview" aria-labelledby="work-title">
+      <div><p class="eyebrow">{copy.previewEyebrow}</p><h2 id="work-title" class="scroll-fill">{copy.heading}</h2><p>{copy.previewText}</p></div>
+      <div class="preview-links"><a href={base.projects}>{copy.projects} <span aria-hidden="true">↗</span></a><a href={base.labs}>{copy.labs} <span aria-hidden="true">↗</span></a></div>
+    </section>
+  </main>
+  <noscript><p class="noscript-note">{copy.noscript}</p></noscript>
+</SiteLayout>

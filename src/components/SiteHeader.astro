@@ -1,17 +1,26 @@
 ---
 import { locales, navigation, routes, siteCopy, type Locale, type PageId } from '../content/site';
-interface Props { locale: Locale; page: PageId }
-const { locale, page } = Astro.props;
+interface Props { locale: Locale; page: PageId; headerClass?: string; localeSuffix?: string; localeOrder?: Locale[]; headerUtilities?: boolean }
+const { locale, page, headerClass = `${page}-header`, localeSuffix = '', localeOrder = [...locales], headerUtilities = false } = Astro.props;
 const copy = siteCopy[locale];
 ---
-<header class={`site-header ${page}-header`}>
+<header class={`site-header ${headerClass}`}>
   <a class="brand" href={routes[locale].home} aria-label={`Bruno Florian, ${copy.home}`}>Bruno Florian<span aria-hidden="true">.</span></a>
   <nav class="primary-nav desktop-nav" aria-label={copy.navigation}>
     {navigation.map((id, i) => <a href={routes[locale][id]} aria-current={id === page ? 'page' : undefined}>{copy.labels[i]}</a>)}
   </nav>
-  <nav class="locale-nav" aria-label={copy.language}>
-    {locales.map(id => <a href={routes[id][page]} data-locale-choice={id} lang={siteCopy[id].lang} aria-current={id === locale ? 'page' : undefined}>{id === 'en' ? 'EN' : 'PT'}</a>)}
-  </nav>
+  {headerUtilities ? (
+    <div class="header-utilities">
+      <nav class="locale-nav" aria-label={copy.language}>
+        {localeOrder.map(id => <a href={`${routes[id][page]}${localeSuffix}`} data-locale-choice={id} lang={siteCopy[id].lang} aria-current={id === locale ? 'page' : undefined}>{id === 'en' ? 'EN' : 'PT'}</a>)}
+      </nav>
+      <slot name="utilities" />
+    </div>
+  ) : (
+    <nav class="locale-nav" aria-label={copy.language}>
+      {localeOrder.map(id => <a href={`${routes[id][page]}${localeSuffix}`} data-locale-choice={id} lang={siteCopy[id].lang} aria-current={id === locale ? 'page' : undefined}>{id === 'en' ? 'EN' : 'PT'}</a>)}
+    </nav>
+  )}
   <details class="mobile-menu">
     <summary class="menu-toggle"><span class="menu-icon" aria-hidden="true"></span><span>Menu</span></summary>
     <div class="mobile-menu-panel">

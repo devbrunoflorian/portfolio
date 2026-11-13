@@ -1,0 +1,90 @@
+---
+import SiteLayout from '../../../layouts/SiteLayout.astro';
+const locale = 'en' as const;
+---<SiteLayout
+  locale={locale}
+  page="projects"
+  title="Projects | Bruno Florian"
+  description="Spatial gallery with CC Catalog and spaces reserved for future projects."
+  styles={[
+    '/assets/site.css?v=word-fill-skeleton-review-2026-11-12-3',
+    '/assets/projects.css?v=shared-header-64',
+    '/assets/site-header.css?v=shared-header-64',
+  ]}
+  bodyClass="projects-body"
+  headerClass="projects-header"
+  footerClass="projects-footer"
+>
+  <script slot="after-base-scripts" is:inline src="/assets/projects.js" defer></script>
+<main id="main-content" class="projects-main" tabindex="-1">
+      <div class="projects-atmosphere" aria-hidden="true"><span></span><i></i><b></b></div>
+      <section class="project-intro" aria-labelledby="projects-title">
+        <p class="projects-eyebrow"><span></span> Featured work</p>
+        <h1 id="projects-title" class="scroll-fill">Selected<br /><strong>work.</strong></h1>
+        <p class="projects-lede">A collection of projects and ideas in development.</p>
+        <div class="project-current" data-project-current aria-live="polite" aria-atomic="true">
+          <p class="project-current-index"><span data-project-index>01</span><span aria-hidden="true"> / 05</span><i data-project-status>Available</i></p>
+          <h2 data-project-title>CC Catalog</h2>
+          <p data-project-description>A desktop catalog for organizing credits attached to The Sims custom content.</p>
+          <ul class="project-tags" data-project-tags aria-label="Technologies"><li>Electron</li><li>Vite</li><li>React</li><li>sql.js</li><li>Drizzle</li></ul>
+          <a class="project-primary-link" data-project-link href="https://github.com/devbrunoflorian/CC-Catalog" target="_blank" rel="noopener noreferrer">Explore repository <span aria-hidden="true">↗</span></a>
+          <p class="project-incoming-note" data-project-incoming hidden>This space is reserved for a future project.</p>
+        </div>
+        <div class="project-instructions">
+          <span class="project-mouse-icon" aria-hidden="true"><i></i></span>
+          <span>Scroll, drag or use arrows</span>
+        </div>
+      </section>
+
+      <section class="project-gallery" data-project-gallery aria-labelledby="projects-title">
+        <div class="project-arc" data-project-arc tabindex="0" role="region" aria-label="Project screen gallery. Use left and right arrow keys to select a screen.">
+          <div class="project-horizon" aria-hidden="true"></div>
+          <div class="project-floor" aria-hidden="true"></div>
+          <div class="project-reflection" data-project-reflection aria-hidden="true"></div>
+          <article class="project-screen is-active" data-project-screen data-project-slot="0" aria-hidden="true">
+            <div class="screen-art art-catalog" aria-label="Concept diagram of custom content flowing into an organized credit catalog">
+              <div class="catalog-kicker"><span>CC CATALOG / PURPOSE</span><span>SOURCE-BASED</span></div>
+              <div class="catalog-flow" aria-hidden="true">
+                <div class="catalog-source"><i></i><i></i><i></i><small>ZIP ARCHIVE</small></div>
+                <span class="catalog-link catalog-link-in"></span>
+                <div class="catalog-index"><span>CC</span><strong>CATALOG</strong><small>CREATOR / SET / ITEM</small></div>
+                <span class="catalog-link catalog-link-out"></span>
+                <div class="catalog-credits"><i></i><i></i><i></i><small>MARKDOWN CREDITS</small></div>
+              </div>
+              <small class="catalog-disclaimer">CONCEPT DIAGRAM · NOT A SCREENSHOT</small>
+            </div>
+            <div class="screen-caption"><span>01 / PROJECT</span><h2>CC Catalog</h2><small>Available · public repository</small></div>
+          </article>
+          <article class="project-screen" data-project-screen data-project-slot="1" aria-hidden="true">
+            <div class="screen-art art-wave"><span></span><i></i><b></b><small>RESERVED / 02</small></div>
+            <div class="screen-caption"><span>02 / INCOMING</span><h2>Incoming</h2><small>Future project</small></div>
+          </article>
+          <article class="project-screen" data-project-screen data-project-slot="2" aria-hidden="true">
+            <div class="screen-art art-geometry"><span></span><i></i><b></b><small>RESERVED / 03</small></div>
+            <div class="screen-caption"><span>03 / INCOMING</span><h2>Incoming</h2><small>Future project</small></div>
+          </article>
+          <article class="project-screen" data-project-screen data-project-slot="3" aria-hidden="true">
+            <div class="screen-art art-orbit-scene"><span></span><i></i><b></b><small>RESERVED / 04</small></div>
+            <div class="screen-caption"><span>04 / INCOMING</span><h2>Incoming</h2><small>Future project</small></div>
+          </article>
+          <article class="project-screen" data-project-screen data-project-slot="4" aria-hidden="true">
+            <div class="screen-art art-architecture"><span></span><i></i><b></b><small>RESERVED / 05</small></div>
+            <div class="screen-caption"><span>05 / INCOMING</span><h2>Incoming</h2><small>Future project</small></div>
+          </article>
+        </div>
+
+        <nav class="project-controls" data-project-controls aria-label="Choose a project" hidden>
+          <button type="button" data-project-previous aria-label="Previous project">←</button>
+          <div class="project-position" role="group" aria-label="Project positions">
+            <button type="button" data-project-select="0" aria-label="01, CC Catalog" aria-pressed="true">01</button>
+            <button type="button" data-project-select="1" aria-label="02, Incoming" aria-pressed="false">02</button>
+            <button type="button" data-project-select="2" aria-label="03, Incoming" aria-pressed="false">03</button>
+            <button type="button" data-project-select="3" aria-label="04, Incoming" aria-pressed="false">04</button>
+            <button type="button" data-project-select="4" aria-label="05, Incoming" aria-pressed="false">05</button>
+          </div>
+          <button type="button" data-project-next aria-label="Next project">→</button>
+        </nav>
+      </section>
+      <a class="projects-labs-link" href="/en/labs/">Back to Labs <span aria-hidden="true">←</span></a>
+    </main>
+</SiteLayout>

@@ -13,6 +13,10 @@ import {staffYForMidi} from '../assets/about-legacy/score-ribbon-renderer.js';
 import {scorePlaybackWindowAtBeat,scorePositionAtBeat} from '../assets/about-legacy/score-ribbon-timeline.js';
 import {createGpuEditorialFrame} from '../assets/about-legacy/score-gpu-frame.js';
 
+function component(attribute, index) {
+  return Float32Array.from({ length: attribute.count }, (_, vertex) => attribute.array[vertex * attribute.itemSize + index]);
+}
+
 const view={x0:score.bars[30].xStart,x1:score.bars[32].xEnd},width=1142,height=width/1.8;
 const step=[0,0,1,1,2,3,3,4,4,5,5,6];
 const notes=scoreRibbonData.systems.flatMap(s=>s.heads).filter(h=>h.bar>=31&&h.bar<=33).map(h=>({id:h.id,x:score.pdfGlyphs.find(g=>g.noteId===h.id).x,
@@ -26,17 +30,18 @@ test('static UV attributes have equal finite lengths, explicit gold coverage and
   for(const attr of Object.values(geometry.attributes)){
     assert.equal(attr.count,count);assert.ok(attr.array instanceof Float32Array);assert.ok(attr.array.every(Number.isFinite));
   }
-  const gold=geometry.attributes.gold.array,head=geometry.attributes.frontHead.array;
+  const gold=component(geometry.attributes.protection, 0),head=component(geometry.attributes.protection, 1);
   assert.ok(gold.some(x=>x===1));assert.ok(gold.some(x=>x===0));
   gold.forEach((x,i)=>{if(x===1)assert.equal(head[i],1);});
-  assert.ok(geometry.attributes.kind.array.some(x=>x===3));
-  const curvedGlyphs=[...geometry.attributes.kind.array.keys()].filter(i=>geometry.attributes.kind.array[i]===5);
+  assert.ok(component(geometry.attributes.feature, 0).some(x=>x===3));
+  const kinds=component(geometry.attributes.feature, 0);
+  const curvedGlyphs=[...kinds.keys()].filter(i=>kinds[i]===5);
   assert.ok(curvedGlyphs.length>0,'triplet numbers use surface-deformed glyph geometry');
   assert.ok(curvedGlyphs.some(i=>geometry.attributes.glyphOffset.array[i*2]!==0));
   geometry.dispose();
 
   const pageGeometry=buildRibbonGeometry(score,view,groups,engraving,[],null);
-  assert.ok(pageGeometry.attributes.gold.array.every(value=>value===0),
+  assert.ok(component(pageGeometry.attributes.protection, 0).every(value=>value===0),
     'the public scroll renderer has no study-only gold marker');
   pageGeometry.dispose();
 });
@@ -56,7 +61,7 @@ test('GPU score keeps both melody contours on the guitar score timeline and staf
   }
 
   const geometry=buildRibbonGeometry(score,notation.view,notation.groups,notation.engraving,notation.voicePaths);
-  const voices=geometry.attributes.voice.array,kind=geometry.attributes.kind.array;
+  const voices=component(geometry.attributes.role, 1),kind=component(geometry.attributes.feature, 0);
   for(const track of [1,2]){
     assert.ok(voices.some((value,index)=>value===track&&kind[index]===2),`voice ${track} has a curved trail`);
     assert.ok(voices.some((value,index)=>value===track&&kind[index]===1),`voice ${track} has attack markers`);
@@ -127,7 +132,7 @@ test('study windows can inspect the final six-note triplet group and mark one of
   ]);
   const markerId=group.heads[0].glyph.noteId;
   const geometry=buildRibbonGeometry(score,notation.view,notation.groups,notation.engraving,notation.voicePaths,markerId);
-  const gold=geometry.attributes.gold.array,heads=geometry.attributes.frontHead.array;
+  const gold=component(geometry.attributes.protection, 0),heads=component(geometry.attributes.protection, 1);
   assert.ok(gold.some(value=>value===1),'the selected marker note receives the explicit GPU mask');
   gold.forEach((value,index)=>{if(value===1)assert.equal(heads[index],1);});
   assert.ok(geometry.attributes.position.array.every(Number.isFinite));
@@ -223,7 +228,7 @@ test('treble clef stays in the staff header, on its G line, through every camera
   assert.ok(widthInStaffUnits>2.3&&widthInStaffUnits<2.6,'clef width uses the PDF glyph scale and staff spacing');
   assert.ok(heightInStaffUnits>6.8&&heightInStaffUnits<7.1,'clef height uses the PDF glyph scale and staff spacing');
   const geometry=buildRibbonGeometry(score,view,groups,engraving,[],undefined,clefSource);
-  const kinds=geometry.attributes.kind.array,uvs=geometry.attributes.sourceUV.array,offsets=geometry.attributes.glyphOffset.array;
+  const kinds=component(geometry.attributes.feature, 0),uvs=geometry.attributes.sourceUV.array,offsets=geometry.attributes.glyphOffset.array;
   const firstBar=score.bars.find(bar=>Math.abs(bar.xStart-view.x0)<.02);
   const firstSystemBar=score.bars.find(bar=>bar.number===1)??score.bars[0];
   const expectedAnchor=firstBar.xStart+clefSource.glyph.x-firstSystemBar.xStart;
