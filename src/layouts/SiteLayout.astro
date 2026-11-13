@@ -2,8 +2,9 @@
 import SiteHeader from '../components/SiteHeader.astro';
 import SiteFooter from '../components/SiteFooter.astro';
 import { siteCopy, type Locale, type PageId } from '../content/site';
-interface Props { locale: Locale; page: PageId; title: string; description: string; styles: string[] }
-const { locale, page, title, description, styles } = Astro.props;
+interface Props { locale: Locale; page: PageId; title: string; description: string; styles: string[]; bodyClass?: string; bodyAttributes?: Record<string, string | boolean | undefined>; headerClass?: string; footerClass?: string; localeSuffix?: string; localeOrder?: Locale[]; shellClass?: string; loadScrollFill?: boolean }
+const { locale, page, title, description, styles, bodyClass = `${page}-body`, bodyAttributes = {}, headerClass, footerClass, localeSuffix, localeOrder, shellClass, loadScrollFill = true } = Astro.props;
+const headerUtilities = Astro.slots.has('header-utilities');
 ---
 <!doctype html>
 <html lang={siteCopy[locale].lang} data-content-id={page}>
@@ -17,12 +18,27 @@ const { locale, page, title, description, styles } = Astro.props;
     {styles.map(href => <link rel="stylesheet" href={href} />)}
     <slot name="head" />
     <script is:inline src="/assets/locale.js" defer></script>
-    <script is:inline type="module" src="/assets/scroll-fill.js"></script>
+    {loadScrollFill && <script is:inline type="module" src="/assets/scroll-fill.js"></script>}
+    <slot name="after-base-scripts" />
   </head>
-  <body class={`${page}-body`}>
+  <body class={bodyClass} {...bodyAttributes}>
     <a class="skip-link" href="#main-content">{siteCopy[locale].skip}</a>
-    <SiteHeader locale={locale} page={page} />
-    <slot />
-    <SiteFooter locale={locale} page={page}><slot name="credit" /></SiteFooter>
+    {shellClass ? (
+      <div class={shellClass}>
+        <SiteHeader locale={locale} page={page} headerClass={headerClass} localeSuffix={localeSuffix} localeOrder={localeOrder} headerUtilities={headerUtilities}>
+          <slot name="header-utilities" slot="utilities" />
+        </SiteHeader>
+        <slot />
+        <SiteFooter locale={locale} page={page} footerClass={footerClass}><slot name="credit" /></SiteFooter>
+      </div>
+    ) : (
+      <>
+        <SiteHeader locale={locale} page={page} headerClass={headerClass} localeSuffix={localeSuffix} localeOrder={localeOrder} headerUtilities={headerUtilities}>
+          <slot name="header-utilities" slot="utilities" />
+        </SiteHeader>
+        <slot />
+        <SiteFooter locale={locale} page={page} footerClass={footerClass}><slot name="credit" /></SiteFooter>
+      </>
+    )}
   </body>
 </html>

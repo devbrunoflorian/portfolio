@@ -1,9 +1,9 @@
 ---
 import { siteCopy, type Locale, type PageId } from '../content/site';
-interface Props { locale: Locale; page: PageId }
-const { locale, page } = Astro.props;
+interface Props { locale: Locale; page: PageId; footerClass?: string }
+const { locale, page, footerClass = `${page}-footer` } = Astro.props;
 ---
-<footer class={`site-footer ${page}-footer`}>
+<footer class={`site-footer ${footerClass}`}>
   <span>© 2026 Bruno Florian</span>
   <slot />
   <nav aria-label={siteCopy[locale].profiles}><a href="https://github.com/devbrunoflorian" target="_blank" rel="noopener noreferrer">GitHub</a><a href="https://github.com/engineering-proof-labs" target="_blank" rel="noopener noreferrer">Engineering Labs</a></nav>

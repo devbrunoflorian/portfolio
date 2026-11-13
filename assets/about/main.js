@@ -8,13 +8,9 @@ if (!page) throw new Error("About root is missing");
 const stackCarousel = mountStackCarousel(page);
 
 const english = document.documentElement.lang.startsWith("en");
-const playLabel = english ? "Play Dissonância" : "Reproduzir Dissonância";
-const pauseLabel = english ? "Pause Dissonância" : "Pausar Dissonância";
-const continueLabel = english ? "Continue Dissonância" : "Continuar Dissonância";
 const scoreCaption = page.querySelector(".score-frame figcaption > span");
 const staticCaption = scoreCaption?.textContent;
 const initialStatus = page.querySelector("[data-audio-status]")?.textContent.trim() ?? "Sound is off";
-const playButtons = [...page.querySelectorAll("[data-play-toggle]")];
 const statusLabels = [...page.querySelectorAll("[data-audio-status]")];
 const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
 const opening = page.querySelector(".about-opening");
@@ -38,7 +34,6 @@ let artDissolveLoad = null;
 let restoreFocus = null;
 let pageDisposed = false;
 const initialMix = new Map(score.tracks.map(track => [track.id, audio.getTrackVolume(track.id)]));
-const mixerRows = new Map();
 
 function formatTime(seconds) {
   const value = Math.max(0, Math.floor(seconds));
@@ -46,17 +41,7 @@ function formatTime(seconds) {
 }
 
 function renderPlayback(state) {
-  const playing = state.state === "playing" || state.state === "starting";
-  for (const button of playButtons) {
-    const label = playing ? pauseLabel : state.state === "paused" ? continueLabel : playLabel;
-    button.setAttribute("aria-label", label);
-    button.setAttribute("title", label);
-    button.setAttribute("aria-pressed", String(playing));
-    button.dataset.playing = String(playing);
-    for (const icon of button.querySelectorAll("[data-sound-icon]")) {
-      icon.hidden = icon.dataset.soundIcon === "on" ? !playing : playing;
-    }
-  }
+  window.dispatchEvent(new CustomEvent("about-audio-state", { detail: state }));
   const status = state.state === "playing" || state.state === "paused"
     ? `${state.state === "paused" ? (english ? "Paused · " : "Pausado · ") : ""}${state.section} · ${formatTime(audio.snapshot().seconds)}`
     : state.state === "error" || state.state === "unavailable"
@@ -84,53 +69,35 @@ function togglePlayback() {
     block: "center",
   });
 }
-playButtons.forEach(button => button.addEventListener("click", togglePlayback));
 
-const mixer = page.querySelector("[data-track-mixer]");
-if (mixer) {
-  for (const track of score.tracks) {
-    const row = document.createElement("label");
-    row.className = "about-mixer-row";
-    const name = document.createElement("span");
-    name.textContent = track.name;
-    const control = document.createElement("input");
-    control.type = "range";
-    control.min = "0";
-    control.max = "1";
-    control.step = ".01";
-    control.value = String(audio.getTrackVolume(track.id) ?? .5);
-    control.setAttribute("aria-label", `${track.name} ${english ? "volume" : "volume"}`);
-    const output = document.createElement("output");
-    output.value = `${Math.round(Number(control.value) * 100)}%`;
-    control.addEventListener("input", () => {
-      const value = Number(control.value);
-      audio.setTrackVolume(track.id, value);
-      const feedback = page.querySelector("[data-mixer-feedback]");
-      if (feedback) feedback.textContent = "";
-      output.value = `${Math.round(value * 100)}%`;
-    });
-    row.append(name, control, output);
-    mixer.append(row);
-    mixerRows.set(track.id, { control, output });
+function handleAudioCommand(event) {
+  if (pageDisposed) return;
+  /** @type {import("../../src/components/about/audio-contract").AudioCommand} */
+  const command = event.detail;
+  if (!command || typeof command.type !== "string") return;
+  switch (command.type) {
+    case "toggle":
+      togglePlayback();
+      break;
+    case "track-volume":
+      audio.setTrackVolume(Number(command.trackId), Number(command.value));
+      break;
+    case "master-volume":
+      audio.setVolume(Number(command.value));
+      break;
+    case "repeat":
+      audio.setRepeat(Boolean(command.value));
+      break;
+    case "restore-tracks":
+      for (const [id, value] of initialMix) audio.setTrackVolume(id, value);
+      break;
+    case "restart":
+      audio.restart();
+      requestSceneFrame();
+      break;
   }
 }
-
-const masterVolumes = [...page.querySelectorAll("[data-main-volume]")];
-for (const control of masterVolumes) control.addEventListener("input", () => {
-  const value = Number(control.value);
-  audio.setVolume(value);
-  for (const other of masterVolumes) other.value = String(value);
-});
-page.querySelector("[data-mix-reset]")?.addEventListener("click", () => {
-  for (const [id, value] of initialMix) {
-    audio.setTrackVolume(id, value);
-    const row = mixerRows.get(id);
-    if (row) { row.control.value = String(value); row.output.value = `${Math.round(value * 100)}%`; }
-  }
-  page.querySelector("[data-mixer-feedback]").textContent = english ? "Mix restored." : "Mix restaurada.";
-});
-page.querySelector("[data-repeat]")?.addEventListener("change", event => audio.setRepeat(event.currentTarget.checked));
-page.querySelector("[data-audio-restart]")?.addEventListener("click", () => { audio.restart(); requestSceneFrame(); });
+window.addEventListener("about-audio-command", handleAudioCommand);
 
 function clamp(value, minimum, maximum) {
   return Math.max(minimum, Math.min(maximum, value));
@@ -240,7 +207,9 @@ motionButton?.addEventListener("click", () => {
   motionButton.setAttribute("aria-label", label);
   motionButton.setAttribute("title", label);
   for (const icon of motionButton.querySelectorAll("[data-motion-icon]")) {
-    icon.hidden = icon.dataset.motionIcon === "resume" ? !motionPaused : motionPaused;
+    icon.style.display = icon.dataset.motionIcon === "resume"
+      ? (motionPaused ? "" : "none")
+      : (motionPaused ? "none" : "");
   }
   stackCarousel.setMotionPaused(motionPaused);
   requestSceneFrame();
@@ -303,12 +272,25 @@ document.addEventListener("visibilitychange", () => {
   if (document.hidden) audio.pause();
   else requestSceneFrame();
 });
-window.addEventListener("pagehide", () => {
+window.addEventListener("pageshow", event => {
+  if (!event.persisted) return;
+  framePending = false;
+  stackCarousel.setMotionPaused(motionPaused);
+  requestSceneFrame();
+});
+window.addEventListener("pagehide", event => {
+  if (event.persisted) {
+    pendingMusicStart = false;
+    audio.pause();
+    stackCarousel.setMotionPaused(true);
+    return;
+  }
   pageDisposed = true;
+  window.removeEventListener("about-audio-command", handleAudioCommand);
   document.documentElement.classList.remove("about-world-open");
   layoutObserver.disconnect();
   stackCarousel.dispose();
   artDissolveRuntime?.dispose();
   audio.dispose();
-}, { once: true });
+});
 requestSceneFrame();

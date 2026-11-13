@@ -8,7 +8,7 @@ export const routes: Record<Locale, Record<PageId, string>> = {
 };
 
 export const siteCopy = {
-  'pt-br': { lang: 'pt-BR', home: 'início', skip: 'Pular para o conteúdo', navigation: 'Navegação principal', language: 'Idioma', profiles: 'Perfis externos', labels: ['Home', 'Sobre', 'Labs', 'Projetos', 'Contato'] },
+  'pt-br': { lang: 'pt-BR', home: 'início', skip: 'Pular para o conteúdo', navigation: 'Navegação principal', language: 'Idioma', profiles: 'Perfis externos', labels: ['Início', 'Sobre', 'Laboratórios', 'Projetos', 'Contato'] },
   en: { lang: 'en', home: 'home', skip: 'Skip to content', navigation: 'Primary navigation', language: 'Language', profiles: 'External profiles', labels: ['Home', 'About', 'Labs', 'Projects', 'Contact'] },
 } as const;
 

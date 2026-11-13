@@ -1,0 +1,139 @@
+---
+import SiteLayout from '../../layouts/SiteLayout.astro';
+import { routes, type Locale } from '../../content/site';
+interface Props { locale: Locale; review?: boolean }
+const { locale, review = false } = Astro.props;
+const pt = locale === 'pt-br';
+const copy = pt ? {
+  title: review ? 'STILLFLOW · Contato | Bruno Florian' : 'Contato | Bruno Florian',
+  description: 'Contato com Bruno Florian.',
+  skip: 'Pular para o conteúdo',
+  headingStart: 'Vamos criar', headingEnd: 'algo', channels: 'Canais de contato',
+  linkedinAlt: 'LinkedIn de Bruno Florian (abre em nova aba)', emailAlt: 'E-mail: dev.brunoflorian@gmail.com',
+  whatsappAlt: 'WhatsApp: +55 47 99245-7539 (abre em nova aba)',
+  controls: 'Controles da cena', status: 'Cena estática; preparando controles.', state: 'Estado fotográfico',
+  show: 'Mostrar estado', transition: 'Reproduzir transição', mix: 'Mistura a 50%', reset: 'Voltar à base',
+  pause: 'Pausar cena', automatic: 'Variações ambientes', scrub: 'Mistura',
+  note: review ? 'Candidata em revisão · estados fotográficos, sem clima ao vivo ou trem animado.' : 'Beta 1',
+  publicRoute: routes[locale].contact,
+  publicLink: 'Base de layout',
+} : {
+  title: review ? 'STILLFLOW · Contact | Bruno Florian' : 'Contact | Bruno Florian',
+  description: 'Contact Bruno Florian.',
+  skip: 'Skip to content',
+  headingStart: 'Let’s make', headingEnd: 'something', channels: 'Contact channels',
+  linkedinAlt: 'LinkedIn: Bruno Florian (opens in a new tab)', emailAlt: 'E-mail: dev.brunoflorian@gmail.com',
+  whatsappAlt: 'WhatsApp: +55 47 99245-7539 (opens in a new tab)',
+  controls: 'Scene controls', status: 'Static scene; preparing controls.', state: 'Photographic state',
+  show: 'Show selected', transition: 'Play transition', mix: '50% blend', reset: 'Return to base',
+  pause: 'Pause scene', automatic: 'Ambient variations', scrub: 'Blend',
+  note: review ? 'Review candidate · photographic moods, not live weather or animated trains.' : 'Beta 1',
+  publicRoute: routes[locale].contact,
+  publicLink: 'Contact',
+};
+const localePath = review ? 'stillflow/' : '';
+const bodyClass = `home-page contact-page${review ? ' stillflow-page' : ' stillflow-page sf-public'}`;
+const styles = [
+  '/assets/site.css?v=word-fill-skeleton-review-2026-11-12-3',
+  '/assets/home.css?v=shared-header-64',
+  '/assets/home-mobile.css?v=shared-header-64',
+  '/assets/contact/layout.css?v=contact2-links-1',
+  ...(!review ? ['/assets/contact/stillflow/train-event.css?v=sf04-1'] : []),
+  '/assets/site-header.css?v=shared-header-64',
+  '/assets/contact/stillflow/review.css?v=sf01-1',
+];
+---
+<SiteLayout
+  locale={locale}
+  page="contact"
+  title={copy.title}
+  description={copy.description}
+  styles={styles}
+  bodyClass={bodyClass}
+  bodyAttributes={review ? { 'data-sf-review': '' } : {}}
+  headerClass="home-header"
+  footerClass="home-footer"
+  localeSuffix={localePath}
+  loadScrollFill={false}
+>
+  {review && <meta slot="head" name="robots" content="noindex, nofollow" />}
+  <noscript slot="head"><style is:inline>.sf-controls { display: none; }</style></noscript>
+  <script slot="after-base-scripts" is:inline type="module" src={review ? '/assets/contact/stillflow/review.js' : '/assets/contact/stillflow/review.js?v=sf04-rain-1'}></script>
+  {!review && <script slot="after-base-scripts" is:inline type="module" src="/assets/contact/stillflow/train-event.js?v=sf04-1"></script>}
+  <script slot="after-base-scripts" is:inline type="module" src="/assets/media-skeleton.js?v=media-skeleton-2026-11-12-3"></script>
+
+  <main id="main-content" tabindex="-1">
+    <section class="contact-layout" aria-labelledby="contact-title">
+      <div class="contact-stage" data-contact-stage data-sf-glass="clear" data-media-skeleton aria-hidden="true">
+        <picture class="sf-frame" data-sf-frame data-sf-current data-sf-state="rainy">
+          <source media="(max-width: 840px)" srcset="/assets/contact/stillflow/clear/rainy-mobile.webp" />
+          <img class="sf-photo" src="/assets/contact/stillflow/clear/rainy.webp" width="1672" height="941" alt="" decoding="async" fetchpriority="high" />
+        </picture>
+        <picture class="sf-frame" data-sf-frame>
+          <source media="(max-width: 840px)" />
+          <img class="sf-photo" width="1672" height="941" alt="" decoding="async" />
+        </picture>
+        <svg class="sf-brand-layer" viewBox="0 0 1672 941" preserveAspectRatio="xMidYMin slice" aria-hidden="true" focusable="false">
+          <defs>
+            <filter id="littz-blue-light" x="-40%" y="-40%" width="180%" height="180%" color-interpolation-filters="sRGB">
+              <feFlood flood-color="#61dfff" result="blue" />
+              <feComposite in="blue" in2="SourceAlpha" operator="in" result="ink" />
+              <feGaussianBlur in="ink" stdDeviation="0.75" result="glow" />
+              <feMerge><feMergeNode in="glow" /><feMergeNode in="ink" /></feMerge>
+            </filter>
+          </defs>
+          <g transform="translate(497 638) matrix(.96 -.04 .03 1 0 0) rotate(-90)" filter="url(#littz-blue-light)">
+            <image href="/assets/contact/stillflow/littz-original-mask.png" x="-20" y="-19.57" width="40" height="39.14" />
+          </g>
+        </svg>
+      </div>
+      <div class="contact-intro">
+        <p class="contact-kicker">{pt ? 'Contato' : 'Contact'}</p>
+        <h1 id="contact-title" class:list={['contact-title', { 'contact-title--pt': pt }]}>
+          <span>{copy.headingStart}</span>
+          <span class="contact-title-finish">{pt ? copy.headingEnd : <span>{copy.headingEnd}</span>} <strong>real.</strong></span>
+        </h1>
+      </div>
+      <section class="contact-dock" aria-labelledby="contact-channels-title">
+        <h2 id="contact-channels-title" class="visually-hidden">{copy.channels}</h2>
+        <ul class="contact-channel-list">
+          <li class="contact-channel contact-channel--linkedin">
+            <a class="contact-channel-link" href="https://www.linkedin.com/in/rbrunoflorian/" target="_blank" rel="noopener noreferrer" aria-label={copy.linkedinAlt}>
+              <img src="/assets/contact/icons/linkedin.svg" width="58" height="58" alt="" aria-hidden="true" /><span>LinkedIn</span>
+            </a>
+          </li>
+          <li class="contact-channel contact-channel--email">
+            <a class="contact-channel-link" href="mailto:dev.brunoflorian@gmail.com" aria-label={copy.emailAlt}>
+              <img src="/assets/contact/icons/email.svg" width="58" height="58" alt="" aria-hidden="true" /><span>E-mail</span>
+            </a>
+          </li>
+          <li class="contact-channel contact-channel--whatsapp">
+            <a class="contact-channel-link" href="https://wa.me/5547992457539" target="_blank" rel="noopener noreferrer" aria-label={copy.whatsappAlt}>
+              <img src="/assets/contact/icons/whatsapp.svg" width="58" height="58" alt="" aria-hidden="true" /><span>WhatsApp</span>
+            </a>
+          </li>
+        </ul>
+      </section>
+      <details class="sf-controls">
+        <summary>{copy.controls}</summary>
+        <div class="sf-control-panel">
+          <p data-sf-status role="status">{copy.status}</p>
+          <label>{copy.state}<select data-sf-state disabled><option value="rainy">{copy.state}</option></select></label>
+          <div class="sf-control-actions">
+            <button type="button" data-sf-show disabled>{copy.show}</button>
+            <button type="button" data-sf-transition disabled>{copy.transition}</button>
+            <button type="button" data-sf-mix disabled>{copy.mix}</button>
+            <button type="button" data-sf-reset disabled>{copy.reset}</button>
+            <button type="button" data-sf-pause aria-pressed="false" disabled>{copy.pause}</button>
+            <button type="button" data-sf-auto aria-pressed="false" disabled>{copy.automatic}</button>
+          </div>
+          <label class="sf-scrub">{copy.scrub}<input data-sf-scrub type="range" min="0" max="100" step="1" value="0" disabled /></label>
+          <output data-sf-metrics></output>
+          <small>{copy.note}</small>
+          {pt && !review && <a href={copy.publicRoute}>{copy.publicLink}</a>}
+          {review && <a href={copy.publicRoute}>{copy.publicLink}</a>}
+        </div>
+      </details>
+    </section>
+  </main>
+</SiteLayout>

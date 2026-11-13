@@ -6,16 +6,14 @@ const root = await realpath(fileURLToPath(new URL('../', import.meta.url)));
 const destination = path.join(root, '.astro', 'legacy-public');
 if (path.relative(root, destination) !== path.join('.astro', 'legacy-public')) throw new Error('Invalid public staging directory.');
 
-const legacyPages = [
-  'index.html', 'en/index.html', 'pt-br/index.html',
-  'en/about/index.html', 'pt-br/sobre/index.html',
-  'en/projects/index.html', 'pt-br/projetos/index.html',
-  'en/contact/index.html', 'pt-br/contato/index.html',
-  'en/contact/stillflow/index.html', 'pt-br/contato/stillflow/index.html',
-];
-const queue = [...legacyPages, 'assets/favicon.svg', 'assets/site.css', 'assets/labs.css', 'assets/site-header.css', 'assets/locale.js', 'assets/scroll-fill.js', 'assets/labs/controller.js', 'assets/vendor/three/build/three.module.js', 'assets/vendor/three/LICENSE', 'assets/vendor/meshoptimizer/LICENSE.md', 'assets/about-legacy/vendor/LICENSE-three.txt', 'assets/about-legacy/notation-LICENSE.txt'];
+async function sourceFiles(directory) {
+  const entries = await readdir(path.join(root, directory), { withFileTypes: true });
+  const nested = await Promise.all(entries.map(entry => entry.isDirectory() ? sourceFiles(directory + '/' + entry.name) : [directory + '/' + entry.name]));
+  return nested.flat().filter(file => /\.(?:astro|tsx?|jsx?)$/.test(file));
+}
+const queue = [...await sourceFiles('src'), 'assets/favicon.svg', 'assets/site.css', 'assets/labs.css', 'assets/site-header.css', 'assets/locale.js', 'assets/scroll-fill.js', 'assets/labs/controller.js', 'assets/vendor/three/build/three.module.js', 'assets/vendor/three/LICENSE', 'assets/vendor/meshoptimizer/LICENSE.md', 'assets/about-legacy/vendor/LICENSE-three.txt', 'assets/about-legacy/notation-LICENSE.txt'];
 const files = new Map();
-const textExtensions = new Set(['.html', '.css', '.js', '.mjs', '.json', '.svg', '.gltf']);
+const textExtensions = new Set(['.astro', '.tsx', '.ts', '.jsx', '.html', '.css', '.js', '.mjs', '.json', '.svg', '.gltf']);
 const assetExtension = /\.(?:html|css|m?js|json|svg|png|jpe?g|webp|gif|avif|glb|gltf|bin|wasm|woff2?|ttf|mp3|wav|ogg|txt)(?:[?#].*)?$/i;
 
 function resolveAsset(reference, from) {
@@ -65,6 +63,7 @@ while (queue.length) {
 
 await rm(destination, { recursive: true, force: true });
 for (const [relative, content] of files) {
+  if (!relative.startsWith('assets/')) continue;
   const target = path.join(destination, relative);
   await mkdir(path.dirname(target), { recursive: true });
   if (relative.endsWith('/stillflow/index.html')) {
@@ -80,4 +79,4 @@ for (const name of ['react', 'react-dom', 'scheduler', 'astro', '@astrojs/react'
   notices.push(`${name}\n${await readFile(path.join(directory, license), 'utf8')}`);
 }
 await writeFile(path.join(destination, 'THIRD_PARTY_NOTICES.txt'), notices.join('\n\n---\n\n'));
-console.log(`Staged ${legacyPages.length} unchanged page routes and ${files.size - legacyPages.length} public dependencies.`);
+console.log(`Staged ${[...files.keys()].filter(file => file.startsWith('assets/')).length} public assets from current source dependencies.`);
