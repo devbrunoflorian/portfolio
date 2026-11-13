@@ -1,0 +1,32 @@
+{
+  "name": "bruno-florian-portfolio",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=24.22.1 <25" },
+  "scripts": {
+    "predev": "node tools/prepare-public.mjs",
+    "dev": "astro dev --host 127.0.0.1 --port 4173",
+    "check": "astro check",
+    "test": "node --test tests/*.test.mjs",
+    "pretest:labs": "npm run build",
+    "test:labs": "playwright test",
+    "prebuild": "node tools/prepare-public.mjs",
+    "build": "astro build",
+    "check:build": "node tools/check-build.mjs",
+    "preview": "astro preview --host 127.0.0.1 --port 4173"
+  },
+  "dependencies": {
+    "astro": "7.4.12",
+    "@astrojs/react": "7.1.9",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  },
+  "devDependencies": {
+    "@astrojs/check": "0.9.12",
+    "@playwright/test": "1.65.0",
+    "@types/node": "24.19.2",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "typescript": "6.0.3"
+  }
+}

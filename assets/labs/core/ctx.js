@@ -29,7 +29,7 @@ export function createLabsContext(stage) {
   const canvas = document.createElement('canvas');
   canvas.className = 'lab-webgl-canvas';
   canvas.setAttribute('aria-hidden', 'true');
-  stage.append(canvas);
+  (stage.querySelector('[data-lab-renderer-host]') ?? stage).append(canvas);
 
   const stageSize = () => ({
     width: Math.max(1, stage.clientWidth),

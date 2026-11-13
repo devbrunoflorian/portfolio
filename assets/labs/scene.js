@@ -9,7 +9,8 @@ import { createLabsTransitions } from './transitions.js';
 import { createGeometryDebug } from './geometry-debug.js';
 import { createLabsPointer } from './pointer.js';
 
-export async function mountLabsFolderScene(stage) {
+export async function mountLabsFolderScene(stage, { signal } = {}) {
+signal?.throwIfAborted();
 const ctx = createLabsContext(stage);
 const {
   canvas,
@@ -47,10 +48,13 @@ let pointerController = null;
 let geometryDebug = null;
 let transitions = null;
 let idleFrame = 0;
+let ambientPaused = false;
+let stageVisible = true;
 
 function disposeSceneResources() {
   if (resourcesDisposed) return;
   resourcesDisposed = true;
+  ctx.disposed = true;
   orbitControls?.dispose();
   orbitControls = null;
 
@@ -70,7 +74,7 @@ function disposeSceneResources() {
   geometries.forEach((geometry) => geometry.dispose());
   materials.forEach((material) => material.dispose());
   binary.dispose();
-  composer.dispose();
+  lighting.dispose();
   renderer.dispose();
 }
 
@@ -109,7 +113,7 @@ function setTime(seconds) {
 
 function animateIdle(timestamp) {
   idleFrame = 0;
-  if (document.hidden || reducedMotion.matches) {
+  if (ctx.disposed || ambientPaused || !stageVisible || document.hidden || reducedMotion.matches) {
     canvas.dataset.idleRunning = 'false';
     return;
   }
@@ -125,7 +129,7 @@ function animateIdle(timestamp) {
 }
 
 function startIdle() {
-  if (!geometryDebugEnabled && !captureEnabled && !idleFrame && !document.hidden && !reducedMotion.matches) {
+  if (!ctx.disposed && !ambientPaused && stageVisible && !geometryDebugEnabled && !captureEnabled && !idleFrame && !document.hidden && !reducedMotion.matches) {
     clock.resetFrame();
     canvas.dataset.idleRunning = 'true';
     idleFrame = requestAnimationFrame(animateIdle);
@@ -172,6 +176,7 @@ try {
     orbitControls = await cameraRig.createOrbitControls(() => composer.render());
   }
   const meshes = await staticFolder.loadFolderScaffold();
+  signal?.throwIfAborted();
   staticFolder.addShellOccluder(meshes);
   staticFolder.addGeometryDebugScaffold(meshes);
   const frontCounts = staticFolder.makeFrontGlyphs(meshes);
@@ -217,6 +222,7 @@ try {
   pointerController.mount();
   if ('IntersectionObserver' in window) {
     stageObserver = new IntersectionObserver(([entry]) => {
+      stageVisible = entry.isIntersecting;
       if (entry.isIntersecting) startIdle();
       else stopIdle();
     }, { threshold: 0.01 });
@@ -252,12 +258,19 @@ try {
     ready: Promise.resolve(true),
     setTime,
     setPointer: pointerController.setCapture,
+    setPaused(value) {
+      if (ctx.disposed) return;
+      ambientPaused = Boolean(value);
+      if (ambientPaused) { stopIdle(); pointerController?.clear(); }
+      else startIdle();
+    },
     setProgress(position) {
-      if (geometryDebugEnabled) return;
+      if (ctx.disposed || geometryDebugEnabled) return;
       applyProgress(position);
-      if (captureEnabled || reducedMotion.matches) composer.render();
+      if (captureEnabled || ambientPaused || reducedMotion.matches) composer.render();
     },
     dispose() {
+      if (ctx.disposed) return;
       resizeObserver?.disconnect();
       stageObserver?.disconnect();
       stopIdle();

@@ -1,102 +1,57 @@
-(async () => {
-  const runway = document.querySelector("[data-labs-runway]");
-  const stage = document.querySelector("[data-lab-scene]");
-  const collection = document.querySelector("[data-lab-collection]");
-  const folders = Array.from(document.querySelectorAll("[data-lab-folder]"));
-  const controls = document.querySelector("[data-lab-controls]");
-  const previous = document.querySelector("[data-lab-previous]");
-  const next = document.querySelector("[data-lab-next]");
-  const motionControl = document.querySelector("[data-lab-motion]");
-  const title = document.querySelector("[data-lab-title]");
-  const description = document.querySelector("[data-lab-description]");
-  const state = document.querySelector("[data-lab-state]");
-  const indexLabel = document.querySelector("[data-lab-index]");
-  const count = document.querySelector("[data-lab-count]");
-  const tags = document.querySelector("[data-lab-tags]");
-  const link = document.querySelector("[data-lab-link]");
-  const incomingNote = document.querySelector("[data-lab-incoming]");
-  const progressBar = document.querySelector("[data-lab-progress]");
-  const handoffLabel = document.querySelector("[data-lab-handoff-label]");
-  const sticky = document.querySelector(".labs-sticky");
+/** Composes the existing GPU and Canvas renderers. UI state belongs to the caller. */
+export function mountLabsController(root, options = {}) {
+  let disposed = false;
+  let suspended = false;
+  let gpuScene = null;
+  let captureApi = null;
+  let cleanupScene = () => {};
+  const commands = {};
+  const observers = [];
+  const lifetime = new AbortController();
+  const listen = (target, type, callback, options = {}) => target.addEventListener(type, callback, { ...options, signal: lifetime.signal });
+  const observeResize = callback => { const observer = new ResizeObserver(callback); observers.push(observer); return observer; };
+  const observeIntersection = (callback, settings) => { const observer = new IntersectionObserver(callback, settings); observers.push(observer); return observer; };
+  function dispose() {
+    if (disposed) return;
+    disposed = true;
+    lifetime.abort();
+    observers.forEach(observer => observer.disconnect());
+    cleanupScene();
+  }
+  listen(window, 'pagehide', event => { if (!event.persisted) dispose(); });
+  const ready = initialize().catch(error => { dispose(); throw error; });
+  return {
+    ready,
+    scrollToIndex(index) { if (!disposed) commands.scrollToIndex?.(index); },
+    setMotionPaused(value) { if (!disposed) commands.setMotionPaused?.(value); },
+    dispose,
+  };
+  async function initialize() {
+
+  const runway = root.querySelector("[data-labs-runway]");
+  const stage = root.querySelector("[data-lab-scene]");
+  const collection = root.querySelector("[data-lab-collection]");
+  const folders = Array.from(root.querySelectorAll("[data-lab-folder]"));
+  const progressBar = root.querySelector("[data-lab-progress]");
+  const sticky = root.querySelector(".labs-sticky");
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
   const queryParams = new URLSearchParams(window.location.search);
   const captureEnabled = queryParams.get("labs-capture") === "1";
 
-  if (!runway || !stage || !collection || folders.length !== 5 || !controls || !motionControl) return;
+  if (!runway || !stage || !collection || folders.length < 2) throw new Error("Labs needs its runway, stage and at least two folders.");
 
-  if (queryParams.get("overlay") === "difference") {
-    const referencePath = queryParams.get("ref");
-    if (referencePath) {
-      const referenceUrl = new URL(referencePath, window.location.origin + "/");
-      if (referenceUrl.origin === window.location.origin && referenceUrl.pathname.startsWith("/references/")) {
-        const overlay = document.createElement("img");
-        overlay.dataset.labsReferenceOverlay = "true";
-        overlay.alt = "";
-        overlay.setAttribute("aria-hidden", "true");
-        Object.assign(overlay.style, {
-          position: "absolute",
-          inset: "0",
-          zIndex: "999",
-          width: "100%",
-          height: "100%",
-          objectFit: "contain",
-          opacity: ".5",
-          mixBlendMode: "difference",
-          pointerEvents: "none",
-        });
-        overlay.addEventListener("error", () => {
-          console.warn("The Labs reference overlay could not be loaded.", referenceUrl.href);
-          overlay.remove();
-        }, { once: true });
-        overlay.src = referenceUrl.href;
-        stage.append(overlay);
-      } else {
-        console.warn("The Labs reference overlay must resolve to a same-origin /references/ image.");
-      }
-    }
-  }
 
-  let gpuScene = null;
   if (window.matchMedia("(min-width: 781px)").matches) {
     try {
-      const { mountLabsFolderScene } = await import("./labs-folder-scene.js");
-      gpuScene = await mountLabsFolderScene(stage);
+      const { mountLabsFolderScene } = await import("../labs-folder-scene.js");
+      gpuScene = await mountLabsFolderScene(stage, { signal: lifetime.signal });
+      if (disposed) { gpuScene.dispose(); gpuScene = null; return; }
     } catch (error) {
+      if (disposed) return;
       console.warn("The static Labs WebGL scene could not start; using the Canvas scene.", error);
     }
   }
 
-  const isEnglish = document.documentElement.lang.toLowerCase().startsWith("en");
-  if (gpuScene) {
-    stage.setAttribute(
-      "aria-label",
-      isEnglish
-        ? "Interactive binary folder collection. Scroll vertically or use the arrow controls to explore five labs."
-        : "Coleção interativa de pastas binárias. Role a página ou use as setas para explorar cinco laboratórios.",
-    );
-    const instructionText = document.querySelector(".lab-instructions > span:last-child");
-    if (instructionText) {
-      instructionText.textContent = isEnglish ? "Scroll to explore or use the arrows" : "Role para explorar ou use as setas";
-    }
-    progressBar.parentElement.hidden = false;
-  }
-  const labs = [
-    {
-      title: "Rate Limiting Lab",
-      state: isEnglish ? "Available" : "Disponível",
-      description: isEnglish
-        ? "Four rate-limiting strategies, with Redis shared state for Fixed Window."
-        : "Quatro estratégias de rate limiting, com estado compartilhado via Redis para Fixed Window.",
-      tags: ["TypeScript", "Node.js", "Redis"],
-      href: "https://github.com/engineering-proof-labs/rate-limiting-lab",
-    },
-    { title: isEnglish ? "Incoming" : "Em breve", state: "INCOMING", description: isEnglish ? "This folder is reserved for a future experiment." : "Esta pasta está reservada para um experimento futuro." },
-    { title: isEnglish ? "Incoming" : "Em breve", state: "INCOMING", description: isEnglish ? "This folder is reserved for a future experiment." : "Esta pasta está reservada para um experimento futuro." },
-    { title: isEnglish ? "Incoming" : "Em breve", state: "INCOMING", description: isEnglish ? "This folder is reserved for a future experiment." : "Esta pasta está reservada para um experimento futuro." },
-    { title: isEnglish ? "Incoming" : "Em breve", state: "INCOMING", description: isEnglish ? "This folder is reserved for a future experiment." : "Esta pasta está reservada para um experimento futuro." },
-  ];
-
-  const formatIndex = (value) => String(value + 1).padStart(2, "0");
   const clamp = (value, min = 0, max = 1) => Math.max(min, Math.min(max, value));
   const isMobileScene = () => window.matchMedia("(max-width: 780px)").matches;
   const smoothstep = (value) => {
@@ -142,32 +97,15 @@
     return clamp((window.scrollY - runwayTop) / scrollDistance);
   }
 
+  function emitState() { options.onState?.({ index: activeIndex, motionPaused, webgl: Boolean(gpuScene) }); }
   function updateCopy(nextIndex) {
-    if (nextIndex === activeIndex && title.textContent) return;
+    if (nextIndex === activeIndex) return;
     activeIndex = nextIndex;
-    const selected = labs[nextIndex];
-    title.textContent = selected.title;
-    description.textContent = selected.description;
-    state.textContent = selected.state;
-    indexLabel.textContent = formatIndex(nextIndex);
-    count.textContent = formatIndex(nextIndex);
-    const incoming = !selected.href;
-    description.hidden = incoming;
-    tags.hidden = incoming;
-    link.hidden = incoming;
-    incomingNote.hidden = !incoming;
-    if (!incoming) {
-      link.href = selected.href;
-      handoffLabel.textContent = isEnglish ? "Next section" : "Próxima seção";
-    } else {
-      handoffLabel.textContent = nextIndex === folders.length - 1
-        ? (isEnglish ? "Collection complete" : "Fim da coleção")
-        : (isEnglish ? "Explore another folder" : "Explore outra pasta");
-    }
     folders.forEach((folder, index) => {
       folder.classList.toggle("is-active", index === nextIndex);
       folder.dataset.selected = String(index === nextIndex);
     });
+    emitState();
     requestSceneAnimation();
   }
 
@@ -303,7 +241,7 @@
 
   function animateScene(time) {
     sceneFrame = 0;
-    if (!sceneVisible || document.hidden) return;
+    if (disposed || suspended || !sceneVisible || document.hidden) return;
 
     const delta = Math.min(48, Math.max(1, time - (lastFrameTime || time - 33)));
     lastFrameTime = time;
@@ -335,7 +273,7 @@
   }
 
   function requestSceneAnimation() {
-    if (sceneFrame || !sceneVisible || document.hidden) return;
+    if (disposed || suspended || sceneFrame || !sceneVisible || document.hidden) return;
     if (reduceMotion.matches) {
       visualPosition = activeIndex;
       paintScene(visualPosition, sceneTime);
@@ -358,6 +296,7 @@
   }
 
   function onScroll() {
+    if (disposed || suspended) return;
     if (!scrollFrame) scrollFrame = requestAnimationFrame(readScroll);
   }
 
@@ -369,21 +308,16 @@
     window.scrollTo({ top, behavior: reduceMotion.matches ? "auto" : "smooth" });
   }
 
-  previous.addEventListener("click", () => scrollToIndex(activeIndex - 1));
-  next.addEventListener("click", () => scrollToIndex(activeIndex + 1));
-  motionControl.addEventListener("click", () => {
-    motionPaused = !motionPaused;
-    const label = motionPaused
-      ? (isEnglish ? "Resume ambient motion" : "Retomar movimento ambiente")
-      : (isEnglish ? "Pause ambient motion" : "Pausar movimento ambiente");
-    motionControl.setAttribute("aria-pressed", String(motionPaused));
-    motionControl.setAttribute("aria-label", label);
-    motionControl.querySelector("span").textContent = motionPaused ? "▶" : "Ⅱ";
+  commands.scrollToIndex = scrollToIndex;
+  commands.setMotionPaused = value => {
+    motionPaused = Boolean(value);
     stage.dataset.motionPaused = String(motionPaused);
+    gpuScene?.setPaused(motionPaused);
+    emitState();
     requestSceneAnimation();
-  });
-  stage.addEventListener("keydown", (event) => {
-    if (event.altKey || event.ctrlKey || event.metaKey) return;
+  };
+  listen(stage, "keydown", (event) => {
+    if (event.target !== stage || event.altKey || event.ctrlKey || event.metaKey) return;
     if (event.key === "ArrowLeft") {
       event.preventDefault();
       scrollToIndex(activeIndex - 1);
@@ -393,13 +327,13 @@
     }
   });
 
-  stage.addEventListener("pointerdown", (event) => {
+  listen(stage, "pointerdown", (event) => {
     if (gpuScene) return;
     if (!event.isPrimary || event.button !== 0 || event.target.closest("button, a")) return;
     pointerGesture = { x: event.clientX, y: event.clientY, pointerId: event.pointerId };
     if (event.pointerType !== "touch") stage.setPointerCapture(event.pointerId);
   });
-  stage.addEventListener("pointerup", (event) => {
+  listen(stage, "pointerup", (event) => {
     if (gpuScene) return;
     if (!pointerGesture || event.pointerId !== pointerGesture.pointerId) return;
     const deltaX = event.clientX - pointerGesture.x;
@@ -408,7 +342,7 @@
     if (Math.abs(deltaX) < 42 || Math.abs(deltaX) < Math.abs(deltaY) * 1.2) return;
     scrollToIndex(activeIndex + (deltaX < 0 ? 1 : -1));
   });
-  stage.addEventListener("pointercancel", () => { if (!gpuScene) pointerGesture = null; });
+  listen(stage, "pointercancel", () => { if (!gpuScene) pointerGesture = null; });
 
   folders.forEach((folder, folderIndex) => {
     if (gpuScene) return;
@@ -871,7 +805,7 @@
       requestSceneAnimation();
     }
 
-    canvas.addEventListener("pointermove", (event) => {
+    listen(canvas, "pointermove", (event) => {
       if (reduceMotion.matches || event.pointerType === "touch") return;
       const bounds = canvas.getBoundingClientRect();
       pointer.x = (event.clientX - bounds.left) / Math.max(1, bounds.width) * pointer.width;
@@ -885,11 +819,11 @@
       if (!reduceMotion.matches) pointer.recovering = true;
       requestSceneAnimation();
     };
-    canvas.addEventListener("pointerleave", releasePointer, { passive: true });
-    canvas.addEventListener("pointercancel", releasePointer, { passive: true });
+    listen(canvas, "pointerleave", releasePointer, { passive: true });
+    listen(canvas, "pointercancel", releasePointer, { passive: true });
     folder.dataset.canvasReady = "true";
-    if ("ResizeObserver" in window) new ResizeObserver(resize).observe(folder);
-    else window.addEventListener("resize", resize, { passive: true });
+    if ("ResizeObserver" in window) observeResize(resize).observe(folder);
+    else listen(window, "resize", resize, { passive: true });
     resize();
   });
 
@@ -906,13 +840,13 @@
     requestSceneAnimation();
   }
 
-  if ("ResizeObserver" in window) new ResizeObserver(resizeStage).observe(stage);
-  else window.addEventListener("resize", resizeStage, { passive: true });
+  if ("ResizeObserver" in window) observeResize(resizeStage).observe(stage);
+  else listen(window, "resize", resizeStage, { passive: true });
   resizeStage();
 
-  window.addEventListener("scroll", onScroll, { passive: true });
-  window.addEventListener("resize", onScroll, { passive: true });
-  reduceMotion.addEventListener("change", () => {
+  listen(window, "scroll", onScroll, { passive: true });
+  listen(window, "resize", onScroll, { passive: true });
+  listen(reduceMotion, "change", () => {
     folderSystems.forEach((system) => {
       if (!system?.visible) return;
       if (reduceMotion.matches) system.resetAmbient();
@@ -924,14 +858,14 @@
     paintScene(visualPosition, sceneTime);
     onScroll();
   });
-  document.addEventListener("visibilitychange", () => {
+  listen(document, "visibilitychange", () => {
     if (document.hidden && sceneFrame) {
       cancelAnimationFrame(sceneFrame);
       sceneFrame = 0;
     } else requestSceneAnimation();
   });
   if ("IntersectionObserver" in window) {
-    new IntersectionObserver(([entry]) => {
+    observeIntersection(([entry]) => {
       sceneVisible = entry.isIntersecting;
       if (sceneVisible) requestSceneAnimation();
       else if (sceneFrame) {
@@ -941,14 +875,13 @@
     }, { threshold: .01 }).observe(stage);
   }
 
-  controls.hidden = false;
-  motionControl.hidden = Boolean(gpuScene);
+  emitState();
   stage.dataset.motionPaused = "false";
   paintScene(0, performance.now());
   readScroll();
 
   if (captureEnabled && gpuScene) {
-    window.__labsCapture = Object.freeze({
+    captureApi = Object.freeze({
       ready: Promise.resolve(gpuScene.ready).then(() => true),
       setTime(value) {
         const seconds = Number(value);
@@ -989,4 +922,28 @@
       },
     });
   }
-})();
+
+  if (captureApi) window.__labsCapture = captureApi;
+  cleanupScene = () => {
+    cancelAnimationFrame(sceneFrame);
+    cancelAnimationFrame(scrollFrame);
+    gpuScene?.dispose();
+    if (window.__labsCapture === captureApi) delete window.__labsCapture;
+    for (const canvas of root.querySelectorAll(".lab-transition-field, .folder-reflection")) canvas.remove();
+    for (const canvas of root.querySelectorAll("[data-folder-canvas]")) { canvas.width = 0; canvas.height = 0; }
+  };
+  listen(window, 'pagehide', event => {
+    if (!event.persisted) { dispose(); return; }
+    suspended = true;
+    cancelAnimationFrame(sceneFrame); sceneFrame = 0;
+    cancelAnimationFrame(scrollFrame); scrollFrame = 0;
+    gpuScene?.setPaused(true);
+  });
+  listen(window, 'pageshow', () => {
+    suspended = false;
+    gpuScene?.setPaused(motionPaused);
+    onScroll();
+  });
+
+  }
+}

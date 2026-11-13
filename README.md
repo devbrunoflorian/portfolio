@@ -27,29 +27,29 @@
 
 A bilingual portfolio for software engineering work, experiments, and ideas. Its Home brings a chess-inspired 3D scene together with the portfolio's projects and engineering labs.
 
-The site uses static HTML, CSS, and JavaScript modules, with Three.js for the Home scene. It supports pointer and scroll interaction, keyboard navigation, reduced motion, and a static fallback when WebGL is unavailable.
+The site is being migrated to Astro with TypeScript and selective React components. Labs is the first migrated page: React owns the controls and selected-lab content, while the existing Three.js and Canvas modules own rendering. Other pages retain their static HTML and JavaScript modules.
 
 Contact Beta 1 uses five photographic atmospheres with optional, pausable transitions and a static fallback. Scene controls let visitors select an atmosphere; continuous rain, moving commuters, and audio are not implemented.
 
 
 ### Technologies
 
-`HTML` · `CSS` · `JavaScript ES modules` · `Three.js`<br />
-`Node.js` runs the local preview server; the site has no package-install or build step.
+`Astro` · `TypeScript` · `React` · `CSS` · `JavaScript ES modules` · `Three.js`<br />
+Node.js 24.22.1 and npm are required. The build generates static files; there is no application server in production.
 
 ## Português
 
 Um portfólio bilíngue de engenharia de software, experimentos e ideias. A Home combina uma cena 3D inspirada no xadrez com projetos e laboratórios de engenharia.
 
-O site usa HTML, CSS e módulos JavaScript estáticos, com Three.js na cena da Home. Há interação por ponteiro e rolagem, navegação por teclado, suporte à preferência por movimento reduzido e apresentação estática alternativa quando o WebGL não está disponível.
+O site está em migração para Astro com TypeScript e componentes React seletivos. Labs é a primeira página migrada: React controla a interface e o conteúdo do laboratório selecionado, enquanto os módulos existentes de Three.js e Canvas controlam o desenho. As outras páginas mantêm HTML estático e módulos JavaScript.
 
 A Contact Beta 1 usa cinco atmosferas fotográficas, transições opcionais com pausa e fallback estático. Os controles da cena permitem escolher uma atmosfera; chuva contínua, passageiros em movimento e áudio ainda não estão implementados.
 
 
 ### Tecnologias
 
-`HTML` · `CSS` · `JavaScript ES modules` · `Three.js`<br />
-`Node.js` executa o preview local; o site não exige instalação de pacotes nem etapa de build.
+`Astro` · `TypeScript` · `React` · `CSS` · `JavaScript ES modules` · `Three.js`<br />
+É necessário Node.js 24.22.1 e npm. O build gera arquivos estáticos; não há servidor de aplicação em produção.
 
 ## Navigate / Navegue
 
@@ -63,7 +63,8 @@ A Contact Beta 1 usa cinco atmosferas fotográficas, transições opcionais com 
 ```powershell
 git clone https://github.com/devbrunoflorian/portfolio.git
 cd portfolio
-node tools/serve-local.mjs
+npm ci
+npm run dev
 ```
 
 Open one of these pages:
@@ -73,14 +74,38 @@ Open one of these pages:
 
 Press `Ctrl+C` in the terminal to stop the preview server.
 
+The legacy root-level preview server does not serve the migrated Labs page. Use the npm commands above.
+
+```powershell
+npm run check
+npm test
+npm run build
+npm run check:build
+npm run preview
+```
+
+Browser regression checks for Labs require Playwright's Chromium:
+
+```powershell
+npx playwright install chromium
+npm run test:labs
+```
+
+The general Node suite currently has four failing About GPU geometry cases; they are not skipped. The Labs browser suite runs against the production build. It checks selection, input, fallbacks and renderer lifecycle; it does not certify performance on physical mobile devices.
+
+For static hosting, use `npm run build` and publish only `dist`. The build preserves the remaining page URLs and stages their referenced assets. Source files, development tools and experiments are not deployment inputs.
+
 ## Project structure
 
 ```text
 portfolio/
-├── assets/   Shared styles, scripts, Three.js modules, and model assets
-├── en/       English pages
-├── pt-br/    Brazilian Portuguese pages
-└── tools/    Local preview server
+├── src/      Astro pages, shared layout, localized data and React controls
+├── assets/   Styles, existing scene modules and model assets
+├── en/       English pages awaiting migration
+├── pt-br/    Portuguese pages awaiting migration
+├── tests/    Node tests and Labs browser regressions
+├── tools/    Public asset staging and build checks
+└── dist/     Generated static deployment output (not committed)
 ```
 
 ## Model attribution / Atribuição do modelo

@@ -1,0 +1,24 @@
+---
+import { locales, navigation, routes, siteCopy, type Locale, type PageId } from '../content/site';
+interface Props { locale: Locale; page: PageId }
+const { locale, page } = Astro.props;
+const copy = siteCopy[locale];
+---
+<header class={`site-header ${page}-header`}>
+  <a class="brand" href={routes[locale].home} aria-label={`Bruno Florian, ${copy.home}`}>Bruno Florian<span aria-hidden="true">.</span></a>
+  <nav class="primary-nav desktop-nav" aria-label={copy.navigation}>
+    {navigation.map((id, i) => <a href={routes[locale][id]} aria-current={id === page ? 'page' : undefined}>{copy.labels[i]}</a>)}
+  </nav>
+  <nav class="locale-nav" aria-label={copy.language}>
+    {locales.map(id => <a href={routes[id][page]} data-locale-choice={id} lang={siteCopy[id].lang} aria-current={id === locale ? 'page' : undefined}>{id === 'en' ? 'EN' : 'PT'}</a>)}
+  </nav>
+  <details class="mobile-menu">
+    <summary class="menu-toggle"><span class="menu-icon" aria-hidden="true"></span><span>Menu</span></summary>
+    <div class="mobile-menu-panel">
+      <nav class="mobile-nav" aria-label={copy.navigation}>
+        {navigation.map((id, i) => <a href={routes[locale][id]} aria-current={id === page ? 'page' : undefined}>{copy.labels[i]}</a>)}
+      </nav>
+      <a class="mobile-github" href="https://github.com/devbrunoflorian" target="_blank" rel="noopener noreferrer">GitHub ↗</a>
+    </div>
+  </details>
+</header>

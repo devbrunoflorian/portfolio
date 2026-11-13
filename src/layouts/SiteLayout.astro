@@ -1,0 +1,28 @@
+---
+import SiteHeader from '../components/SiteHeader.astro';
+import SiteFooter from '../components/SiteFooter.astro';
+import { siteCopy, type Locale, type PageId } from '../content/site';
+interface Props { locale: Locale; page: PageId; title: string; description: string; styles: string[] }
+const { locale, page, title, description, styles } = Astro.props;
+---
+<!doctype html>
+<html lang={siteCopy[locale].lang} data-content-id={page}>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content={description} />
+    <meta name="theme-color" content="#070809" />
+    <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg" />
+    <title>{title}</title>
+    {styles.map(href => <link rel="stylesheet" href={href} />)}
+    <slot name="head" />
+    <script is:inline src="/assets/locale.js" defer></script>
+    <script is:inline type="module" src="/assets/scroll-fill.js"></script>
+  </head>
+  <body class={`${page}-body`}>
+    <a class="skip-link" href="#main-content">{siteCopy[locale].skip}</a>
+    <SiteHeader locale={locale} page={page} />
+    <slot />
+    <SiteFooter locale={locale} page={page}><slot name="credit" /></SiteFooter>
+  </body>
+</html>
