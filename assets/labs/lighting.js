@@ -21,6 +21,7 @@ export function createLabsLighting(ctx, camera) {
       composer.setSize(width, height);
     },
     dispose() {
+      for (const pass of composer.passes) pass.dispose?.();
       composer.dispose();
     },
   };

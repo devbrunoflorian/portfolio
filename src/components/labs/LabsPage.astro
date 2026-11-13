@@ -1,0 +1,33 @@
+---
+import SiteLayout from '../../layouts/SiteLayout.astro';
+import LabsExperience from './LabsExperience';
+import { labs, labsCopy } from '../../content/labs';
+import { routes, type Locale } from '../../content/site';
+interface Props { locale: Locale }
+const { locale } = Astro.props;
+const copy = labsCopy[locale];
+---
+<SiteLayout locale={locale} page="labs" title={copy.title} description={copy.description} styles={['/assets/site.css', '/assets/labs.css', '/assets/site-header.css']}>
+  <script slot="head" type="importmap" is:inline>{"imports":{"three":"/assets/vendor/three/build/three.module.js","three/addons/":"/assets/vendor/three/examples/jsm/"}}</script>
+  <LabsExperience client:load copy={copy} projectsHref={routes[locale].projects}>
+    <Fragment slot="introduction">
+      <p class="labs-eyebrow"><span></span> {copy.eyebrow}</p>
+      <h1 id="labs-title" class="scroll-fill" set:html={copy.heading} />
+      <p class="labs-lede">{copy.lede}</p>
+    </Fragment>
+    <Fragment slot="folders">
+      <div data-lab-renderer-host style="display: contents"></div>
+      <div class="lab-horizon" aria-hidden="true"></div>
+      <div class="lab-floor" aria-hidden="true"></div>
+      <div class="lab-collection" data-lab-collection aria-hidden="true">
+        {labs.map((folder, index) => <article class:list={['lab-folder', { 'is-active': index === 0 }]} data-lab-folder data-lab-id={folder.id} data-folder-index={index} style={`--folder-hue: ${folder.hue}`}>
+          <canvas class="folder-binary" data-folder-canvas aria-hidden="true"></canvas>
+          <div class="folder-fallback" aria-hidden="true">{folder.bits.map(bit => <span>{bit}</span>)}</div>
+          <div class="folder-face" aria-hidden="true"></div>
+          <div class="folder-label"><span>{String(index + 1).padStart(2, '0')} / {index === 0 ? 'LAB' : 'INCOMING'}</span><strong>{index === 0 ? copy.folderTitle : copy.incoming}</strong><small>{index === 0 ? copy.folderDetails : copy.futureExperiment}</small></div>
+        </article>)}
+      </div>
+    </Fragment>
+  </LabsExperience>
+  <small slot="credit" class="labs-model-credit" set:html={copy.credit} />
+</SiteLayout>
