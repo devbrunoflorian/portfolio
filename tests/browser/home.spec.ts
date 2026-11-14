@@ -66,6 +66,69 @@ test('choosing a Home locale persists it for the root entry', async ({ page }) =
   await expect(page).toHaveURL(/\/en\/$/);
 });
 
+test('shared header feedback keeps its 160ms color transition contract across routes', async ({ page }) => {
+  for (const route of [
+    '/en/', '/pt-br/',
+    '/en/about/', '/pt-br/sobre/',
+    '/en/labs/', '/pt-br/laboratorios/',
+    '/en/contact/', '/pt-br/contato/',
+    '/en/contact/stillflow/', '/pt-br/contato/stillflow/',
+    '/en/projects/', '/pt-br/projetos/',
+  ]) {
+    await page.goto(route);
+    const timing = await page.locator('.desktop-nav a').first().evaluate(element => {
+      const styles = getComputedStyle(element);
+      return {
+        token: getComputedStyle(document.documentElement).getPropertyValue('--motion-feedback-duration').trim(),
+        duration: styles.transitionDuration,
+        easing: styles.transitionTimingFunction,
+        footerDuration: getComputedStyle(document.querySelector('.site-footer a')!).transitionDuration,
+      };
+    });
+
+    expect(timing, route).toEqual({ token: '160ms', duration: '0.16s', easing: 'ease', footerDuration: '0.16s' });
+  }
+});
+
+for (const [locale, route] of [['EN', '/en/'], ['PT-BR', '/pt-br/']] as const) {
+  test(`${locale} Home preview title fills and reverses across supported viewports`, async ({ page }) => {
+    await page.addInitScript(() => sessionStorage.setItem('home-entrance-00-played', '1'));
+
+    for (const viewport of [
+      { width: 1440, height: 900 },
+      { width: 1920, height: 1080 },
+      { width: 390, height: 844 },
+      { width: 320, height: 720 },
+    ]) {
+      await page.setViewportSize(viewport);
+      await page.goto(route);
+      const heading = page.locator('#work-title');
+      await expect(heading).toHaveAttribute('data-scroll-fill-ready', 'true');
+      await page.evaluate(() => {
+        document.documentElement.style.scrollBehavior = 'auto';
+        scrollTo(0, 0);
+      });
+      await expect.poll(() => page.evaluate(() => scrollY)).toBe(0);
+      const setHeadingTop = async (viewportRatio: number) => heading.evaluate((element, ratio) => {
+        document.documentElement.style.scrollBehavior = 'auto';
+        const target = scrollY + element.getBoundingClientRect().top - innerHeight * ratio;
+        scrollTo(0, target);
+      }, viewportRatio);
+      const allWordsFilled = () => heading.locator('.scroll-fill-word').evaluateAll(words =>
+        words.length > 0 && words.every(word => (word as HTMLElement).dataset.filled === 'true'),
+      );
+      const finishPosition = .46 - 2 / viewport.height;
+
+      await setHeadingTop(.86);
+      await expect.poll(allWordsFilled).toBe(false);
+      await setHeadingTop(finishPosition);
+      await expect.poll(allWordsFilled).toBe(true);
+      await setHeadingTop(.86);
+      await expect.poll(allWordsFilled).toBe(false);
+    }
+  });
+}
+
 test('first visit can skip the opening and a return does not start it again', async ({ page }) => {
   await page.goto('/en/');
   await expect(page.locator('body')).toHaveAttribute('data-home-opening-playing', 'true', { timeout: 25_000 });

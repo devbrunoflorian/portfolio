@@ -1,18 +1,21 @@
+import { MOTION, clamp01, easeOutCubic, scrollFillProgress, smoothstep } from "./shared/motion.js";
+
 const headings = [...document.querySelectorAll(".scroll-fill")];
 const motionPreference = window.matchMedia("(prefers-reduced-motion: reduce)");
 const documentRoot = document.documentElement;
+const fillTiming = MOTION.scrollFill;
 const fillWords = new Map();
 const introFills = new Map();
 let frameRequested = false;
 // About opening: edit these beats to tune the presentation in either language.
 // `step` spaces syllables; `enter` controls their fade; `settle` closes the beat.
-// Photo follows the person beat; `pause` adds time between beats.
+// The final emphasized word can enter as one beat after an explicit pause.
 const OPENING_SCRIPT = {
   en: {
     start: 160,
     lead: { step: 145, enter: 300, settle: 420, pause: 0 },
     bridge: { step: 145, enter: 300, settle: 420, pause: 0 },
-    person: { step: 390, enter: 560, settle: 560, pause: 0 },
+    person: { pauseBefore: 600, simultaneous: true, enter: 300, settle: 300 },
     bodyStep: 290,
     bodyFlowStep: 85,
   },
@@ -20,7 +23,7 @@ const OPENING_SCRIPT = {
     start: 160,
     lead: { step: 115, enter: 300, settle: 420, pause: 0 },
     bridge: { step: 115, enter: 300, settle: 420, pause: 0 },
-    person: { step: 310, enter: 560, settle: 560, pause: 0 },
+    person: { pauseBefore: 600, simultaneous: true, enter: 300, settle: 300 },
     bodyStep: 230,
     bodyFlowStep: 75,
   },
@@ -36,19 +39,31 @@ function openingTimeline(group, script) {
   ];
   const timing = new Map();
   let cursor = script.start;
+  let previousBeatEnd = script.start;
   let appearanceEnd = 0;
   let textEnd = 0;
+  let personStart = Infinity;
+  let personEnd = 0;
   for (const [syllables, beat] of beats) {
     if (!syllables.length) continue;
+    if (beat.pauseBefore) cursor = Math.max(cursor, previousBeatEnd) + beat.pauseBefore;
     syllables.forEach((syllable, index) => {
-      const enterAt = cursor + index * beat.step;
+      const enterAt = cursor + (beat.simultaneous ? 0 : index * beat.step);
       timing.set(syllable, { enterAt, enterDuration: beat.enter });
       appearanceEnd = Math.max(appearanceEnd, enterAt + beat.enter);
       textEnd = Math.max(textEnd, enterAt + beat.settle);
+      if (syllable.closest('em')) {
+        personStart = Math.min(personStart, enterAt);
+        personEnd = Math.max(personEnd, enterAt + beat.enter);
+      }
     });
-    cursor += syllables.length * beat.step + beat.pause;
+    previousBeatEnd = Math.max(previousBeatEnd, ...syllables.map(syllable => {
+      const cue = timing.get(syllable);
+      return cue.enterAt + cue.enterDuration;
+    }));
+    cursor += beat.simultaneous ? (beat.pause ?? 0) : syllables.length * beat.step + beat.pause;
   }
-  return { group, timing, appearanceEnd, textEnd, personStart: timing.get(group[person]).enterAt };
+  return { group, timing, appearanceEnd, textEnd, personStart, personEnd };
 }
 
 function wrapTextNodes(root) {
@@ -91,15 +106,12 @@ function wrapWords(heading) {
     const groups = variants.map(variant => [...variant.querySelectorAll("[data-fill-syllable]")]);
     const script = OPENING_SCRIPT[document.documentElement.lang.toLowerCase()] ?? OPENING_SCRIPT.en;
     const timelines = groups.map(group => openingTimeline(group, script));
-    timelines.forEach(({ group, timing }) => group.forEach(syllable => {
+    timelines.forEach(({ group }) => group.forEach(syllable => {
       const emphasis = syllable.closest("em");
       const intendedInk = emphasis ? getComputedStyle(emphasis).color : getComputedStyle(heading).color;
-      const cue = timing.get(syllable);
       syllable.classList.add("scroll-fill-syllable");
       syllable.style.setProperty("--word-ink", intendedInk);
       syllable.style.setProperty("--word-fill", "0%");
-      syllable.style.setProperty("--syllable-delay", `${cue.enterAt}ms`);
-      syllable.style.setProperty("--syllable-appear-duration", `${cue.enterDuration}ms`);
     }));
     heading.dataset.scrollFillReady = "true";
     heading.dataset.introStage = "waiting";
@@ -107,6 +119,7 @@ function wrapWords(heading) {
     const textEnd = Math.max(0, ...timelines.map(timeline => timeline.textEnd));
     const scene = heading.closest(".about-opening");
     const photoStart = Math.min(...timelines.map(timeline => timeline.personStart));
+    const photoEnd = Math.max(...timelines.map(timeline => timeline.personEnd));
     const body = [];
     let bodyCursor = textEnd;
     scene?.querySelectorAll('[data-opening-sentence]').forEach((sentence, sentenceIndex) => {
@@ -122,7 +135,7 @@ function wrapWords(heading) {
     });
     const state = { heading, groups, timelines, scene, appearanceEnd, textEnd, photoStart,
       body, bodyDuration: script.lead.enter,
-      totalDuration: Math.max(textEnd, bodyCursor + script.lead.enter), photoFade: textEnd - photoStart,
+      totalDuration: Math.max(textEnd, bodyCursor + script.lead.enter), photoFade: Math.max(1, photoEnd - photoStart),
       elapsed: 0, lastTime: null, started: false, complete: false };
     introFills.set(heading, state);
     if (motionPreference.matches) finishIntro(state);
@@ -131,6 +144,10 @@ function wrapWords(heading) {
 
   const words = wrapTextNodes(heading);
   heading.dataset.scrollFillReady = "true";
+  if (heading.dataset.scrollFillMode === "static" || heading.closest("[data-journey-panel]")) {
+    writeFill(words, 1);
+    return;
+  }
   fillWords.set(heading, words);
 }
 
@@ -154,6 +171,8 @@ function finishIntro(state) {
   state.groups.forEach(group => group.forEach(syllable => {
     syllable.style.setProperty("--word-fill", "100%");
     syllable.dataset.filled = "true";
+    syllable.style.removeProperty("opacity");
+    syllable.style.removeProperty("transform");
   }));
   state.heading.dataset.introStage = "complete";
   state.heading.dataset.scrollFillComplete = "true";
@@ -185,14 +204,11 @@ function updateFill(timestamp = performance.now()) {
   }
 
   const viewportHeight = window.innerHeight;
-  const startLine = viewportHeight * 0.82;
-  const finishLine = viewportHeight * 0.28;
-
   for (const [heading, words] of fillWords) {
     const bounds = heading.getBoundingClientRect();
     const progress = motionPreference.matches
       ? 1
-      : clamp((startLine - bounds.top) / (startLine - finishLine), 0, 1);
+      : scrollFillProgress(bounds.top, viewportHeight, fillTiming);
 
     writeFill(words, progress);
   }
@@ -215,15 +231,23 @@ function updateFill(timestamp = performance.now()) {
     }
     state.heading.dataset.introStage = state.elapsed < state.appearanceEnd ? "appear" : "fill";
     if (state.elapsed >= state.textEnd) state.heading.dataset.scrollFillComplete = "true";
+    state.timelines.forEach(({ group, timing }) => {
+      group.forEach(syllable => {
+        const cue = timing.get(syllable);
+        const progress = clamp01((state.elapsed - cue.enterAt) / cue.enterDuration);
+        syllable.style.opacity = String(smoothstep(progress));
+        syllable.style.transform = `translateY(${((1 - easeOutCubic(progress)) * MOTION.opening.syllableRiseEm).toFixed(3)}em)`;
+      });
+    });
     state.body.forEach(({ word, start }) => {
       const progress = clamp((state.elapsed - start) / state.bodyDuration, 0, 1);
-      word.style.opacity = String(progress);
-      word.style.transform = `translateY(${(1 - progress) * .16}em)`;
+      word.style.opacity = String(smoothstep(progress));
+      word.style.transform = `translateY(${((1 - easeOutCubic(progress)) * MOTION.opening.bodyRiseEm).toFixed(3)}em)`;
     });
     if (state.scene && state.elapsed >= state.photoStart) {
       if (state.elapsed >= state.textEnd) state.heading.dataset.introStage = "portrait";
-      const progress = clamp((state.elapsed - state.photoStart) / state.photoFade, 0, 1);
-      state.scene.style.setProperty("--opening-reveal", String(progress * progress * (3 - 2 * progress)));
+      const progress = smoothstep((state.elapsed - state.photoStart) / state.photoFade);
+      state.scene.style.setProperty("--opening-reveal", String(progress));
       state.scene.style.setProperty("--opening-table-blur", `${(1.1 * progress).toFixed(2)}px`);
     }
     if (state.elapsed >= state.totalDuration) finishIntro(state);

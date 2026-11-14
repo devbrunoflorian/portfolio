@@ -5,8 +5,22 @@ const smooth = (value: number) => value * value * (3 - 2 * value);
 /** Absolute scroll sampling makes reverse scroll and large jumps deterministic. */
 export function journeyState(scroll: number, start: number, travel: number) {
   const progress = clamp((scroll - start) / Math.max(1, travel));
-  const entering = progress <= .5;
-  const presence = smooth(entering ? progress * 2 : (1 - progress) * 2);
+  const entering = progress < .4;
+  const presence = progress < .12
+    ? 0
+    : progress < .4
+      ? smooth((progress - .12) / .28)
+      : progress <= .6
+        ? 1
+        : progress < .88
+          ? 1 - smooth((progress - .6) / .28)
+          : 0;
   const chapter: JourneyChapter = progress < .25 ? 'music' : progress > .75 ? 'games' : 'art';
-  return { progress, presence, entering, chapter, depth: (progress - .5) * 2 };
+  const interactiveChapter: JourneyChapter = progress < .4 ? 'music' : progress < .88 ? 'art' : 'games';
+  const depth = progress < .4
+    ? (progress - .4) / .4
+    : progress <= .6
+      ? 0
+      : (progress - .6) / .4;
+  return { progress, presence, entering, chapter, interactiveChapter, depth };
 }

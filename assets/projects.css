@@ -31,8 +31,8 @@
 .project-current > p:not(.project-current-index):not(.project-incoming-note) { font-size: 11px; }
 .project-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 11px; padding: 0; list-style: none; }
 .project-tags li { padding: 4px 7px; border: 1px solid rgba(112, 207, 218, .2); border-radius: 3px; background: rgba(4, 25, 33, .68); color: #d5e2f1; font-size: 9px; line-height: 1; }
-.project-primary-link { display: inline-flex; min-height: 39px; align-items: center; gap: 10px; margin-top: 15px; padding: 0 13px; border: 1px solid rgba(94, 222, 228, .48); border-radius: 999px; color: #f4f8ff; font-size: 10px; text-decoration: none; }
-.project-primary-link:hover { border-color: var(--project-cyan); background: rgba(23, 150, 163, .18); transform: translateY(-1px); }
+.project-primary-link { display: inline-flex; min-height: 39px; align-items: center; gap: 10px; margin-top: 15px; padding: 0 13px; border: 1px solid rgba(94, 222, 228, .48); border-radius: 999px; color: #f4f8ff; font-size: 10px; text-decoration: none; transition: background var(--motion-feedback-duration) var(--motion-feedback-easing), border-color var(--motion-feedback-duration) var(--motion-feedback-easing), transform var(--motion-feedback-duration) var(--motion-feedback-easing); }
+.project-primary-link:is(:hover, :focus-visible) { border-color: var(--project-cyan); background: rgba(23, 150, 163, .18); transform: translateY(-1px); }
 .project-incoming-note { color: #b7c8dc; }
 .project-instructions { display: flex; align-items: center; gap: 11px; margin-top: clamp(20px, 4vh, 38px); color: rgba(217, 229, 245, .63); font-size: 10px; }
 .project-mouse-icon i { box-shadow: 0 0 7px var(--project-cyan); }
@@ -108,14 +108,15 @@
 .screen-caption small { color: rgba(192, 218, 224, .67); font-size: 9px; }
 
 .project-controls { position: absolute; z-index: 20; bottom: clamp(28px, 5.3vh, 54px); left: 53%; display: flex; align-items: center; justify-content: center; gap: 16px; transform: translateX(-50%); }
-.project-controls > button { display: grid; width: 38px; height: 38px; appearance: none; place-items: center; border: 1px solid rgba(130, 208, 218, .42); border-radius: 50%; background: rgba(3, 11, 22, .6); color: #e9f8fb; cursor: pointer; font-size: 19px; }
-.project-controls > button:hover { border-color: var(--project-cyan); background: rgba(30, 156, 169, .19); transform: scale(1.05); }
+.project-controls > button { display: grid; width: 38px; height: 38px; appearance: none; place-items: center; border: 1px solid rgba(130, 208, 218, .42); border-radius: 50%; background: rgba(3, 11, 22, .6); color: #e9f8fb; cursor: pointer; font-size: 19px; transition: border-color var(--motion-feedback-duration) var(--motion-feedback-easing), background var(--motion-feedback-duration) var(--motion-feedback-easing), transform var(--motion-feedback-duration) var(--motion-feedback-easing); }
+.project-controls > button:is(:hover, :focus-visible) { border-color: var(--project-cyan); background: rgba(30, 156, 169, .19); transform: scale(1.05); }
 .project-position { display: flex; align-items: center; gap: 5px; }
-.project-position button { position: relative; display: grid; min-width: 42px; height: 38px; place-items: center; border: 0; border-bottom: 1px solid rgba(160, 197, 211, .28); background: transparent; color: rgba(193, 213, 221, .57); cursor: pointer; font: 600 9px/1 ui-monospace, monospace; transition: color .2s ease, border-color .2s ease; }
+.project-position button { position: relative; display: grid; min-width: 42px; height: 38px; place-items: center; border: 0; border-bottom: 1px solid rgba(160, 197, 211, .28); background: transparent; color: rgba(193, 213, 221, .57); cursor: pointer; font: 600 9px/1 ui-monospace, monospace; transition: color var(--motion-feedback-duration) var(--motion-feedback-easing), border-color var(--motion-feedback-duration) var(--motion-feedback-easing); }
 .project-position button[aria-pressed="true"] { border-color: var(--project-cyan); color: #eaffff; box-shadow: 0 3px 10px -7px var(--project-cyan); }
-.project-position button:hover { color: #fff; }
+.project-position button:is(:hover, :focus-visible) { color: #fff; }
 .projects-labs-link { position: absolute; z-index: 16; right: clamp(20px, 3.4vw, 50px); bottom: 34px; color: rgba(195, 218, 228, .54); font-size: 9px; text-decoration: none; }
-.projects-labs-link:hover { color: #fff; }
+.projects-labs-link { transition: color var(--motion-feedback-duration) var(--motion-feedback-easing); }
+.projects-labs-link:is(:hover, :focus-visible) { color: #fff; }
 .projects-footer { margin: 0 clamp(20px, 3.2vw, 52px); padding: 12px 0 18px; border-color: rgba(139, 175, 220, .14); color: rgba(194, 210, 229, .48); }
 .projects-footer a { color: rgba(194, 210, 229, .62); }
 

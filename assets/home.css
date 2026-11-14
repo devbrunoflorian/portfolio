@@ -488,10 +488,16 @@ html[lang="pt-BR"] .hero-actions .button.primary {
 .work-preview h2 { max-width: 620px; margin: 0 0 14px; font-size: clamp(32px, 4vw, 58px); font-weight: 400; letter-spacing: -.06em; line-height: 1; }
 .work-preview p:not(.eyebrow) { max-width: 520px; margin: 0; color: var(--home-muted); font-size: 16px; line-height: 1.65; }
 .preview-links { display: flex; flex-wrap: wrap; gap: 12px 28px; }
-.preview-links a { display: flex; align-items: center; gap: 18px; min-height: 48px; color: #efeff0; font-size: 14px; text-decoration-color: rgba(255, 255, 255, .36); text-underline-offset: 7px; }
+.preview-links a { display: flex; align-items: center; gap: 18px; min-height: 48px; color: #efeff0; font-size: 14px; text-decoration-color: rgba(255, 255, 255, .36); text-underline-offset: 7px; transition: color var(--motion-feedback-duration) var(--motion-feedback-easing), text-decoration-color var(--motion-feedback-duration) var(--motion-feedback-easing); }
+.preview-links a:is(:hover, :focus-visible) { text-decoration-color: #ff1230; }
 .preview-links a span { color: #e33242; font-size: 20px; }
 .home-footer { width: min(1500px, calc(100% - 10vw)); margin-inline: auto; border-top-color: rgba(255, 255, 255, .1); color: var(--home-dim); }
 .home-footer a { color: var(--home-muted); }
+/* Gives the preview title enough scroll runway to reach the shared completion line before the footer. */
+.home-page #main-content { padding-bottom: max(0px, calc(54vh - 326px)); }
+@media (max-width: 780px) {
+  .home-page #main-content { padding-bottom: max(32px, calc(24vh - 170px)); }
+}
 
 .noscript-note { position: relative; z-index: 10; max-width: 800px; margin: 16px auto; padding: 12px 18px; color: #ddd; background: #191a1c; }
 

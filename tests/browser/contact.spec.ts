@@ -14,6 +14,12 @@ test('public Contact routes render localized links and headings in the initial H
     await expect(page.locator('.contact-channel-link[href="https://www.linkedin.com/in/rbrunoflorian/"]')).toBeVisible();
     await expect(page.locator('.contact-channel-link[href="mailto:dev.brunoflorian@gmail.com"]')).toBeVisible();
     await expect(page.locator('.contact-channel-link[href="https://wa.me/5547992457539"]')).toBeVisible();
+    const feedback = await page.locator('.contact-channel-link').first().evaluate(element => ({
+      token: getComputedStyle(document.documentElement).getPropertyValue('--motion-feedback-duration').trim(),
+      backdrop: getComputedStyle(element, '::before').transitionDuration,
+      icon: getComputedStyle(element.querySelector('img')!).transitionDuration,
+    }));
+    expect(feedback).toEqual({ token: '160ms', backdrop: '0.16s', icon: '0.16s' });
     await expect(page.locator(`.locale-nav a[href="${route.alternate}"]`)).toBeVisible();
     await expect(page.locator('meta[name="robots"]')).toHaveCount(0);
   }
