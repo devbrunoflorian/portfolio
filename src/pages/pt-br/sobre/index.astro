@@ -1,5 +1,6 @@
 ---
 import SiteLayout from '../../../layouts/SiteLayout.astro';
+import AboutJourney from '../../../components/about/AboutJourney.astro';
 import AudioPlayerToggle from '../../../components/about/AudioPlayerToggle.tsx';
 import AudioMixer from '../../../components/about/AudioMixer.tsx';
 import { score } from '../../../../assets/about-legacy/score.js';
@@ -21,6 +22,7 @@ const tracks = score.tracks.map(track => ({
     '/assets/site.css?v=word-fill-skeleton-review-2026-11-12-3',
     '/assets/site-header.css?v=about-audio-header-2026-11-11',
     '/assets/about/about.css?v=about-art-background-match-6',
+    '/assets/about/art-scene.css?v=shared-art-journey-1',
   ]}
   bodyClass=""
   shellClass="site-shell"
@@ -59,37 +61,19 @@ const tracks = score.tracks.map(track => ({
         </div>
       </section>
 
-      <section class="about-chapter about-music" id="music" data-chapter="music" aria-labelledby="music-title">
+      <AboutJourney locale={locale}>
+        <Fragment slot="music"><section class="about-chapter about-music" id="music" data-chapter="music" aria-labelledby="music-title">
         <header class="chapter-heading"><div><p class="about-eyebrow">02 · MUSIC</p><h2 id="music-title" class="scroll-fill">Tem coisa que<br>precisa ser <em>sentida.</em></h2></div><p>A música tem uma gravidade própria na minha vida. Dissonância percorre versos, pontes e refrões enquanto esta página muda ao seu redor.</p></header>
         <figure class="score-frame" data-score-anchor><div class="score-window" role="img" aria-label="Trecho da partitura do violão de Dissonância"><svg class="score-header" viewBox="0 150 150 205" aria-hidden="true"><use width="150" height="360" href="/assets/about-legacy/guitar-score/notation-header.svg#score-header"></use></svg><svg class="score-measure" viewBox="0 150 320 205" aria-hidden="true"><g class="score-staff-lines"><path d="M0 176.5H320" /><path d="M0 200.5H320" /><path d="M0 224.5H320" /><path d="M0 248.5H320" /><path d="M0 272.5H320" /></g><path class="score-barline" d="M319 176.5V272.5"/><use width="320" height="360" href="/assets/about-legacy/guitar-score/system-031.svg#bar-033"></use></svg><svg class="score-measure" viewBox="0 150 320 205" aria-hidden="true"><g class="score-staff-lines"><path d="M0 176.5H320" /><path d="M0 200.5H320" /><path d="M0 224.5H320" /><path d="M0 248.5H320" /><path d="M0 272.5H320" /></g><path class="score-barline" d="M319 176.5V272.5"/><use width="320" height="360" href="/assets/about-legacy/guitar-score/system-034.svg#bar-034"></use></svg><svg class="score-measure" viewBox="0 150 320 205" aria-hidden="true"><g class="score-staff-lines"><path d="M0 176.5H320" /><path d="M0 200.5H320" /><path d="M0 224.5H320" /><path d="M0 248.5H320" /><path d="M0 272.5H320" /></g><path class="score-barline" d="M319 176.5V272.5"/><use width="320" height="360" href="/assets/about-legacy/guitar-score/system-034.svg#bar-035"></use></svg></div><figcaption><span>Dissonância · Compassos 33–35</span><span>♩ = 102 · 4/4 · 4:09</span></figcaption></figure>
         <div class="music-controls"><p>Duas vozes sobre a partitura do violão.</p><div class="music-tools"><button class="about-motion-toggle" type="button" data-motion-toggle aria-label="Pausar movimento" title="Pausar movimento" aria-pressed="false">
           <svg data-motion-icon="pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14"/></svg>
           <svg data-motion-icon="resume" viewBox="0 0 24 24" aria-hidden="true" style="display: none"><path d="m8 5 11 7-11 7V5Z"/></svg>
         </button><AudioMixer locale={locale} tracks={tracks} client:load /></div></div>
-      </section>
-
-      <section class="score-transition" aria-hidden="true"></section>
-
-      <section class="about-chapter about-art" id="art" data-chapter="art" aria-labelledby="art-title">
-        <div class="art-image-layer" data-score-anchor data-media-skeleton><img data-art-image src="/assets/about-legacy/illustrations/art-muse-vitoria-watercolor.png" alt="Musa em uma composição de aquarela violeta e azul" width="1470" height="1024" loading="lazy" decoding="async" /></div>
-        <div class="art-copy"><h2 id="art-title" class="scroll-fill">Entre o que vemos e sentimos,<br>a arte encontra <em>inspiração</em>.</h2><p>Um encontro sensível entre forma, emoção e expressão visual.</p></div>
-      </section>
-
-      <section class="about-chapter about-games" id="games" data-chapter="games" aria-labelledby="games-title">
-        <div class="games-copy"><p class="about-eyebrow">04 · GAMES</p><h2 id="games-title" class="scroll-fill">Jogar também<br>é <em>pensar.</em></h2><p>Jogos e xadrez também têm seu lugar: estratégia, leitura de padrões e novas perspectivas.</p><button class="world-open" type="button" data-world-open>Jogar <span aria-hidden="true">↗</span></button></div>
-        <figure class="games-scene" data-score-anchor data-media-skeleton><img class="games-landscape" src="/assets/about-legacy/forest/forest-world-wide.png" alt="Floresta pixelada, caminho de pedra e portal iluminado" loading="lazy" decoding="async"/><span class="knight-sprite" aria-hidden="true"></span><span class="forest-foreground" aria-hidden="true"></span></figure>
-      </section>
+      </section></Fragment>
+      </AboutJourney>
 
       <section class="about-closing" id="closing" data-chapter="closing" aria-labelledby="closing-title"><div><p class="about-eyebrow">05 · NEXT</p><h2 id="closing-title" class="scroll-fill">As ideias ficam mais interessantes<br>quando se tornam <em>reais.</em></h2></div><nav class="closing-links" data-score-anchor aria-label="Próximos passos"><a href="/pt-br/projetos/">Conheça o trabalho <span aria-hidden="true">↗</span></a><a href="/pt-br/contato/">Vamos conversar <span aria-hidden="true">↗</span></a></nav></section>
 
-      <dialog class="world-dialog" data-world-dialog aria-labelledby="world-title"><button type="button" class="world-close" data-world-close>Voltar à história</button>
-        <div class="world-entry" data-world-entry>
-          <div class="world-entry-copy"><p class="about-eyebrow">UM MUNDO EM CONSTRUÇÃO</p><h2 id="world-title">Floresta Antiga</h2>
-          <button class="world-play" type="button" data-world-play><span aria-hidden="true">▶</span> Play</button>
-          <p class="world-entry-note">Prévia visual · O jogo ainda está em desenvolvimento.</p></div>
-        </div>
-        <div class="world-dialog-scene" data-world-stage data-media-skeleton hidden><picture><img data-world-src="/assets/about-legacy/forest/forest-world-wide.png" alt="Floresta pixelada, caminho de pedra e portal iluminado" decoding="async"/><span class="knight-sprite" aria-hidden="true"></span></picture><span class="forest-foreground" aria-hidden="true"></span></div>
-        <span class="world-dialog-label">Floresta Antiga · PRÉVIA VISUAL</span>
-      </dialog>
+
     </main>
 </SiteLayout>
