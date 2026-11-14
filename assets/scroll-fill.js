@@ -9,13 +9,13 @@ const introFills = new Map();
 let frameRequested = false;
 // About opening: edit these beats to tune the presentation in either language.
 // `step` spaces syllables; `enter` controls their fade; `settle` closes the beat.
-// The final emphasized word can enter as one beat after an explicit pause.
+// The final emphasized word follows the bridge cadence and reveals left to right.
 const OPENING_SCRIPT = {
   en: {
     start: 160,
     lead: { step: 145, enter: 300, settle: 420, pause: 0 },
     bridge: { step: 145, enter: 300, settle: 420, pause: 0 },
-    person: { pauseBefore: 600, simultaneous: true, enter: 300, settle: 300 },
+    person: { step: 145, enter: 300, settle: 420, opacityCurve: "easeOutCubic" },
     bodyStep: 290,
     bodyFlowStep: 85,
   },
@@ -23,7 +23,7 @@ const OPENING_SCRIPT = {
     start: 160,
     lead: { step: 115, enter: 300, settle: 420, pause: 0 },
     bridge: { step: 115, enter: 300, settle: 420, pause: 0 },
-    person: { pauseBefore: 600, simultaneous: true, enter: 300, settle: 300 },
+    person: { step: 115, enter: 300, settle: 420, opacityCurve: "easeOutCubic" },
     bodyStep: 230,
     bodyFlowStep: 75,
   },
@@ -49,7 +49,7 @@ function openingTimeline(group, script) {
     if (beat.pauseBefore) cursor = Math.max(cursor, previousBeatEnd) + beat.pauseBefore;
     syllables.forEach((syllable, index) => {
       const enterAt = cursor + (beat.simultaneous ? 0 : index * beat.step);
-      timing.set(syllable, { enterAt, enterDuration: beat.enter });
+      timing.set(syllable, { enterAt, enterDuration: beat.enter, opacityCurve: beat.opacityCurve });
       appearanceEnd = Math.max(appearanceEnd, enterAt + beat.enter);
       textEnd = Math.max(textEnd, enterAt + beat.settle);
       if (syllable.closest('em')) {
@@ -235,7 +235,8 @@ function updateFill(timestamp = performance.now()) {
       group.forEach(syllable => {
         const cue = timing.get(syllable);
         const progress = clamp01((state.elapsed - cue.enterAt) / cue.enterDuration);
-        syllable.style.opacity = String(smoothstep(progress));
+        const opacity = cue.opacityCurve === "easeOutCubic" ? easeOutCubic(progress) : smoothstep(progress);
+        syllable.style.opacity = String(opacity);
         syllable.style.transform = `translateY(${((1 - easeOutCubic(progress)) * MOTION.opening.syllableRiseEm).toFixed(3)}em)`;
       });
     });
