@@ -43,7 +43,7 @@ html[data-content-id="about"] .site-footer { width: min(100% - 2 * var(--about-g
 .opening-scene { position: absolute; z-index: 0; inset: 0 auto auto 50%; width: min(100vw, 1920px); height: 100%; overflow: visible; transform: translateX(-50%); pointer-events: none; background: radial-gradient(ellipse 34% 76% at 22% 47%, rgb(111 35 151 / 25%), transparent 73%), radial-gradient(ellipse 42% 78% at 86% 48%, rgb(31 75 157 / 23%), transparent 74%), linear-gradient(100deg, #0a0610 0%, #060609 49%, #050812 100%); }
 .opening-scene::after { content: none; }
 .opening-portrait-frame { position: absolute; left: -24px; top: 12px; width: 100%; height: auto; aspect-ratio: 1535 / 1024; overflow: visible; -webkit-mask-image: none; mask-image: none; }
-.opening-portrait-frame > .media-skeleton-layer { -webkit-mask: url("/assets/about/opening/bruno-cutout.png") center / 100% 100% no-repeat; mask: url("/assets/about/opening/bruno-cutout.png") center / 100% 100% no-repeat; }
+.opening-portrait-frame > .media-skeleton-layer { -webkit-mask: url("/assets/about/opening/bruno-cutout.png?v=clean-alpha-1") center / 100% 100% no-repeat; mask: url("/assets/about/opening/bruno-cutout.png?v=clean-alpha-1") center / 100% 100% no-repeat; }
 .opening-portrait { position: relative; width: 100%; height: 100%; transform: none; transform-origin: initial; -webkit-mask-image: none; mask-image: none; }
 .opening-portrait-image { display: block; width: 100%; height: 100%; object-fit: contain; object-position: left top; filter: grayscale(1) brightness(1) contrast(1.04); }
 .opening-copy { position: absolute; z-index: 2; top: clamp(144px, calc(6.875vw + 56px), 176px); right: max(5vw, calc((100vw - 1920px) / 2 + 96px)); width: min(40.625vw, 780px); max-width: none; padding: 0; }
@@ -939,8 +939,24 @@ body[data-score-gpu-scroll="true"] .about-rebuild .opening-copy :is(h1, .opening
   .opening-portrait-image { animation: none !important; transform: none !important; }
 }
 
-/* Original portrait stays intact; only the table is generated independently. */
-.opening-portrait-frame { -webkit-mask-image: url('/assets/about/opening/portrait-only-mask.svg'); mask-image: url('/assets/about/opening/portrait-only-mask.svg'); }
+/* The portrait PNG supplies its own alpha; the table is a separate layer. */
+.opening-portrait-frame {
+  -webkit-mask-image: none;
+  mask-image: none;
+  /* Directional spill follows the PNG alpha, without a rectangular shadow. */
+  filter: drop-shadow(-2px 1px 3px rgb(112 61 160 / 16%))
+    drop-shadow(1px 1px 2px rgb(44 78 130 / 10%));
+}
+body .about-rebuild .about-opening .opening-scene::after {
+  content: "";
+  position: absolute;
+  z-index: 3;
+  inset-inline: 0;
+  inset-block-end: 0;
+  block-size: clamp(56px, 14svh, 140px);
+  background: linear-gradient(0deg, rgb(var(--site-background-rgb) / .64), transparent);
+  pointer-events: none;
+}
 .opening-board-layer[data-opening-table] { -webkit-mask-image: none; mask-image: none; }
 .opening-board-layer[data-opening-table] > .opening-board-image {
   width: 130%;
