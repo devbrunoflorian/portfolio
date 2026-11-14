@@ -94,7 +94,7 @@ test('reduced motion completes the opening cleanly when enabled during its entra
 });
 
 for (const route of ['/en/about/', '/pt-br/sobre/']) {
-  test(`${route}: the highlighted word follows a dramatic pause and fades with the portrait`, async ({ page }) => {
+  test(`${route}: the highlighted word follows the phrase cadence and reveals left to right`, async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.emulateMedia({ reducedMotion: 'no-preference' });
     await page.goto(route);
@@ -110,7 +110,6 @@ for (const route of ['/en/about/', '/pt-br/sobre/']) {
       return {
         bridge: bridge.map(syllable => Number(syllable.style.opacity)),
         person: person.map(syllable => Number(syllable.style.opacity)),
-        personTransform: person.map(syllable => syllable.style.transform),
         reveal: Number(scene.style.getPropertyValue('--opening-reveal')),
       };
     });
@@ -120,34 +119,50 @@ for (const route of ['/en/about/', '/pt-br/sobre/']) {
       const bridge = [...(line?.querySelectorAll<HTMLElement>('.scroll-fill-syllable') ?? [])]
         .filter(syllable => !syllable.closest('em') && !/^[.,!?]$/u.test(syllable.textContent.trim()));
       const person = [...(line?.querySelectorAll<HTMLElement>('em .scroll-fill-syllable') ?? [])];
+      const bridgeEnd = Number(bridge.at(-1)?.style.opacity);
+      const leadingOpacity = Number(person[0]?.style.opacity);
       return bridge.length > 0
-        && bridge.every(syllable => Number(syllable.style.opacity) === 1)
-        && person.length > 0
-        && person.every(syllable => Number(syllable.style.opacity) === 0);
+        && person.length > 1
+        && bridgeEnd > 0 && bridgeEnd < 1
+        && leadingOpacity > 0 && leadingOpacity < 1
+        && person.slice(1).every(syllable => Number(syllable.style.opacity) === 0);
     });
 
-    await page.waitForTimeout(350);
-    const duringPause = await sample();
-    expect(duringPause.bridge.every(opacity => opacity === 1)).toBe(true);
-    expect(duringPause.person.every(opacity => opacity === 0)).toBe(true);
-    expect(duringPause.reveal).toBe(0);
+    const firstSyllable = await sample();
+    expect(firstSyllable.bridge.at(-1)).toBeGreaterThan(0);
+    expect(firstSyllable.bridge.at(-1)).toBeLessThan(1);
+    expect(firstSyllable.person[0]).toBeGreaterThan(0);
+    expect(firstSyllable.person[0]).toBeLessThan(1);
+    expect(firstSyllable.person.slice(1).every(opacity => opacity === 0)).toBe(true);
+    expect(firstSyllable.reveal).toBeGreaterThan(0);
+    expect(firstSyllable.reveal).toBeLessThan(1);
+
+    await page.waitForFunction(() => {
+      const line = document.querySelector<HTMLElement>('#about-title .opening-title-wide .opening-title-line:nth-of-type(2)');
+      const person = [...(line?.querySelectorAll<HTMLElement>('em .scroll-fill-syllable') ?? [])];
+      return person.length > 1
+        && Number(person[0]?.style.opacity) === 1
+        && Number(person.at(-1)?.style.opacity) > 0
+        && Number(person.at(-1)?.style.opacity) < 1;
+    });
+    const movingRight = await sample();
+    expect(movingRight.person[0]).toBe(1);
+    expect(movingRight.person.at(-1)).toBeGreaterThan(0);
+    expect(movingRight.person.at(-1)).toBeLessThan(1);
+    expect(movingRight.person[0]).toBeGreaterThan(movingRight.person.at(-1)!);
 
     await page.waitForFunction(() => {
       const line = document.querySelector<HTMLElement>('#about-title .opening-title-wide .opening-title-line:nth-of-type(2)');
       const person = [...(line?.querySelectorAll<HTMLElement>('em .scroll-fill-syllable') ?? [])];
       const scene = document.querySelector<HTMLElement>('.about-opening');
-      return person.length > 0
-        && person.some(syllable => Number(syllable.style.opacity) > 0 && Number(syllable.style.opacity) < 1)
-        && Number(scene?.style.getPropertyValue('--opening-reveal')) > 0;
+      return person.length > 1
+        && person.every(syllable => Number(syllable.style.opacity) === 1)
+        && Number(scene?.style.getPropertyValue('--opening-reveal')) === 1;
     });
 
-    const duringReveal = await sample();
-    expect(duringReveal.person.length).toBeGreaterThan(0);
-    const personOpacity = duringReveal.person[0];
-    expect(personOpacity).toBeDefined();
-    expect(duringReveal.person.every(opacity => opacity === personOpacity)).toBe(true);
-    expect(duringReveal.personTransform.every(transform => transform === duringReveal.personTransform[0])).toBe(true);
-    expect(Math.abs((personOpacity ?? Number.NaN) - duringReveal.reveal)).toBeLessThan(0.00001);
+    const completeReveal = await sample();
+    expect(completeReveal.person.every(opacity => opacity === 1)).toBe(true);
+    expect(completeReveal.reveal).toBe(1);
   });
 }
 
