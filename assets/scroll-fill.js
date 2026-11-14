@@ -4,12 +4,52 @@ const documentRoot = document.documentElement;
 const fillWords = new Map();
 const introFills = new Map();
 let frameRequested = false;
-const INTRO_DELAY = 100;
-const SYLLABLE_STAGGER = 58;
-const SYLLABLE_APPEAR_DURATION = 190;
-const FILL_GAP = 120;
-const SYLLABLE_FILL_STAGGER = 62;
-const SYLLABLE_FILL_DURATION = 190;
+// About opening: edit these beats to tune the presentation in either language.
+// `step` spaces syllables; `enter` controls their fade; `settle` closes the beat.
+// Photo follows the person beat; `pause` adds time between beats.
+const OPENING_SCRIPT = {
+  en: {
+    start: 160,
+    lead: { step: 145, enter: 300, settle: 420, pause: 0 },
+    bridge: { step: 145, enter: 300, settle: 420, pause: 0 },
+    person: { step: 390, enter: 560, settle: 560, pause: 0 },
+    bodyStep: 290,
+    bodyFlowStep: 85,
+  },
+  'pt-br': {
+    start: 160,
+    lead: { step: 115, enter: 300, settle: 420, pause: 0 },
+    bridge: { step: 115, enter: 300, settle: 420, pause: 0 },
+    person: { step: 310, enter: 560, settle: 560, pause: 0 },
+    bodyStep: 230,
+    bodyFlowStep: 75,
+  },
+};
+
+function openingTimeline(group, script) {
+  const comma = group.findIndex(syllable => syllable.textContent.trim() === ',');
+  const person = group.findIndex(syllable => syllable.closest('em'));
+  const beats = [
+    [group.slice(0, comma + 1), script.lead],
+    [group.slice(comma + 1, person), script.bridge],
+    [group.slice(person), script.person],
+  ];
+  const timing = new Map();
+  let cursor = script.start;
+  let appearanceEnd = 0;
+  let textEnd = 0;
+  for (const [syllables, beat] of beats) {
+    if (!syllables.length) continue;
+    syllables.forEach((syllable, index) => {
+      const enterAt = cursor + index * beat.step;
+      timing.set(syllable, { enterAt, enterDuration: beat.enter });
+      appearanceEnd = Math.max(appearanceEnd, enterAt + beat.enter);
+      textEnd = Math.max(textEnd, enterAt + beat.settle);
+    });
+    cursor += syllables.length * beat.step + beat.pause;
+  }
+  return { group, timing, appearanceEnd, textEnd, personStart: timing.get(group[person]).enterAt };
+}
 
 function wrapTextNodes(root) {
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
@@ -49,22 +89,41 @@ function wrapWords(heading) {
   if (heading.dataset.scrollFillMode === "once") {
     const variants = [...heading.querySelectorAll("[data-fill-variant]")];
     const groups = variants.map(variant => [...variant.querySelectorAll("[data-fill-syllable]")]);
-    const syllableCount = Math.max(0, ...groups.map(group => group.length));
-    groups.forEach(group => group.forEach((syllable, index) => {
+    const script = OPENING_SCRIPT[document.documentElement.lang.toLowerCase()] ?? OPENING_SCRIPT.en;
+    const timelines = groups.map(group => openingTimeline(group, script));
+    timelines.forEach(({ group, timing }) => group.forEach(syllable => {
       const emphasis = syllable.closest("em");
       const intendedInk = emphasis ? getComputedStyle(emphasis).color : getComputedStyle(heading).color;
+      const cue = timing.get(syllable);
       syllable.classList.add("scroll-fill-syllable");
       syllable.style.setProperty("--word-ink", intendedInk);
       syllable.style.setProperty("--word-fill", "0%");
-      syllable.style.setProperty("--syllable-index", String(index));
-      syllable.style.setProperty("--syllable-delay", `${INTRO_DELAY + index * SYLLABLE_STAGGER}ms`);
+      syllable.style.setProperty("--syllable-delay", `${cue.enterAt}ms`);
+      syllable.style.setProperty("--syllable-appear-duration", `${cue.enterDuration}ms`);
     }));
     heading.dataset.scrollFillReady = "true";
     heading.dataset.introStage = "waiting";
-    const appearanceEnd = INTRO_DELAY + Math.max(0, syllableCount - 1) * SYLLABLE_STAGGER + SYLLABLE_APPEAR_DURATION;
-    const fillStart = appearanceEnd + FILL_GAP;
-    const totalDuration = fillStart + Math.max(0, syllableCount - 1) * SYLLABLE_FILL_STAGGER + SYLLABLE_FILL_DURATION;
-    const state = { heading, groups, syllableCount, appearanceEnd, fillStart, totalDuration, elapsed: 0, lastTime: null, started: false, complete: false };
+    const appearanceEnd = Math.max(0, ...timelines.map(timeline => timeline.appearanceEnd));
+    const textEnd = Math.max(0, ...timelines.map(timeline => timeline.textEnd));
+    const scene = heading.closest(".about-opening");
+    const photoStart = Math.min(...timelines.map(timeline => timeline.personStart));
+    const body = [];
+    let bodyCursor = textEnd;
+    scene?.querySelectorAll('[data-opening-sentence]').forEach((sentence, sentenceIndex) => {
+      const words = wrapTextNodes(sentence);
+      const step = sentenceIndex === 0 ? script.bodyStep : script.bodyFlowStep;
+      sentence.dataset.openingReady = 'true';
+      words.forEach((word, index) => {
+        body.push({ word, start: bodyCursor + index * step });
+        word.style.setProperty('--word-fill', '100%');
+        word.dataset.filled = 'true';
+      });
+      bodyCursor += words.length * step;
+    });
+    const state = { heading, groups, timelines, scene, appearanceEnd, textEnd, photoStart,
+      body, bodyDuration: script.lead.enter,
+      totalDuration: Math.max(textEnd, bodyCursor + script.lead.enter), photoFade: textEnd - photoStart,
+      elapsed: 0, lastTime: null, started: false, complete: false };
     introFills.set(heading, state);
     if (motionPreference.matches) finishIntro(state);
     return;
@@ -98,6 +157,9 @@ function finishIntro(state) {
   }));
   state.heading.dataset.introStage = "complete";
   state.heading.dataset.scrollFillComplete = "true";
+  state.scene?.style.setProperty("--opening-reveal", "1");
+  state.scene?.style.setProperty("--opening-table-blur", "1.1px");
+  state.body.forEach(({ word }) => { word.style.opacity = '1'; word.style.transform = 'none'; });
   state.complete = true;
   state.lastTime = null;
 }
@@ -151,22 +213,19 @@ function updateFill(timestamp = performance.now()) {
       state.elapsed += Math.max(0, timestamp - state.lastTime);
       state.lastTime = timestamp;
     }
-    if (state.elapsed < state.fillStart) {
-      state.heading.dataset.introStage = state.elapsed < state.appearanceEnd ? "appear" : "fill";
-      state.groups.forEach(group => group.forEach(syllable => {
-        syllable.style.setProperty("--word-fill", "0%");
-        syllable.dataset.filled = "false";
-      }));
-      introRunning = true;
-      continue;
+    state.heading.dataset.introStage = state.elapsed < state.appearanceEnd ? "appear" : "fill";
+    if (state.elapsed >= state.textEnd) state.heading.dataset.scrollFillComplete = "true";
+    state.body.forEach(({ word, start }) => {
+      const progress = clamp((state.elapsed - start) / state.bodyDuration, 0, 1);
+      word.style.opacity = String(progress);
+      word.style.transform = `translateY(${(1 - progress) * .16}em)`;
+    });
+    if (state.scene && state.elapsed >= state.photoStart) {
+      if (state.elapsed >= state.textEnd) state.heading.dataset.introStage = "portrait";
+      const progress = clamp((state.elapsed - state.photoStart) / state.photoFade, 0, 1);
+      state.scene.style.setProperty("--opening-reveal", String(progress * progress * (3 - 2 * progress)));
+      state.scene.style.setProperty("--opening-table-blur", `${(1.1 * progress).toFixed(2)}px`);
     }
-
-    state.heading.dataset.introStage = "fill";
-    state.groups.forEach(group => group.forEach((syllable, index) => {
-      const progress = clamp((state.elapsed - state.fillStart - index * SYLLABLE_FILL_STAGGER) / SYLLABLE_FILL_DURATION, 0, 1);
-      syllable.style.setProperty("--word-fill", `${(progress * 100).toFixed(1)}%`);
-      syllable.dataset.filled = String(progress >= 1);
-    }));
     if (state.elapsed >= state.totalDuration) finishIntro(state);
     else introRunning = true;
   }

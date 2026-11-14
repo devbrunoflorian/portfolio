@@ -18,7 +18,7 @@ const headerUtilities = Astro.slots.has('header-utilities');
     {styles.map(href => <link rel="stylesheet" href={href} />)}
     <slot name="head" />
     <script is:inline src="/assets/locale.js" defer></script>
-    {loadScrollFill && <script is:inline type="module" src="/assets/scroll-fill.js"></script>}
+    {loadScrollFill && <script is:inline type="module" src="/assets/scroll-fill.js?v=opening-fluid-2026-11-14-2"></script>}
     <slot name="after-base-scripts" />
   </head>
   <body class={bodyClass} {...bodyAttributes}>
