@@ -57,9 +57,15 @@ a:focus-visible { outline: 3px solid #a1bbff; outline-offset: 4px; border-radius
 
 .scroll-fill[data-scroll-fill-ready="true"][data-scroll-fill-mode="once"][data-intro-stage="waiting"] .scroll-fill-syllable { opacity: 0; }
 .scroll-fill[data-scroll-fill-ready="true"][data-scroll-fill-mode="once"][data-intro-stage="appear"] .scroll-fill-syllable {
-  animation: opening-syllable-enter 190ms cubic-bezier(.2,.72,.2,1) var(--syllable-delay, 0ms) both;
+  animation: opening-syllable-enter var(--syllable-appear-duration, 300ms) cubic-bezier(.22,0,.35,1) var(--syllable-delay, 0ms) both;
 }
-.scroll-fill[data-scroll-fill-ready="true"][data-scroll-fill-mode="once"] .scroll-fill-syllable { transition: none; }
+.scroll-fill[data-scroll-fill-ready="true"][data-scroll-fill-mode="once"] .scroll-fill-syllable {
+  transition: none;
+  background-image: none;
+  color: var(--word-ink, currentColor) !important;
+  -webkit-text-fill-color: currentColor;
+}
+html[data-motion-paused="true"] .scroll-fill[data-intro-stage="appear"] .scroll-fill-syllable { animation-play-state: paused; }
 .scroll-fill[data-scroll-fill-ready="true"][data-scroll-fill-mode="once"][data-scroll-fill-complete="true"] .scroll-fill-syllable {
   background-image: none;
   color: var(--word-ink, currentColor) !important;
@@ -70,7 +76,7 @@ a:focus-visible { outline: 3px solid #a1bbff; outline-offset: 4px; border-radius
 }
 
 @keyframes opening-syllable-enter {
-  from { opacity: 0; transform: translateY(.16em); }
+  from { opacity: 0; transform: translateY(.08em); }
   to { opacity: 1; transform: translateY(0); }
 }
 

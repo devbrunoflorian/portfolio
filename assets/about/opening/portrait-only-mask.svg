@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1535 1024" preserveAspectRatio="none">
+  <defs>
+    <mask id="portrait" maskUnits="userSpaceOnUse" x="0" y="0" width="1535" height="1024">
+      <rect width="1535" height="1024" fill="white"/>
+      <path d="M1037 620 L1037 680 L1048 700 L1059 720 L1073 740 L1083 760 L1091 780 L1097 800 L1107 820 L1114 840 L1121 860 L1125 880 L1129 900 L1128 920 L1123 940 L1113 960 L1098 980 L1112 990 L1142 1000 L1232 1024 L1535 1024 L1535 620 Z" fill="black"/>
+    </mask>
+  </defs>
+  <rect width="1535" height="1024" fill="white" mask="url(#portrait)"/>
+</svg>

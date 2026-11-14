@@ -19,9 +19,9 @@ const tracks = score.tracks.map(track => ({
   title="About | Bruno Florian"
   description="About Bruno Florian."
   styles={[
-    '/assets/site.css?v=word-fill-skeleton-review-2026-11-12-3',
+    '/assets/site.css?v=opening-fluid-2026-11-14-1',
     '/assets/site-header.css?v=about-audio-header-2026-11-11',
-    '/assets/about/about.css?v=about-art-background-match-6',
+    '/assets/about/about.css?v=opening-b-focus-2026-11-14-1',
     '/assets/about/art-scene.css?v=shared-art-journey-1',
   ]}
   bodyClass=""
@@ -31,13 +31,14 @@ const tracks = score.tracks.map(track => ({
   localeOrder={['pt-br', 'en']}
 >
   <AudioPlayerToggle slot="header-utilities" locale={locale} client:load />
+  <script slot="head" is:inline>document.documentElement.dataset.aboutIntro = 'ready';</script>
   <script slot="after-base-scripts" is:inline type="module" src="/assets/about/route.js?v=about-art-mask-cleanup-1"></script>
   <script slot="after-base-scripts" is:inline type="module" src="/assets/media-skeleton.js?v=media-skeleton-2026-11-12-3"></script>
 <main id="main-content" class="about-rebuild" tabindex="-1" data-about-page data-active-chapter="opening">
       <section class="about-opening" id="opening" data-chapter="opening" aria-labelledby="about-title">
         <div class="opening-scene" data-score-anchor aria-hidden="true">
-          <figure class="opening-board-layer">
-            <img class="opening-board-image" src="/assets/about/opening/bruno-cutout.png" alt="" decoding="async" />
+          <figure class="opening-board-layer" data-opening-table>
+            <img class="opening-board-image" src="/assets/about/opening/chess-table-expanded.png" alt="" decoding="async" />
           </figure>
           <figure class="opening-portrait-frame" data-media-skeleton>
             <img class="opening-portrait-image" src="/assets/about/opening/bruno-cutout.png" alt="" decoding="async" fetchpriority="high" />
@@ -45,7 +46,7 @@ const tracks = score.tracks.map(track => ({
         </div>
         <div class="opening-copy">
           <h1 id="about-title" class="scroll-fill" data-scroll-fill-mode="once" aria-label="Behind every piece, there's a person."><span class="opening-title-wide" data-fill-variant aria-hidden="true"><span class="opening-title-line"><span class="opening-word"><span data-fill-syllable>Be</span><span data-fill-syllable>hind</span></span> <span class="opening-word"><span data-fill-syllable>ev</span><span data-fill-syllable>ery</span></span> <span class="opening-word"><span data-fill-syllable>piece</span><span class="opening-title-period" data-fill-syllable>,</span></span></span><span class="opening-title-line"><span class="opening-word"><span data-fill-syllable>there's</span></span> <span class="opening-word"><span data-fill-syllable>a</span></span> <span class="opening-word"><em><span data-fill-syllable>per</span><span data-fill-syllable>son</span></em><span class="opening-title-period" data-fill-syllable>.</span></span></span></span><span class="opening-title-narrow" data-fill-variant aria-hidden="true"><span class="opening-title-line"><span class="opening-word"><span data-fill-syllable>Be</span><span data-fill-syllable>hind</span></span> <span class="opening-word"><span data-fill-syllable>ev</span><span data-fill-syllable>ery</span></span> <span class="opening-word"><span data-fill-syllable>piece</span><span class="opening-title-period" data-fill-syllable>,</span></span></span><span class="opening-title-line"><span class="opening-word"><span data-fill-syllable>there's</span></span> <span class="opening-word"><span data-fill-syllable>a</span></span> <span class="opening-word"><em><span data-fill-syllable>per</span><span data-fill-syllable>son</span></em><span class="opening-title-period" data-fill-syllable>.</span></span></span></span></h1>
-          <p class="opening-intro">I’m Bruno Florian.<br class="opening-intro-break"> Code, music, art and a curiosity that connects them all.</p>
+          <p class="opening-intro"><span data-opening-sentence>I’m Bruno Florian.</span><br class="opening-intro-break"> <span data-opening-sentence>Code, music, art and a curiosity that connects them all.</span></p>
 <p class="sr-only" data-audio-status role="status">Sound is off</p>
         </div>
         <a href="#code" class="opening-scroll" aria-label="Continue to Code"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3v13m-5-5 5 5 5-5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
