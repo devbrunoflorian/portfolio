@@ -974,3 +974,18 @@ body .about-rebuild .about-opening .opening-scene::after {
 @media (prefers-reduced-motion: reduce) {
   html[data-about-intro="ready"] .opening-intro .scroll-fill-word { opacity: 1 !important; transform: none !important; }
 }
+/* Extend the first About scene to sit beneath the fixed header. */
+@media (min-width: 1100px) {
+  html[data-content-id="about"] main.about-rebuild {
+    --opening-header-bleed: 70px;
+    padding-block-start: 0;
+  }
+  .about-opening {
+    min-block-size: calc(100svh + var(--opening-header-bleed));
+    padding-block-start: calc(64px + var(--opening-header-bleed) + clamp(80px, calc(5vw + 16px), 112px));
+  }
+  .opening-portrait-frame,
+  .opening-board-layer {
+    inset-block-start: calc(-22svh + var(--opening-header-bleed));
+  }
+}
