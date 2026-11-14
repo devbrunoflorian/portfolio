@@ -18,6 +18,10 @@ export function mountAboutJourney(root: HTMLElement) {
   let width = 1;
   let visible = false;
   let chapter: JourneyChapter | null = null;
+  let interactiveChapter: JourneyChapter | null = null;
+  const hashPositions: Record<string, number> = { music: 0, art: .5, games: 1 };
+  let fontsReady = false;
+  let hashSeekPending = Object.hasOwn(hashPositions, location.hash.slice(1));
   const pointer = { x: 0, y: 0, targetX: 0, targetY: 0 };
 
   function measure() {
@@ -33,13 +37,20 @@ export function mountAboutJourney(root: HTMLElement) {
     chapter = next;
     if (next) root.dataset.currentChapter = next;
     else delete root.dataset.currentChapter;
+    window.dispatchEvent(new Event('about-journey-change'));
+  }
+
+  function setInteractiveChapter(next: JourneyChapter | null) {
+    if (interactiveChapter === next) return;
+    interactiveChapter = next;
+    if (next) root.dataset.interactiveChapter = next;
+    else delete root.dataset.interactiveChapter;
     for (const panel of panels) {
       const inactive = !!next && panel.dataset.journeyPanel !== next;
       panel.inert = inactive;
       if (inactive) panel.setAttribute('aria-hidden', 'true');
       else panel.removeAttribute('aria-hidden');
     }
-    window.dispatchEvent(new Event('about-journey-change'));
   }
 
   function render() {
@@ -51,6 +62,7 @@ export function mountAboutJourney(root: HTMLElement) {
       composition.removeAttribute('data-masked');
       composition.style.removeProperty('visibility');
       setChapter(null);
+      setInteractiveChapter(null);
       return;
     }
     root.dataset.journeyMode = 'pinned';
@@ -59,10 +71,11 @@ export function mountAboutJourney(root: HTMLElement) {
     root.dataset.artPresence = state.presence.toFixed(5);
     root.dataset.journeyPhase = state.entering ? 'entering-art' : 'leaving-art';
     setChapter(state.chapter);
+    setInteractiveChapter(state.interactiveChapter);
     // Music is below Art on entry; Games is below Art on exit.
     root.dataset.underlay = state.entering ? 'music' : 'games';
     const paused = document.documentElement.dataset.motionPaused === 'true';
-    const presence = paused ? Number(state.chapter === 'art') : state.presence;
+    const presence = state.presence;
     if (presence >= 1 - 1e-6) composition.removeAttribute('data-masked');
     else composition.dataset.masked = 'true';
     composition.style.visibility = presence <= 0 ? 'hidden' : 'visible';
@@ -72,8 +85,13 @@ export function mountAboutJourney(root: HTMLElement) {
     const enabled = visible && !paused && hover.matches;
     const targetX = enabled ? pointer.targetX : 0;
     const targetY = enabled ? pointer.targetY : 0;
-    pointer.x += (targetX - pointer.x) * .16;
-    pointer.y += (targetY - pointer.y) * .16;
+    if (paused) {
+      pointer.x = 0;
+      pointer.y = 0;
+    } else {
+      pointer.x += (targetX - pointer.x) * .16;
+      pointer.y += (targetY - pointer.y) * .16;
+    }
     root.style.setProperty('--art-pointer-x', pointer.x.toFixed(4));
     root.style.setProperty('--art-pointer-y', pointer.y.toFixed(4));
     root.style.setProperty('--art-depth', paused ? '0' : state.depth.toFixed(4));
@@ -92,17 +110,29 @@ export function mountAboutJourney(root: HTMLElement) {
   function seekHash() {
     if (reduced.matches) return;
     const target = location.hash.slice(1);
-    const positions: Record<string, number> = { music: 0, art: .5, games: 1 };
-    if (Object.hasOwn(positions, target)) {
+    if (Object.hasOwn(hashPositions, target)) {
       if (layoutDirty) measure();
-      scrollTo({ top: start + travel * positions[target]!, behavior: 'instant' });
+      scrollTo({ top: start + travel * hashPositions[target]!, behavior: 'instant' });
       schedule();
     }
+  }
+  function cancelPendingHashSeek() { hashSeekPending = false; }
+  function handleHashChange() {
+    hashSeekPending = !fontsReady && Object.hasOwn(hashPositions, location.hash.slice(1));
+    seekHash();
   }
 
   window.addEventListener('scroll', schedule, { passive: true, signal: events.signal });
   window.addEventListener('resize', invalidate, { passive: true, signal: events.signal });
-  window.addEventListener('hashchange', seekHash, { signal: events.signal });
+  window.addEventListener('hashchange', handleHashChange, { signal: events.signal });
+  window.addEventListener('wheel', cancelPendingHashSeek, { passive: true, signal: events.signal });
+  window.addEventListener('touchstart', cancelPendingHashSeek, { passive: true, signal: events.signal });
+  window.addEventListener('pointerdown', cancelPendingHashSeek, { signal: events.signal });
+  window.addEventListener('keydown', event => {
+    if (['ArrowDown', 'ArrowUp', 'PageDown', 'PageUp', 'Home', 'End', ' '].includes(event.key)) {
+      cancelPendingHashSeek();
+    }
+  }, { signal: events.signal });
   root.addEventListener('pointermove', event => {
     if (!hover.matches || reduced.matches || !visible) return;
     pointer.targetX = Math.max(-1, Math.min(1, (event.clientX / width - .5) * 2));
@@ -116,6 +146,7 @@ export function mountAboutJourney(root: HTMLElement) {
     else invalidate();
   }, { signal: events.signal });
   window.addEventListener('pagehide', event => {
+    hashSeekPending = false;
     if (!event.persisted) { dispose(); return; }
     suspended = true; cancelAnimationFrame(frame); frame = 0;
   }, { signal: events.signal });
@@ -131,7 +162,15 @@ export function mountAboutJourney(root: HTMLElement) {
   layout.observe(document.querySelector('[data-about-page]') ?? root);
   const motion = new MutationObserver(schedule);
   motion.observe(document.documentElement, { attributes: true, attributeFilter: ['data-motion-paused'] });
-  document.fonts.ready.then(() => { if (!disposed) { invalidate(); seekHash(); } });
+  document.fonts.ready.then(() => {
+    if (disposed) return;
+    fontsReady = true;
+    invalidate();
+    if (hashSeekPending) {
+      hashSeekPending = false;
+      seekHash();
+    }
+  });
 
   function dispose() {
     if (disposed) return;
@@ -139,6 +178,7 @@ export function mountAboutJourney(root: HTMLElement) {
     events.abort(); cancelAnimationFrame(frame);
     intersection.disconnect(); layout.disconnect(); motion.disconnect();
     setChapter(null);
+    setInteractiveChapter(null);
     root.removeAttribute('data-journey-mode');
     composition.removeAttribute('data-masked');
     composition.style.removeProperty('visibility');

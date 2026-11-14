@@ -81,8 +81,8 @@
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  .contact-channel-link::before, .contact-channel-link::after { transition: opacity 180ms ease-out; }
-  .contact-channel img { transition: transform 180ms ease-out; }
+  .contact-channel-link::before, .contact-channel-link::after { transition: opacity var(--motion-feedback-duration) var(--motion-feedback-easing); }
+  .contact-channel img { transition: transform var(--motion-feedback-duration) var(--motion-feedback-easing); }
   .contact-channel-link:focus-visible img { transform: translateY(-2px); }
   .contact-channel-link:active img { transform: scale(.96); }
 }

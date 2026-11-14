@@ -40,6 +40,47 @@ for (const [locale, route] of [['en', '/en/labs/'], ['pt-BR', '/pt-br/laboratori
   });
 }
 
+test('fixed Labs heading stays fully readable while selection metadata enters and interrupts cleanly', async ({ page }) => {
+  await ready(page);
+  const heading = page.locator('#labs-title');
+  await expect(heading).toHaveAttribute('data-scroll-fill-mode', 'static');
+  await expect(page.locator('[data-lab-current-entry]')).not.toHaveClass(/is-entering/);
+  await expect.poll(() => heading.locator('.scroll-fill-word').evaluateAll(words =>
+    words.length > 0 && words.every(word => (word as HTMLElement).dataset.filled === 'true'),
+  )).toBe(true);
+  await page.evaluate(() => {
+    const runway = document.querySelector<HTMLElement>('[data-labs-runway]')!;
+    scrollTo(0, runway.offsetTop + runway.offsetHeight - innerHeight);
+  });
+  await expect.poll(() => heading.locator('.scroll-fill-word').evaluateAll(words =>
+    words.every(word => (word as HTMLElement).dataset.filled === 'true'),
+  )).toBe(true);
+
+  await page.evaluate(() => {
+    document.documentElement.style.scrollBehavior = 'auto';
+    scrollTo(0, 0);
+  });
+  await expect(page.locator('[data-lab-index]')).toHaveText('01');
+  await page.locator('[data-lab-next]').click();
+  await expect(page.locator('[data-lab-index]')).toHaveText('02');
+  const enteringEntry = page.locator('[data-lab-current-entry]');
+  const oldNode = await enteringEntry.evaluateHandle(element => element);
+  await expect(enteringEntry).toHaveClass(/is-entering/);
+  const animation = await enteringEntry.evaluate(element => ({
+    name: getComputedStyle(element).animationName,
+    durationToken: getComputedStyle(document.documentElement).getPropertyValue('--motion-editorial-duration').trim(),
+  }));
+  expect(animation).toEqual({ name: 'lab-current-enter', durationToken: '480ms' });
+  await page.locator('[data-lab-next]').click();
+  await expect(page.locator('[data-lab-index]')).toHaveText('03');
+  expect(await oldNode.evaluate(element => element.isConnected)).toBe(false);
+
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.locator('[data-lab-next]').click();
+  await expect(page.locator('[data-lab-index]')).toHaveText('04');
+  await expect.poll(() => page.locator('[data-lab-current-entry]').evaluate(element => getComputedStyle(element).animationName)).toBe('none');
+});
+
 test('ambient pause stops the GPU loop without blocking scroll navigation', async ({ page }) => {
   await ready(page);
   await expect(page.locator('.lab-webgl-canvas')).toHaveAttribute('data-idle-running', 'true');
@@ -135,9 +176,10 @@ test('storage failure does not prevent changing language or returning with histo
   await ready(page);
   await page.locator('.locale-nav [data-locale-choice="pt-br"]').click();
   await expect(page).toHaveURL(/\/pt-br\/laboratorios\/$/);
-  await expect(page.locator('[data-labs-ready]')).toHaveAttribute('data-labs-ready', 'true');
+  await expect(page.locator('[data-labs-ready]')).toHaveAttribute('data-labs-ready', 'true', { timeout: 20_000 });
   await page.goBack();
   await expect(page).toHaveURL(/\/en\/labs\/$/);
+  await expect(page.locator('[data-labs-ready]')).toHaveAttribute('data-labs-ready', 'true', { timeout: 20_000 });
   await expect(page.locator('.lab-webgl-canvas')).toHaveCount(1);
 });
 

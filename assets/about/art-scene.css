@@ -3,7 +3,7 @@
 .art-definitions { position: absolute; pointer-events: none; }
 .about-journey-stage { position: relative; }
 .journey-panel { position: relative; min-height: 100svh; }
-.about-journey[data-journey-mode="pinned"] { height: 300svh; }
+.about-journey[data-journey-mode="pinned"] { height: 400svh; }
 .about-journey[data-journey-mode="pinned"] .about-journey-stage {
   position: sticky; top: 0; height: 100svh; overflow: clip; isolation: isolate;
 }

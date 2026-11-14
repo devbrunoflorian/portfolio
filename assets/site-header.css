@@ -45,7 +45,7 @@ html[data-content-id="contact"] { --header-accent: #09d596; }
   font-size: 14px;
   font-weight: 500;
   text-decoration: none;
-  transition: color 160ms ease;
+  transition: color var(--motion-feedback-duration) var(--motion-feedback-easing);
 }
 
 .site-header .primary-nav a:hover,
@@ -77,7 +77,7 @@ html[data-content-id="contact"] { --header-accent: #09d596; }
   color: rgba(244, 244, 245, .78);
   background: transparent;
   cursor: pointer;
-  transition: color 160ms ease, background-color 160ms ease;
+  transition: color var(--motion-feedback-duration) var(--motion-feedback-easing), background-color var(--motion-feedback-duration) var(--motion-feedback-easing);
 }
 .site-header .about-sound-toggle:hover,
 .site-header .about-sound-toggle[data-playing="true"] { color: var(--header-accent); background: color-mix(in srgb, var(--header-accent) 10%, transparent); }
