@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000">
+  <defs>
+    <filter id="smoke" x="-30%" y="-30%" width="160%" height="160%">
+      <feTurbulence type="fractalNoise" baseFrequency=".008 .014" numOctaves="3" seed="11" result="noise"/>
+      <feDisplacementMap in="SourceGraphic" in2="noise" scale="110" xChannelSelector="R" yChannelSelector="B"/>
+      <feGaussianBlur stdDeviation="16"/>
+    </filter>
+  </defs>
+  <g fill="none" stroke="white" stroke-linecap="round" filter="url(#smoke)">
+    <path d="M120 1000C500 850 110 680 460 500S190 250 600 0" stroke-width="100" opacity=".6"/>
+    <path d="M350 1100C120 780 700 790 540 440S750 200 800-60" stroke-width="66" opacity=".45"/>
+    <path d="M60 850C350 650 80 460 340 150" stroke-width="36" opacity=".4"/>
+  </g>
+</svg>

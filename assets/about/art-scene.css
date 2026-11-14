@@ -1,0 +1,115 @@
+/* Static document first. JS only pins the shared Music / Art / Games stage. */
+.about-journey { --about-bg: #070809; --art-pointer-x: 0; --art-pointer-y: 0; --art-depth: 0; position: relative; }
+.art-definitions { position: absolute; pointer-events: none; }
+.about-journey-stage { position: relative; }
+.journey-panel { position: relative; min-height: 100svh; }
+.about-journey[data-journey-mode="pinned"] { height: 300svh; }
+.about-journey[data-journey-mode="pinned"] .about-journey-stage {
+  position: sticky; top: 0; height: 100svh; overflow: clip; isolation: isolate;
+}
+.about-journey[data-journey-mode="pinned"] .journey-panel {
+  position: absolute; inset: 0; min-height: 0; height: 100%;
+}
+.journey-panel--music { z-index: 0; background: var(--about-bg, #070809); }
+.journey-panel--games { z-index: 1; }
+.journey-panel--art { z-index: 2; }
+.about-journey[data-journey-mode="pinned"][data-underlay="music"] .journey-panel--games,
+.about-journey[data-journey-mode="pinned"][data-underlay="games"] .journey-panel--music { visibility: hidden; }
+.about-journey[data-journey-mode="pinned"] .journey-panel[aria-hidden="true"] { pointer-events: none; }
+
+.art-composition { position: absolute; inset: 0; overflow: clip; isolation: isolate; background: var(--about-bg, #070809); }
+.art-composition[data-masked="true"] {
+  -webkit-mask-image: url(#art-composition-mask);
+  mask-image: url(#art-composition-mask);
+  mask-mode: luminance;
+  mask-repeat: no-repeat;
+  mask-size: 100% 100%;
+}
+.art-atmosphere { position: absolute; inset: 0; overflow: clip; background: radial-gradient(ellipse at 0 40%, #24102e, transparent 58%), radial-gradient(ellipse at 100% 70%, #071932, transparent 60%); }
+.art-smoke {
+  position: absolute; width: 70%; height: 130%; top: -15%;
+  mask: url('/assets/about/materials/art-smoke.svg') center / 100% 100% no-repeat;
+  pointer-events: none;
+}
+.art-smoke--violet {
+  left: -28%; background: #71378f; opacity: .32;
+  transform: translate3d(calc(var(--art-pointer-x) * 24px), calc(var(--art-pointer-y) * 18px), 0) rotate(-14deg);
+}
+.art-smoke--blue {
+  right: -30%; background: #1d5190; opacity: .28;
+  transform: translate3d(calc(var(--art-pointer-x) * -30px), calc(var(--art-pointer-y) * -22px), 0) rotate(165deg);
+}
+.art-paint {
+  position: absolute; inset: 0; z-index: 1;
+  background: url('/assets/about/materials/art-aura-extension.png') center bottom / 100% 100% no-repeat;
+  mask-image: linear-gradient(90deg, transparent 36%, #000 58%);
+  opacity: .75;
+  transform: translate3d(calc(var(--art-pointer-x) * -7px), calc(var(--art-depth) * 14px), 0);
+}
+.art-portrait {
+  position: absolute; z-index: 2; left: 0; bottom: 0;
+  width: min(80vw, calc((100svh - 32px) * 1470 / 1070));
+  aspect-ratio: 1470 / 1070; mix-blend-mode: lighten;
+  transform: translate3d(calc(var(--art-pointer-x) * -3px), calc(var(--art-depth) * 6px), 0);
+}
+.art-portrait > img {
+  display: block; width: 100%; height: 100%; object-fit: contain;
+  mask-image: linear-gradient(90deg, #000 0%, #000 80%, transparent 100%);
+}
+.about-art-scene .art-copy {
+  position: absolute; z-index: 3; inset: 28% 5% auto 47.5%; width: auto;
+  max-width: none; padding: 0; transform: none; justify-self: stretch;
+  text-align: start;
+}
+.about-art-scene .art-copy h2 {
+  margin: 0; max-width: none; color: #f0edf5;
+  font: 400 clamp(30px, 3.4vw, 66px) / 1.14 Georgia, 'Times New Roman', serif;
+  letter-spacing: -.015em;
+}
+.about-art-scene .art-copy h2 em { color: #d294ed; font-style: normal; }
+.about-art-scene .art-copy > p {
+  max-width: 38ch; margin: clamp(26px, 3vw, 48px) 0 0 6.3vw; color: #f0edf5;
+  font: 400 clamp(18px, 1.65vw, 28px) / 1.35 Georgia, 'Times New Roman', serif;
+  letter-spacing: .01em;
+}
+.art-flower {
+  position: absolute; z-index: 5; top: 26px; right: max(-12.8vw, -216px); width: min(32vw, 540px);
+  pointer-events: none;
+  transform: translate3d(0, calc(var(--art-depth) * 28px), 0);
+}
+.art-flower img { display: block; width: 100%; height: auto; }
+.about-journey:not([data-journey-mode="pinned"]) .art-flower { display: none; }
+
+.games-cover { display: grid; place-items: center; overflow: clip; background: #080b16; text-align: center; }
+.games-cover-image { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.games-cover::after { content: ''; position: absolute; inset: 0; background: radial-gradient(ellipse at center, #070809a8, #07080922); }
+.games-cover-copy { position: relative; z-index: 1; max-width: 42rem; padding: 88px 24px 40px; }
+.games-cover-copy h2 { margin: 18px 0 0; color: #f0edf5; font-size: clamp(38px, 5vw, 76px); line-height: 1.05; }
+.games-cover-copy > p { margin: 18px 0 0; color: #f0edf5; }
+.games-cover-copy .games-cover-status { color: #d294ed; font-size: 22px; }
+.games-cover-copy button { display: inline-flex; align-items: center; gap: 24px; min-height: 48px; margin-top: 28px; padding: 0 24px; border: 1px solid #a18ab5; border-radius: 6px; background: #30233bcc; color: #d5c8df; font: inherit; cursor: not-allowed; }
+
+.about-journey[data-journey-mode="pinned"] .about-music {
+  min-height: 100%; padding: clamp(90px, 12svh, 140px) var(--about-gutter) 32px;
+}
+.about-journey[data-journey-mode="pinned"] .about-music .chapter-heading { margin-bottom: 20px; }
+.about-journey[data-journey-mode="pinned"] .about-music .chapter-heading h2 { font-size: clamp(36px, 5vw, 72px); }
+.about-journey[data-journey-mode="pinned"] .mixer-content { max-height: 32svh; overflow-y: auto; overscroll-behavior: contain; }
+
+@media (max-width: 760px) {
+  .journey-panel--art { min-height: max(100svh, calc(72.8vw + 420px)); }
+  .art-portrait { top: 64px; bottom: auto; width: 100%; }
+  .art-portrait > img { mask-image: linear-gradient(#000 0%, #000 calc(100% - 24px), transparent 100%); }
+  .art-paint { background-size: 180% auto; background-position: 45% -45px; opacity: .55; mask-image: linear-gradient(90deg, transparent 45%, #000 75%); }
+  .about-art-scene .art-copy { inset: calc(64px + 72.8vw + 26px) 24px auto; text-align: center; }
+  .about-art-scene .art-copy h2 { font-size: clamp(26px, 6.8vw, 42px); }
+  .about-art-scene .art-copy > p { margin: 24px 0 0; font-size: 18px; }
+  .art-flower { width: 48vw; top: 80px; right: -19.2vw; }
+  .about-journey[data-journey-mode="pinned"] .about-music { padding: 90px 24px 28px; }
+  .about-journey[data-journey-mode="pinned"] .about-music .chapter-heading { gap: 16px; }
+  .about-journey[data-journey-mode="pinned"] .about-music .chapter-heading h2 { font-size: 34px; }
+  .about-journey[data-journey-mode="pinned"] .music-controls { margin-top: 16px; gap: 12px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .art-smoke, .art-paint, .art-portrait, .art-flower { transform: none; }
+}

@@ -1,0 +1,52 @@
+---
+import ArtChapter from './ArtChapter.astro';
+import { aboutArt } from '../../content/about-art';
+import type { Locale } from '../../content/site';
+interface Props { locale: Locale }
+const { locale } = Astro.props;
+const copy = aboutArt[locale];
+---
+<div class="about-journey" data-about-journey>
+  <svg class="art-definitions" width="0" height="0" aria-hidden="true" focusable="false">
+    <defs>
+      <radialGradient id="art-reveal-field" cx=".4" cy=".15" r=".85">
+        <stop offset="0" stop-color="white" /><stop offset="1" stop-color="black" />
+      </radialGradient>
+      <filter id="art-reveal-noise" x="0" y="0" width="1" height="1" filterUnits="objectBoundingBox" primitiveUnits="objectBoundingBox" color-interpolation-filters="sRGB">
+        <feTurbulence type="fractalNoise" baseFrequency="7 10" numOctaves="2" seed="17" result="grain" />
+        <feColorMatrix in="grain" type="saturate" values="0" result="gray-grain" />
+        <feBlend in="SourceGraphic" in2="gray-grain" mode="multiply" result="field" />
+        <feComponentTransfer in="field">
+          <feFuncR type="linear" slope="12" intercept="1" data-art-threshold />
+          <feFuncG type="linear" slope="12" intercept="1" data-art-threshold />
+          <feFuncB type="linear" slope="12" intercept="1" data-art-threshold />
+        </feComponentTransfer>
+      </filter>
+      <mask id="art-composition-mask" maskUnits="objectBoundingBox" maskContentUnits="objectBoundingBox" x="0" y="0" width="1" height="1" mask-type="luminance">
+        <rect width="1" height="1" fill="url(#art-reveal-field)" filter="url(#art-reveal-noise)" />
+      </mask>
+    </defs>
+  </svg>
+  <div class="about-journey-stage" data-journey-stage>
+    <div class="journey-panel journey-panel--music" data-journey-panel="music"><slot name="music" /></div>
+    <ArtChapter locale={locale} />
+    <section class="journey-panel journey-panel--games games-cover" id="games" data-chapter="games" data-journey-panel="games" aria-labelledby="games-title">
+      <img class="games-cover-image" src="/assets/about-legacy/forest/forest-world-wide.png" alt="" width="1672" height="941" loading="lazy" decoding="async" />
+      <div class="games-cover-copy">
+        <p class="about-eyebrow">04 · GAMES</p>
+        <h2 id="games-title">{copy.gameTitle}</h2>
+        <p class="games-cover-status">{copy.gameStatus}</p>
+        <p id="game-availability">{copy.gameNote}</p>
+        <button type="button" disabled aria-describedby="game-availability">{copy.play} <span aria-hidden="true">▷</span></button>
+      </div>
+    </section>
+    <div class="art-flower" data-art-flower aria-hidden="true">
+      <img src="/assets/about/materials/art-flower-foreground.png" alt="" width="1586" height="992" loading="lazy" decoding="async" />
+    </div>
+  </div>
+</div>
+<script>
+  import { mountAboutJourney } from './art/journey';
+  const root = document.querySelector<HTMLElement>('[data-about-journey]');
+  if (root) mountAboutJourney(root);
+</script>

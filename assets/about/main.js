@@ -18,20 +18,11 @@ const nativeOpeningFade = CSS.supports(
   "(view-timeline: --opening-exit block) and (animation-timeline: --opening-exit) and (animation-range: exit 12% exit 72%)",
 );
 if (opening && !nativeOpeningFade) opening.dataset.openingFadeFallback = "true";
-const nativeArtParallax = CSS.supports("(animation-timeline: view()) and (animation-range: entry)");
 const chapters = [...page.querySelectorAll("[data-chapter]")];
-const artImage = page.querySelector("[data-art-image]");
-const artSection = artImage?.closest('[data-chapter="art"]');
-const musicSection = page.querySelector('[data-chapter="music"]');
 const audio = createJourneyAudio(score, renderPlayback);
 let activeChapter = "opening";
 let framePending = false;
 let motionPaused = false;
-let pendingMusicStart = false;
-let artDissolve = 0;
-let artDissolveRuntime = null;
-let artDissolveLoad = null;
-let restoreFocus = null;
 let pageDisposed = false;
 const initialMix = new Map(score.tracks.map(track => [track.id, audio.getTrackVolume(track.id)]));
 
@@ -52,22 +43,8 @@ function renderPlayback(state) {
 }
 
 function togglePlayback() {
-  const state = audio.snapshot().state;
-  if (audio.playing || state === "starting") {
-    pendingMusicStart = false;
-    audio.pause();
-    return;
-  }
-  if (activeChapter === "music") {
-    pendingMusicStart = false;
-    void audio.start();
-    return;
-  }
-  pendingMusicStart = true;
-  page.querySelector('[data-chapter="music"]')?.scrollIntoView({
-    behavior: reducedMotion.matches ? "auto" : "smooth",
-    block: "center",
-  });
+  if (audio.playing || audio.snapshot().state === "starting") audio.pause();
+  else void audio.start();
 }
 
 function handleAudioCommand(event) {
@@ -103,20 +80,6 @@ function clamp(value, minimum, maximum) {
   return Math.max(minimum, Math.min(maximum, value));
 }
 
-function loadArtDissolve() {
-  if (!artImage || artDissolveRuntime || artDissolveLoad || reducedMotion.matches) return;
-  artDissolveLoad = import("./scene/art-dissolve.js?v=about-art-dissolve-2")
-    .then(({ mountArtDissolve }) => mountArtDissolve(artImage, artDissolve))
-    .then(runtime => {
-      if (pageDisposed) { runtime.dispose(); return; }
-      artDissolveRuntime = runtime;
-      runtime.update(artDissolve, { reducedMotion: reducedMotion.matches, motionPaused });
-    })
-    .catch(error => {
-      console.warn("The Art dissolve is unavailable; the original image remains visible.", error);
-    });
-}
-
 function updateOpeningFadeFallback() {
   if (!opening || nativeOpeningFade) return;
   if (reducedMotion.matches) {
@@ -142,36 +105,15 @@ function updateScrollScene() {
     activeChapter = chapters[index].dataset.chapter;
     if (page.dataset.activeChapter !== activeChapter) page.dataset.activeChapter = activeChapter;
   }
-  if (pendingMusicStart && activeChapter === "music") {
-    pendingMusicStart = false;
-    void audio.start();
-  } else if (pendingMusicStart && ["art", "games", "closing"].includes(activeChapter)) {
-    pendingMusicStart = false;
-  }
-  const artBounds = artSection?.getBoundingClientRect();
-  const musicBounds = musicSection?.getBoundingClientRect();
-  if (artImage && artBounds && musicBounds) {
-    const readingLine = innerHeight * .5;
-    const musicCenter = musicBounds.top + musicBounds.height * .5;
-    const artCenter = artBounds.top + artBounds.height * .5;
-    artDissolve = reducedMotion.matches
-      ? Number(activeChapter === "art")
-      : clamp((readingLine - musicCenter) / Math.max(1, artCenter - musicCenter), 0, 1);
-    if (!reducedMotion.matches && (activeChapter === "music" || artDissolve > 0)) loadArtDissolve();
-    artDissolveRuntime?.update(artDissolve, { reducedMotion: reducedMotion.matches, motionPaused });
-  }
-  if (!motionPaused && !reducedMotion.matches) {
-    if (artImage && !nativeArtParallax) {
-      const bounds = artBounds ?? artImage.closest("[data-chapter]")?.getBoundingClientRect();
-      const position = bounds ? (innerHeight * .5 - (bounds.top + bounds.height * .5)) / Math.max(1, innerHeight) : 0;
-      artImage.style.setProperty("--art-parallax", `${clamp(position, -1, 1) * 24}px`);
+  const journey = page.querySelector("[data-about-journey]");
+  if (journey?.dataset.journeyMode === "pinned") {
+    const bounds = journey.getBoundingClientRect();
+    if (bounds.top <= 0 && bounds.bottom >= innerHeight) {
+      activeChapter = journey.dataset.currentChapter ?? "music";
+      page.dataset.activeChapter = activeChapter;
     }
   }
-  let playbackSnapshot = audio.snapshot();
-  if (activeChapter !== "music" && ["playing", "starting"].includes(playbackSnapshot.state)) {
-    audio.pause();
-    playbackSnapshot = audio.snapshot();
-  }
+  const playbackSnapshot = audio.snapshot();
   if (playbackSnapshot.state === "playing") {
     const status = `${playbackSnapshot.section} · ${formatTime(playbackSnapshot.seconds)}`;
     for (const label of statusLabels) if (label.textContent !== status) label.textContent = status;
@@ -190,6 +132,7 @@ function requestSceneFrame() {
   requestAnimationFrame(updateScrollScene);
 }
 window.addEventListener("scroll", requestSceneFrame, { passive: true });
+window.addEventListener("about-journey-change", requestSceneFrame);
 window.addEventListener("resize", () => {
   requestSceneFrame();
 }, { passive: true });
@@ -213,46 +156,6 @@ motionButton?.addEventListener("click", () => {
   }
   stackCarousel.setMotionPaused(motionPaused);
   requestSceneFrame();
-});
-
-const worldDialog = page.querySelector("[data-world-dialog]");
-const worldButton = page.querySelector("[data-world-open]");
-const worldEntry = page.querySelector("[data-world-entry]");
-const worldStage = page.querySelector("[data-world-stage]");
-const worldPlay = page.querySelector("[data-world-play]");
-let worldScroll = null;
-worldButton?.addEventListener("click", () => {
-  if (!worldDialog || worldDialog.open) return;
-  restoreFocus = worldButton;
-  worldScroll = { x: window.scrollX, y: window.scrollY };
-  worldDialog.dataset.worldStarted = "false";
-  if (worldEntry) worldEntry.hidden = false;
-  if (worldStage) worldStage.hidden = true;
-  document.documentElement.classList.add("about-world-open");
-  worldDialog.showModal();
-  worldPlay?.focus({ preventScroll: true });
-});
-worldPlay?.addEventListener("click", () => {
-  if (!worldDialog?.open || worldDialog.dataset.worldStarted === "true") return;
-  // A future game bundle belongs here, after the explicit Play gesture.
-  for (const image of worldDialog.querySelectorAll("[data-world-src]")) {
-    if (!image.hasAttribute("src")) image.setAttribute("src", image.dataset.worldSrc);
-  }
-  worldDialog.dataset.worldStarted = "true";
-  if (worldEntry) worldEntry.hidden = true;
-  if (worldStage) worldStage.hidden = false;
-  worldDialog.querySelector("[data-world-close]")?.focus({ preventScroll: true });
-});
-page.querySelectorAll("[data-world-close]").forEach(button => {
-  button.addEventListener("click", () => worldDialog?.close());
-});
-worldDialog?.addEventListener("click", event => {
-  if (event.target === worldDialog) worldDialog.close();
-});
-worldDialog?.addEventListener("close", () => {
-  if (worldScroll) window.scrollTo(worldScroll.x, worldScroll.y);
-  document.documentElement.classList.remove("about-world-open");
-  restoreFocus?.focus({ preventScroll: true });
 });
 
 for (const disclosure of page.querySelectorAll("details")) {
@@ -280,17 +183,16 @@ window.addEventListener("pageshow", event => {
 });
 window.addEventListener("pagehide", event => {
   if (event.persisted) {
-    pendingMusicStart = false;
     audio.pause();
     stackCarousel.setMotionPaused(true);
     return;
   }
   pageDisposed = true;
   window.removeEventListener("about-audio-command", handleAudioCommand);
+  window.removeEventListener("about-journey-change", requestSceneFrame);
   document.documentElement.classList.remove("about-world-open");
   layoutObserver.disconnect();
   stackCarousel.dispose();
-  artDissolveRuntime?.dispose();
   audio.dispose();
 });
 requestSceneFrame();
