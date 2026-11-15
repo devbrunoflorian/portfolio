@@ -1,15 +1,18 @@
 ---
+import ThemeHead from '../components/ThemeHead.astro';
 ---
 <!doctype html>
-<html lang="pt-BR" data-locale-entry>
+<html lang="pt-BR" data-locale-entry data-theme="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="description" content="Portfólio de engenharia de software de Bruno Florian." />
     <meta name="theme-color" content="#0c1018" />
+    <ThemeHead />
     <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg" />
     <title>Bruno Florian | Portfólio</title>
     <link rel="stylesheet" href="/assets/site.css?v=motion-timing-2026-11-14-1" />
+    <link rel="stylesheet" href="/assets/theme.css" />
     <script is:inline src="/assets/locale.js" defer></script>
   </head>
   <body>

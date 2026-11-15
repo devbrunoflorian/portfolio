@@ -85,6 +85,7 @@ export function createFireflies(ctx, { glyphs, nextRoot, glyphAtlas }) {
 
   const material = new THREE.ShaderMaterial({
     uniforms: {
+      uLightTheme: { value: 0 },
       idleTime: { value: 0 },
       idleStrength: { value: 0 },
       glyphAtlas: { value: glyphAtlas },

@@ -30,6 +30,7 @@ export const FIREFLY_VERTEX_SHADER = `
       `;
 
 export const FIREFLY_FRAGMENT_SHADER = `
+        uniform float uLightTheme;
         uniform sampler2D glyphAtlas;
         varying float vIntensity;
         varying float vGlyph;
@@ -42,6 +43,6 @@ export const FIREFLY_FRAGMENT_SHADER = `
           float glyphMask = texture2D(glyphAtlas, glyphUv).a;
           float glyphCore = smoothstep(0.06, 0.62, glyphMask);
           float alpha = mix(glow, glyphCore + softHalo * glow, vGlyph) * vIntensity * 0.56;
-          gl_FragColor = vec4(vec3(0.08, 0.3, 0.95), alpha);
+          gl_FragColor = vec4(mix(vec3(0.08, 0.3, 0.95), vec3(0.0, 0.08, 0.38), uLightTheme), alpha);
         }
       `;

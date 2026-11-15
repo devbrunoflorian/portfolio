@@ -206,9 +206,11 @@ export async function prepareKnight(ctx, root, chunkCount = 32) {
     const sources = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
     const materials = sources.map(() => {
       const material = new THREE.MeshStandardMaterial({
-        color: "#0f1114",
-        metalness: 0.32,
-        roughness: 0.36,
+        color: ctx.theme === 'light' ? '#f2e7cf' : '#0f1114',
+        emissive: ctx.theme === 'light' ? '#e8ddc6' : '#000000',
+        emissiveIntensity: ctx.theme === 'light' ? .12 : 1,
+        metalness: ctx.theme === 'light' ? .06 : .32,
+        roughness: ctx.theme === 'light' ? .58 : .36,
         flatShading: true,
       });
       const rimStrength = { value: 0 };
@@ -373,15 +375,15 @@ export function updateKnightMaterialProgress(ctx) {
     ctx.modelPivot.scale.setScalar(1);
     ctx.modelPivot.position.y = FLOOR_Y;
     for (const material of ctx.surfaceMaterials) {
-      material.metalness = 0.32;
-      material.roughness = 0.36;
+      material.metalness = ctx.theme === 'light' ? .06 : .32;
+      material.roughness = ctx.theme === 'light' ? .58 : .36;
     }
     return;
   }
   const polish = smoothstep(0.42, 0.92, ctx.progress);
   for (const material of ctx.surfaceMaterials) {
-    material.metalness = 0.28 + polish * 0.18;
-    material.roughness = 0.40 - polish * 0.08;
+    material.metalness = ctx.theme === 'light' ? .06 : 0.28 + polish * 0.18;
+    material.roughness = ctx.theme === 'light' ? .58 : 0.40 - polish * 0.08;
   }
   // Narrative progression across stages:
   // IDEA: construction edges (~0.18 opacity)

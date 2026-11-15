@@ -30,7 +30,7 @@ const tracks = score.tracks.map(track => ({
   footerClass=""
   localeOrder={['pt-br', 'en']}
 >
-  <AudioPlayerToggle slot="header-utilities" locale={locale} client:load />
+  <div class="floating-audio" data-floating-audio><AudioPlayerToggle locale={locale} client:load /></div>
   <script slot="head" is:inline>document.documentElement.dataset.aboutIntro = 'ready';</script>
   <script slot="after-base-scripts" is:inline type="module" src="/assets/about/route.js?v=about-art-mask-cleanup-1"></script>
   <script slot="after-base-scripts" is:inline type="module" src="/assets/media-skeleton.js?v=media-skeleton-2026-11-12-3"></script>

@@ -69,9 +69,11 @@ function attachFragmentAttributes(geometry, chunk, motion, isCut) {
 
 function createObsidianMaterial(ctx, bounds) {
   const material = new THREE.MeshStandardMaterial({
-    color: "#0f1114",
-    metalness: 0.32,
-    roughness: 0.36,
+    color: ctx.theme === 'light' ? '#f2e7cf' : '#0f1114',
+    emissive: ctx.theme === 'light' ? '#e8ddc6' : '#000000',
+    emissiveIntensity: ctx.theme === 'light' ? .12 : 1,
+    metalness: ctx.theme === 'light' ? .06 : .32,
+    roughness: ctx.theme === 'light' ? .58 : .36,
     flatShading: true,
   });
   const rimStrength = { value: 0.85 };
