@@ -691,6 +691,18 @@ export function createSpatialEnvironment(scene, floorY, renderer, camera, {
 
   return {
     group,
+    setTheme(theme) {
+      const light = theme === 'light';
+      backgroundScene.background.set(light ? 0xf3efea : 0x070809);
+      backgroundScene.fog.color.set(light ? 0xf3efea : 0x070809);
+      material.color.set(light ? 0xe2dcd5 : 0x0c0d0f);
+      material.emissive.set(light ? 0x8c8276 : 0x000000);
+      material.emissiveIntensity = light ? .3 : 1;
+      edgeMaterial.color.set(light ? 0x514b48 : 0x9ca0a8);
+      for (const pulseMaterial of pulseMaterials) {
+        pulseMaterial.blending = light ? THREE.NormalBlending : THREE.AdditiveBlending;
+      }
+    },
     setLimited(value, mobile = false) {
       if (layoutInitialized && limited === value && mobileMode === mobile) return;
       const wasMobile = mobileMode;

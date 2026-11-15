@@ -36,9 +36,12 @@ import {
   studioLightsAreFixed,
 } from "./lighting-reflection.js";
 import { createPointerScroll } from "./pointer-scroll.js";
+import { registerHomeTheme } from "./theme.js";
+import { getTheme } from "../shared/theme.js";
 
 function mountHomeScene() {
   const ctx = createHomeContext({ homeCapture, homeEnvironment, mobileViewport });
+  ctx.theme = getTheme();
   ctx.updateMobileProgress = updateMobileProgress;
   ctx.openingController = createOpeningController({
     frame: ctx.frame,
@@ -57,6 +60,7 @@ function mountHomeScene() {
   };
   const listeners = [];
   let visibilityObserver;
+  let unregisterTheme;
 
   function listen(target, type, handler, options) {
     if (!target) return;
@@ -196,6 +200,7 @@ function mountHomeScene() {
   function dispose() {
     if (ctx.disposed) return;
     ctx.disposed = true;
+    unregisterTheme?.();
     if (ctx.frameRequest) cancelAnimationFrame(ctx.frameRequest);
     ctx.frameRequest = 0;
     visibilityObserver?.disconnect();
@@ -406,6 +411,11 @@ function mountHomeScene() {
         render: renderFrame,
         updateProgress: ctx.updateSceneProgress,
         info: () => ({
+          knightMaterial: ctx.surfaceMaterials[0] ? {
+            color: ctx.surfaceMaterials[0].color.getHexString(),
+            metalness: ctx.surfaceMaterials[0].metalness,
+            roughness: ctx.surfaceMaterials[0].roughness,
+          } : null,
           programs: ctx.renderer.info.programs.length,
           calls: ctx.renderer.info.render.calls,
           geometries: ctx.renderer.info.memory.geometries,
@@ -419,6 +429,7 @@ function mountHomeScene() {
         }),
         dispose,
       });
+      unregisterTheme = registerHomeTheme(ctx);
       ctx.queueFrame();
     } catch (error) {
       if (ctx.disposed) return;

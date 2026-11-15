@@ -1,3 +1,5 @@
+import { getTheme, registerThemeParticipant } from '../shared/theme.js';
+
 /** Composes the existing GPU and Canvas renderers. UI state belongs to the caller. */
 export function mountLabsController(root, options = {}) {
   let disposed = false;
@@ -5,6 +7,7 @@ export function mountLabsController(root, options = {}) {
   let gpuScene = null;
   let captureApi = null;
   let cleanupScene = () => {};
+  let unregisterCanvasTheme = () => {};
   const commands = {};
   const observers = [];
   const lifetime = new AbortController();
@@ -37,6 +40,7 @@ export function mountLabsController(root, options = {}) {
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
   const queryParams = new URLSearchParams(window.location.search);
   const captureEnabled = queryParams.get("labs-capture") === "1";
+  let lightTheme = getTheme() === 'light';
 
   if (!runway || !stage || !collection || folders.length < 2) throw new Error("Labs needs its runway, stage and at least two folders.");
 
@@ -221,9 +225,9 @@ export function mountLabsController(root, options = {}) {
       const envelope = .2 + Math.sin(progress * Math.PI) * .8;
       const pulse = .9 + Math.sin(time * .0032 + particle.phase * 28) * .1;
       transitionContext.globalAlpha = transition.flow * envelope * pulse * (particle.binary ? 1.05 : .84);
-      transitionContext.fillStyle = particle.binary ? "#e1f2ff" : "#91c8ff";
+      transitionContext.fillStyle = lightTheme ? '#0052cc' : particle.binary ? "#e1f2ff" : "#91c8ff";
       transitionContext.shadowColor = "rgba(95, 174, 255, .7)";
-      transitionContext.shadowBlur = particle.binary ? 6 : 3;
+      transitionContext.shadowBlur = lightTheme ? 0 : particle.binary ? 6 : 3;
       if (particle.binary) {
         transitionContext.font = "10px ui-monospace, SFMono-Regular, Consolas, monospace";
         transitionContext.textAlign = "center";
@@ -551,7 +555,7 @@ export function mountLabsController(root, options = {}) {
       const current = roleState.role === "current";
       const currentness = roleState.currentness;
       const baseAlpha = previewAlpha + (activeAlpha - previewAlpha) * currentness;
-      const colors = face.kind === "side" || face.kind === "top"
+      const colors = lightTheme ? ['#0052cc', '#12437c', '#002d70'] : face.kind === "side" || face.kind === "top"
         ? [blendHex("#53708f", "#568dc7", currentness), blendHex("#8eb9e7", "#95caff", currentness), blendHex("#cfe6ff", "#f2f9ff", currentness)]
         : face.kind === "rear"
           ? [blendHex("#293c55", "#456c9a", currentness), blendHex("#567ca8", "#79aee7", currentness), blendHex("#9fcaff", "#d5eaff", currentness)]
@@ -603,6 +607,7 @@ export function mountLabsController(root, options = {}) {
         context.font = fontSize.toFixed(1) + "px ui-monospace, SFMono-Regular, Consolas, monospace";
         context.shadowColor = face.kind === "front" ? "rgba(112, 181, 255, .9)" : "rgba(73, 145, 235, .52)";
         context.shadowBlur = cell.edgeSample ? 1.6 + currentness * (5.5 + cell.edgeGlow * 3) : face.kind === "front" && cell.edgeGlow > .78 ? 2 + currentness * 4 : (face.kind === "side" || face.kind === "top") && cell.edgeGlow > .52 ? 1.4 + currentness * 3 : 0;
+        if (lightTheme) context.shadowBlur = 0;
         context.fillText(cell.bit, x, y);
       });
       context.shadowBlur = 0;
@@ -671,9 +676,9 @@ export function mountLabsController(root, options = {}) {
         const baseAlpha = current ? .72 : .42;
         const alpha = baseAlpha * pulse * depthScale * transitionFactor;
         context.globalAlpha = alpha;
-        context.fillStyle = particle.node ? "#f1f8ff" : "#b7dcff";
+        context.fillStyle = lightTheme ? '#0052cc' : particle.node ? "#f1f8ff" : "#b7dcff";
         context.shadowColor = "rgba(91, 169, 255, .7)";
-        context.shadowBlur = particle.node ? 5 : particle.depth > .8 ? 3 : 1.2;
+        context.shadowBlur = lightTheme ? 0 : particle.node ? 5 : particle.depth > .8 ? 3 : 1.2;
         if (particle.binary) {
           context.font = "9px ui-monospace, SFMono-Regular, Consolas, monospace";
           context.textAlign = "center";
@@ -924,7 +929,16 @@ export function mountLabsController(root, options = {}) {
   }
 
   if (captureApi) window.__labsCapture = captureApi;
+  if (!gpuScene) unregisterCanvasTheme = registerThemeParticipant({
+    applyTheme(theme, { signal }) {
+      if (signal.aborted || disposed || lightTheme === (theme === 'light')) return;
+      lightTheme = theme === 'light';
+      paintScene(visualPosition, sceneTime);
+      for (const system of folderSystems) if (system?.visible) system.draw(visualPosition, sceneTime, 0);
+    },
+  });
   cleanupScene = () => {
+    unregisterCanvasTheme();
     cancelAnimationFrame(sceneFrame);
     cancelAnimationFrame(scrollFrame);
     gpuScene?.dispose();

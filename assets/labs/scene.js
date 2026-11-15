@@ -8,6 +8,7 @@ import { createLabsBackground } from './background.js';
 import { createLabsTransitions } from './transitions.js';
 import { createGeometryDebug } from './geometry-debug.js';
 import { createLabsPointer } from './pointer.js';
+import { registerLabsTheme } from './theme.js';
 
 export async function mountLabsFolderScene(stage, { signal } = {}) {
 signal?.throwIfAborted();
@@ -50,10 +51,12 @@ let transitions = null;
 let idleFrame = 0;
 let ambientPaused = false;
 let stageVisible = true;
+let unregisterTheme;
 
 function disposeSceneResources() {
   if (resourcesDisposed) return;
   resourcesDisposed = true;
+  unregisterTheme?.();
   ctx.disposed = true;
   orbitControls?.dispose();
   orbitControls = null;
@@ -231,6 +234,7 @@ try {
     startIdle();
   }
 
+  unregisterTheme = registerLabsTheme(ctx, () => composer.render());
   canvas.dataset.proofReady = 'true';
   canvas.dataset.captureReady = String(captureEnabled);
   if (captureEnabled) canvas.dataset.captureSeed = `0x${RANDOM_SEED.toString(16)}`;

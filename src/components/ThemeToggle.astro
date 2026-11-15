@@ -1,0 +1,36 @@
+---
+import type { Locale } from '../content/site';
+interface Props { locale: Locale }
+const { locale } = Astro.props;
+const label = locale === 'en' ? 'Switch to light theme' : 'Ativar tema claro';
+---
+<button class="theme-toggle" data-theme-toggle type="button" aria-label={label} title={label} hidden>
+  <svg viewBox="0 0 40 48" aria-hidden="true" focusable="false">
+    <defs>
+      <linearGradient id={`pawn-metal-${locale}`} x1="0" x2=".85" y1="0" y2="1">
+        <stop offset="0" class="pawn-highlight" /><stop offset=".48" class="pawn-mid" /><stop offset="1" class="pawn-shadow" />
+      </linearGradient>
+      <radialGradient id={`pawn-gloss-${locale}`} cx=".3" cy=".2" r=".85"><stop stop-color="white" stop-opacity=".25" /><stop offset="1" stop-color="white" stop-opacity="0" /></radialGradient>
+    </defs>
+    <g fill={`url(#pawn-metal-${locale})`} stroke="var(--pawn-outline)" stroke-width=".8" stroke-linejoin="round">
+      <path d="M4 42C4 39 11 37 20 37S36 39 36 42V44C36 48 4 48 4 44Z" />
+      <path d="M7 37C7 33 33 33 33 37V39C33 44 7 44 7 39Z" />
+      <path d="M11 34C15 31 15 28 15.5 25H24.5C25 28 25 31 29 34C31 37 9 37 11 34Z" />
+      <ellipse cx="20" cy="24" rx="9" ry="3" />
+      <circle cx="20" cy="12" r="10" />
+    </g>
+    <circle cx="20" cy="12" r="9.5" fill={`url(#pawn-gloss-${locale})`} />
+    <g fill="none" stroke="white" stroke-linecap="round">
+      <path d="M7 42C13 44 26 44 32 42M10 37C14 39 25 39 30 37M14 24C17 25 23 25 26 24" stroke-opacity=".38" stroke-width="1.2" />
+      <path d="M17 27C17 29 16 31 15 32M13 10C13.5 7.5 15 6 17 5.5" stroke-opacity=".4" stroke-width="1.6" />
+    </g>
+    <g class="pawn-sun" fill="#ffd24a" stroke="#ffd24a" stroke-width="1" stroke-linecap="round">
+      <circle cx="20" cy="12" r="3.5" />
+      <path d="M20 5V6.5M20 17.5V19M13 12H14.5M25.5 12H27M15 7L16.1 8.1M23.9 15.9L25 17M15 17L16.1 15.9M23.9 8.1L25 7" />
+    </g>
+    <g class="pawn-moon" fill="#f3f4f7" stroke="#dfe2ea" stroke-width=".6">
+      <path d="M22.5 5.2A7 7 0 1 0 26.5 15A6.2 6.2 0 0 1 22.5 5.2Z" />
+      <path d="m26 7 .7 1.8 1.8.7-1.8.7L26 12l-.7-1.8-1.8-.7 1.8-.7Z" stroke="none" />
+    </g>
+  </svg>
+</button>
