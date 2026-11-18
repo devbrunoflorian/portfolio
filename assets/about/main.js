@@ -1,11 +1,13 @@
 import { createJourneyAudio } from "../about-legacy/audio.js";
 import { score } from "../about-legacy/score.js";
 import { readingChapterIndex } from "./scene/reading.js";
+import { mountCodeToMusicTransition } from "./scene/transitions/code-to-music.js";
 import { mountStackCarousel } from "./stack-carousel.js?v=stack-category-carousel-5";
 
 const page = document.querySelector("[data-about-page]");
 if (!page) throw new Error("About root is missing");
 const stackCarousel = mountStackCarousel(page);
+const codeToMusicTransition = mountCodeToMusicTransition(page);
 
 const english = document.documentElement.lang.startsWith("en");
 const scoreCaption = page.querySelector(".score-frame figcaption > span");
@@ -114,6 +116,11 @@ function updateScrollScene() {
     }
   }
   const playbackSnapshot = audio.snapshot();
+  // The score entrance is an independent scroll scene; the existing Music → Art
+  // dissolve remains owned by the chapter journey below.
+  codeToMusicTransition.update({
+    motionEnabled: !motionPaused && !reducedMotion.matches,
+  });
   if (playbackSnapshot.state === "playing") {
     const status = `${playbackSnapshot.section} · ${formatTime(playbackSnapshot.seconds)}`;
     for (const label of statusLabels) if (label.textContent !== status) label.textContent = status;
@@ -193,6 +200,7 @@ window.addEventListener("pagehide", event => {
   document.documentElement.classList.remove("about-world-open");
   layoutObserver.disconnect();
   stackCarousel.dispose();
+  codeToMusicTransition.dispose();
   audio.dispose();
 });
 requestSceneFrame();

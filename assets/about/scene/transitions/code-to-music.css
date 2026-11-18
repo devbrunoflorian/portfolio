@@ -1,0 +1,18 @@
+.code-to-music-canvas {
+  position: fixed;
+  z-index: 12;
+  display: block;
+  max-width: none;
+  pointer-events: none;
+  contain: strict;
+  mix-blend-mode: screen;
+  will-change: left, top, width, height, opacity;
+}
+
+.code-to-music-canvas[hidden] {
+  display: none;
+}
+
+html[data-theme="light"] .code-to-music-canvas {
+  mix-blend-mode: multiply;
+}
