@@ -190,22 +190,68 @@ html[data-theme="light"] :is(.stack-icon, .stack-mark) { filter: drop-shadow(0 1
 html[data-theme="light"] .stack-icon-rest-api { filter: none; }
 html[data-theme="light"] :is(.chapter-copy::before, .chapter-heading::before, .opening-copy::before, .mixer-content::before, .mixer-adjustments::before) { background: radial-gradient(ellipse, #f3efeafa 35%, #f3efead9 65%, transparent); }
 html[data-theme="light"] :is(.stack-card, .stack-category, .stack-tooltip, .stack-caption, .about-mixer, .mixer-adjustments) { color: var(--theme-text); border-color: var(--theme-control-border); }
-html[data-theme="light"] .art-atmosphere { background: radial-gradient(ellipse at 0 40%, #decde87a, transparent 58%), radial-gradient(ellipse at 100% 70%, #cad9ed66, transparent 60%); }
+html[data-theme="light"] .art-atmosphere {
+  background: radial-gradient(ellipse at 22% 48%, #d8c9e6 0%, #e4d8edaa 36%, transparent 70%),
+    radial-gradient(ellipse at 82% 88%, #bccce5b3, transparent 58%);
+}
 html[data-theme="light"] .art-portrait { mix-blend-mode: normal; }
 html[data-theme="light"] .art-portrait > img { visibility: hidden; }
+html[data-theme="light"] .art-portrait > canvas { filter: drop-shadow(0 9px 10px #47314a42); }
 html[data-theme="light"] .art-portrait::after {
   content: '';
   position: absolute;
   inset: 0;
   background: url('/assets/about/materials/art-muse-light-cutout.png') center / contain no-repeat;
-  mask-image: linear-gradient(90deg, #000 0%, #000 80%, transparent 100%);
+  mask-image: linear-gradient(90deg, #000 54%, #000b 61%, transparent 76%);
+  pointer-events: none;
 }
-html[data-theme="light"] .art-paint { opacity: .15; }
-html[data-theme="light"] :is(.art-smoke--violet, .art-smoke--blue) { opacity: .12; }
+html[data-theme="light"] .art-paint { opacity: .21; }
+html[data-theme="light"] :is(.art-smoke--violet, .art-smoke--blue) { opacity: .16; }
 html[data-theme="light"] .about-art-scene .art-copy :is(h2, p) { color: var(--theme-text); }
 html[data-theme="light"] .about-art-scene .art-copy h2 em { color: var(--about-violet); }
 html[data-theme="light"] .about-art-scene .art-copy { isolation: isolate; }
-html[data-theme="light"] .about-art-scene .art-copy::before { content: ''; position: absolute; z-index: -1; inset: -24px; background: radial-gradient(ellipse, #f3efeac9 15%, #f3efea80 55%, transparent 75%); }
+html[data-theme="light"] .about-art-scene .art-copy::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: -66px -70px -60px -58px;
+  background: radial-gradient(ellipse 50% 50%, #f3efea 25%, #f3efeae6 52%, #f3efea66 76%, transparent 100%);
+  pointer-events: none;
+}
+html[data-theme="light"] .art-statue-controls button {
+  border-color: var(--theme-control-border);
+  background: var(--theme-surface);
+  color: var(--theme-text);
+}
+html[data-theme="light"] .art-statue-controls [data-statue-strike]:not([aria-disabled="true"]) {
+  border-color: #551984;
+  background: #6b21a8;
+  color: #fff;
+}
+html[data-theme="light"] .art-statue-controls [data-statue-strike]:not([aria-disabled="true"]):hover { background: #551984; }
+html[data-theme="light"] .art-statue-controls [data-statue-restore]:not([aria-disabled="true"]):hover {
+  border-color: var(--about-violet);
+  color: var(--about-violet);
+}
+html[data-theme="light"] .art-statue-controls button[aria-disabled="true"] {
+  opacity: 1;
+  color: var(--theme-muted);
+  background: #eee8e3;
+}
+html[data-theme="light"] .art-statue-controls button:focus-visible { outline-color: var(--about-violet); }
+@media (max-width: 760px) {
+  html[data-theme="light"] .art-atmosphere {
+    background: radial-gradient(ellipse 100% 52% at 43% 21%, #dacde8, transparent),
+      radial-gradient(ellipse 88% 48% at 99% 38%, #c3d0e7bf, transparent);
+  }
+  html[data-theme="light"] .art-portrait { left: min(9vw, 38px); }
+  html[data-theme="light"] .about-art-scene .art-copy::before { inset: -34px -32px -38px; }
+  html[data-theme="light"] .art-portrait::after {
+    mask-image: linear-gradient(90deg, #000 69%, transparent 93%),
+      linear-gradient(#000 calc(100% - 34px), transparent);
+    mask-composite: intersect;
+  }
+}
 html[data-theme="light"] .score-frame :is(.score-header, .score-measure) { filter: none; opacity: 1; }
 html[data-theme="light"] .score-frame [fill]:not([fill="none"]) { fill: #542b73; }
 html[data-theme="light"] .score-frame :is(.score-staff-lines, .score-barline) { stroke: #817887; }

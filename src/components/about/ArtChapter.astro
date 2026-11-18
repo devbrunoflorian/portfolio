@@ -3,6 +3,14 @@ import { aboutArt } from '../../content/about-art';
 import type { Locale } from '../../content/site';
 interface Props { locale: Locale }
 const copy = aboutArt[Astro.props.locale];
+const statueSource = '/assets/about/materials/art-muse-marble.webp';
+const statueCopy = Astro.props.locale === 'pt-br' ? {
+  strike: 'Rachar mármore', restore: 'Restaurar', cracked: 'O mármore ganhou fissuras.',
+  detached: 'Uma placa se soltou e revelou parte da aquarela.', revealed: 'Aquarela revelada.', restored: 'Escultura restaurada.',
+} : {
+  strike: 'Crack the marble', restore: 'Restore', cracked: 'Fissures appeared in the marble.',
+  detached: 'A piece fell away and uncovered part of the watercolor.', revealed: 'Watercolor revealed.', restored: 'Sculpture restored.',
+};
 ---
 <section class="journey-panel journey-panel--art about-art-scene" id="art" data-chapter="art" data-journey-panel="art" aria-labelledby="art-title">
   <div class="art-composition" data-art-composition>
@@ -11,12 +19,55 @@ const copy = aboutArt[Astro.props.locale];
       <div class="art-smoke art-smoke--blue"></div>
     </div>
     <div class="art-paint" aria-hidden="true"></div>
-    <div class="art-portrait" data-score-anchor data-media-skeleton>
+    <div class="art-portrait" data-score-anchor data-media-skeleton data-statue-source={statueSource}>
       <img data-art-image src="/assets/about-legacy/illustrations/art-muse-vitoria-watercolor.png" alt={copy.portraitAlt} width="1470" height="1070" loading="lazy" decoding="async" />
+      <canvas width="980" height="713" aria-hidden="true"></canvas>
     </div>
     <div class="art-copy">
       <h2 id="art-title">{copy.firstLine}<br />{copy.secondLine} <em>{copy.accent}</em>.</h2>
       <p>{copy.description}</p>
+      <div class="art-statue-controls" data-statue-controls hidden>
+        <button type="button" data-statue-strike>{statueCopy.strike}</button>
+        <button type="button" data-statue-restore>{statueCopy.restore}</button>
+        <span role="status" data-cracked={statueCopy.cracked} data-detached={statueCopy.detached} data-revealed={statueCopy.revealed} data-restored={statueCopy.restored}></span>
+      </div>
     </div>
   </div>
 </section>
+<script>
+  const portrait = document.querySelector<HTMLElement>('[data-statue-source]');
+  const controls = document.querySelector<HTMLElement>('[data-statue-controls]');
+  const journey = portrait?.closest<HTMLElement>('[data-about-journey]');
+  if (portrait && controls && journey) {
+    const lifetime = new AbortController();
+    let intersects = false;
+    let started = false;
+    let statue: { settle: () => void } | undefined;
+    const sync = () => {
+      const chapter = journey.dataset.interactiveChapter;
+      const active = intersects && (chapter === 'art' || journey.dataset.journeyMode === 'static');
+      if (!active) statue?.settle();
+      // Begin loading during Music so the stone is ready as Art dissolves in.
+      if (started || (!active && !(intersects && chapter === 'music'))) return;
+      started = true;
+      void import('./art/statue.js').then(async ({ mountStatue }) => {
+        if (!lifetime.signal.aborted) statue = await mountStatue(portrait, controls, lifetime.signal);
+      }).catch(error => {
+        if (!lifetime.signal.aborted) console.warn('Art marble could not load.', error);
+      });
+    };
+    const visibility = new IntersectionObserver(entries => {
+      intersects = entries.some(entry => entry.isIntersecting);
+      sync();
+    });
+    visibility.observe(portrait);
+    const chapterObserver = new MutationObserver(sync);
+    chapterObserver.observe(journey, { attributes: true, attributeFilter: ['data-journey-mode', 'data-interactive-chapter'] });
+    window.addEventListener('pagehide', event => {
+      if (event.persisted) { statue?.settle(); return; }
+      lifetime.abort();
+      visibility.disconnect();
+      chapterObserver.disconnect();
+    }, { signal: lifetime.signal });
+  }
+</script>
