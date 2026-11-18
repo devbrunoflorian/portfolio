@@ -349,6 +349,7 @@ test('Music, Art and Games dissolve inside one stationary stage and reverse exac
   await page.locator('[data-art-image], [data-art-flower] img').evaluateAll(images => Promise.all(images.map(image => (image as HTMLImageElement).decode())));
   const stage = page.locator('[data-journey-stage]');
   await seekJourney(page, .25);
+  await expect(page.locator('[data-statue-ready]')).toHaveCount(1);
   const first = await stage.screenshot();
   const y = (await stage.boundingBox())!.y;
   await expect(page.locator('[data-art-composition]')).toHaveAttribute('data-masked', 'true');
@@ -480,7 +481,7 @@ test('the pointer moves smoke while the foreground flower stays anchored', async
   const flower = await page.locator('[data-art-flower]').evaluate(el => getComputedStyle(el).transform);
   await page.mouse.move(1050, 220);
   await expect.poll(() => smoke.evaluate(el => getComputedStyle(el).transform)).not.toBe(initial);
-  await expect(page.locator('#art canvas')).toHaveCount(0);
+  await expect(page.locator('#art .art-portrait[data-statue-ready] > canvas')).toBeVisible();
   expect(await page.locator('[data-art-flower]').evaluate(el => getComputedStyle(el).transform)).toBe(flower);
 });
 
