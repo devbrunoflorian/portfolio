@@ -6,7 +6,9 @@ export function createFireflyLayout(ctx, { glyphs, nextRoot }) {
   folderRoot.updateMatrixWorld(true);
   nextRoot.updateMatrixWorld(true);
 
-  const countByRegion = { halo: 1120, corridor: 240, floor: 160, ambient: 80 };
+  const countByRegion = ctx.config.mobile
+    ? { halo: 300, corridor: 64, floor: 48, ambient: 28 }
+    : { halo: 1120, corridor: 240, floor: 160, ambient: 80 };
   const activeBounds = new THREE.Box3().setFromPoints(glyphs.map((glyph) => glyph.point));
   const activeCenter = activeBounds.getCenter(new THREE.Vector3());
   const activeSize = activeBounds.getSize(new THREE.Vector3());
@@ -63,7 +65,7 @@ export function createFireflyLayout(ctx, { glyphs, nextRoot }) {
       );
       return {
         worldPoint,
-        weight: 1 + Math.max(0, rightness) * 1.2 + Math.max(0, heightness) * 1.05,
+        weight: 1 + 4.2 * Math.exp(-((rightness - 0.62) ** 2 / 0.22 + (heightness - 0.48) ** 2 / 0.14)),
       };
     });
   if (weightedEdges.length === 0) throw new Error('The folder silhouette has no edge glyphs for the firefly field.');
@@ -123,8 +125,8 @@ export function createFireflyLayout(ctx, { glyphs, nextRoot }) {
 
   function pushFirefly(position, intensityRange, motionScale, isGlyph, region, corridorData = null) {
     const size = isGlyph
-      ? 3.2 + Math.pow(random(), 1.7) * 1.6
-      : 0.42 + Math.pow(random(), 8) * 3.6;
+      ? 4.8 + Math.pow(random(), 2.5) * 5.8
+      : 0.74 + Math.pow(random(), 5) * 4.2;
     const orbitRadius = new THREE.Vector3(
       (0.025 + random() * 0.075) * motionScale,
       (0.025 + random() * 0.085) * motionScale,
@@ -169,6 +171,10 @@ export function createFireflyLayout(ctx, { glyphs, nextRoot }) {
     const position = edge.worldPoint.clone()
       .addScaledVector(outward, upperRightEmission ? 0.055 + random() * 0.48 : 0.12 + random() * 0.62)
       .addScaledVector(cameraForward, (random() - 0.5) * 0.82);
+    if (upperRightEmission) {
+      const rise = Math.pow(random(), 2.4);
+      position.addScaledVector(cameraUp, rise * 1.15).addScaledVector(cameraRight, rise * 0.65);
+    }
     if (!upperRightEmission && random() < 0.38) {
       const angle = random() * Math.PI * 2;
       const radius = 1.08 + random() * 0.45;
@@ -179,7 +185,7 @@ export function createFireflyLayout(ctx, { glyphs, nextRoot }) {
     }
     pushFirefly(
       position,
-      upperRightEmission ? [0.17, 0.42] : [0.12, 0.3],
+      upperRightEmission ? [0.35, 0.93] : [0.18, 0.48],
       0.9 + random() * 0.5,
       index < binaryQuotaByRegion.halo,
       FIREFLY_REGION.HALO,

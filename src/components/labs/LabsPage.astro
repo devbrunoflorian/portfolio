@@ -23,7 +23,14 @@ const copy = labsCopy[locale];
         {labs.map((folder, index) => <article class:list={['lab-folder', { 'is-active': index === 0 }]} data-lab-folder data-lab-id={folder.id} data-folder-index={index} style={`--folder-hue: ${folder.hue}`}>
           <canvas class="folder-binary" data-folder-canvas aria-hidden="true"></canvas>
           <div class="folder-fallback" aria-hidden="true">{folder.bits.map(bit => <span>{bit}</span>)}</div>
-          <div class="folder-face" aria-hidden="true"></div>
+          <div class="folder-face" aria-hidden="true">
+            <svg class="folder-silhouette" viewBox="0 0 100 100" preserveAspectRatio="none" focusable="false">
+              <g transform="matrix(.8525 0 0 .9902 7.375 .49)">
+                <path class="folder-silhouette-side" d="M91 23.5 97 25.5V88L91 87Z" />
+                <path class="folder-silhouette-face" d="M5.5 20.5V16h25.5l7 7.2 16-.7 18 1.9 19-.9V87H5.5Z" />
+              </g>
+            </svg>
+          </div>
           <div class="folder-label"><span>{String(index + 1).padStart(2, '0')} / {index === 0 ? 'LAB' : 'INCOMING'}</span><strong>{index === 0 ? copy.folderTitle : copy.incoming}</strong><small>{index === 0 ? copy.folderDetails : copy.futureExperiment}</small></div>
         </article>)}
       </div>

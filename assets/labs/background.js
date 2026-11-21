@@ -11,7 +11,7 @@ export function createLabsBackground(ctx, glyphs) {
     const floorShader = {
       uniforms: {
         ...Reflector.ReflectorShader.uniforms,
-        reflectionStrength: { value: 0.72 },
+        reflectionStrength: { value: 0.94 },
         reflectionTexelSize: { value: new THREE.Vector2(1 / 700, 1 / 420) },
       },
       vertexShader: `
@@ -32,7 +32,8 @@ export function createLabsBackground(ctx, glyphs) {
         varying vec3 vFloorPosition;
         void main() {
           vec2 uv = vUv.xy / vUv.w;
-          float blurStep = reflectionTexelSize.y;
+          float roughness = smoothstep(0.2, 3.8, abs(vFloorPosition.z));
+          float blurStep = reflectionTexelSize.y * mix(0.6, 1.9, roughness);
           vec3 reflected = texture2D(tDiffuse, uv).rgb * 0.24;
           reflected += texture2D(tDiffuse, uv + vec2(0.0, blurStep * 1.5)).rgb * 0.18;
           reflected += texture2D(tDiffuse, uv - vec2(0.0, blurStep * 1.5)).rgb * 0.18;
@@ -41,13 +42,13 @@ export function createLabsBackground(ctx, glyphs) {
           reflected += texture2D(tDiffuse, uv + vec2(0.0, blurStep * 8.0)).rgb * 0.08;
           reflected += texture2D(tDiffuse, uv - vec2(0.0, blurStep * 8.0)).rgb * 0.08;
           float xFade = 1.0 - smoothstep(2.2, 3.4, abs(vFloorPosition.x - 0.3));
-          float zFade = 1.0 - smoothstep(0.2, 2.5, abs(vFloorPosition.z - 0.8));
-          float fade = xFade * zFade;
-          gl_FragColor = vec4(reflected * vec3(0.38, 0.56, 0.78), fade * reflectionStrength);
+          float zFade = 1.0 - smoothstep(0.7, 4.8, abs(vFloorPosition.z - 0.8));
+          float fade = xFade * zFade * (1.0 - smoothstep(3.6, 4.95, abs(vFloorPosition.z)));
+          gl_FragColor = vec4(reflected * vec3(0.46, 0.68, 0.94), fade * reflectionStrength);
         }
       `,
     };
-    const floor = new Reflector(new THREE.PlaneGeometry(14, 10), {
+    const floor = new Reflector(new THREE.PlaneGeometry(22, 16), {
       clipBias: 0.003,
       textureWidth: 700,
       textureHeight: 420,
@@ -63,7 +64,7 @@ export function createLabsBackground(ctx, glyphs) {
     floor.renderOrder = 0;
 
     const floorOverlay = new THREE.Mesh(
-      new THREE.PlaneGeometry(14, 10),
+      new THREE.PlaneGeometry(22, 16),
       new THREE.ShaderMaterial({
         uniforms: { floorAnchor: { value: floorAnchor } },
         vertexShader: `
@@ -86,22 +87,25 @@ export function createLabsBackground(ctx, glyphs) {
           void main() {
             vec2 floorOffset = vWorldPosition.xz - floorAnchor;
             float radialDistance = length(floorOffset);
-            float spatialFade = 1.0 - smoothstep(5.2, 9.5, radialDistance);
+            float spatialFade = 1.0 - smoothstep(4.8, 8.0, radialDistance);
 
             vec2 gridCoordinate = floorOffset / 0.92;
             vec2 gridDerivative = max(fwidth(gridCoordinate), vec2(0.0001));
             vec2 gridDistance = abs(fract(gridCoordinate - 0.5) - 0.5) / gridDerivative;
             float grid = 1.0 - min(min(gridDistance.x, gridDistance.y), 1.0);
 
+            float junction = exp(-dot(gridDistance, gridDistance) * 0.09);
             float innerRing = guideRing(radialDistance, 1.55);
             float outerRing = guideRing(radialDistance, 3.25);
             float pool = exp(-dot(floorOffset / vec2(3.0, 1.85), floorOffset / vec2(3.0, 1.85)) * 2.1);
 
-            float gridAlpha = grid * 0.045 * spatialFade;
-            float ringAlpha = (innerRing * 0.06 + outerRing * 0.04) * spatialFade;
-            float poolAlpha = pool * 0.03;
-            float alpha = min(gridAlpha + ringAlpha + poolAlpha, 0.08);
-            vec3 floorBlue = mix(vec3(0.018, 0.09, 0.21), vec3(0.035, 0.22, 0.48), pool);
+            float gridAlpha = (grid * 0.18 + junction * 0.18) * spatialFade;
+            float ringAlpha = (innerRing * 0.20 + outerRing * 0.12) * spatialFade;
+            vec2 contactOffset = vec2(abs(floorOffset.x) - 2.62, floorOffset.y);
+            float contact = exp(-dot(contactOffset * vec2(2.6, 1.5), contactOffset * vec2(2.6, 1.5)));
+            float poolAlpha = pool * 0.045 + contact * 0.15;
+            float alpha = min(gridAlpha + ringAlpha + poolAlpha, 0.54);
+            vec3 floorBlue = mix(vec3(0.024, 0.12, 0.3), vec3(0.10, 0.39, 0.9), pool);
             gl_FragColor = vec4(floorBlue, alpha);
           }
         `,

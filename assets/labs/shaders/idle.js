@@ -22,7 +22,7 @@ export function createIdleGlyphUv(flipRate, pointerFlipBoost) {
 }
 
 export const IDLE_BEGIN_VERTEX = `
-    transformed.xy *= mix(1.0, 1.55, glyphAtlasBlur);
+    transformed.xy *= mix(1.0, 1.36, glyphAtlasBlur);
     glyphPulse = 1.0 + idleStrength * 0.035 * sin(idleTime * pulseRate + pulsePhase * 6.2831853);`;
 
 export const IDLE_FRAGMENT_DECLARATIONS = `
@@ -43,5 +43,5 @@ export const IDLE_ATLAS_FRAGMENT = `#ifdef USE_MAP
   #endif`;
 
 export const IDLE_FRAGMENT_LIGHT = `
-    diffuseColor.rgb *= mix(1.0, 1.8, glyphAtlasBlur);
+    diffuseColor.rgb *= mix(1.0, 0.39, glyphAtlasBlur);
     diffuseColor.rgb *= glyphPulse;`;

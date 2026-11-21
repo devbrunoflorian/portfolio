@@ -59,7 +59,7 @@ export default function LabsExperience({ copy, projectsHref, introduction, folde
           {introduction}
           <div className="lab-current" data-lab-current aria-live="polite" aria-atomic="true">
             <div className={`lab-current-entry${hasSelectionChanged ? ' is-entering' : ''}`} data-lab-current-entry key={state.index}>
-              <p className="lab-current-index"><span data-lab-index>{number}</span><span aria-hidden="true"> / {String(labs.length).padStart(2, '0')}</span><i data-lab-state>{available ? copy.available : 'INCOMING'}</i></p>
+              <p className="lab-current-index"><span data-lab-index>{number}</span><span aria-hidden="true"> / {String(labs.length).padStart(2, '0')}</span><i data-lab-state>{available ? copy.available : copy.incoming}</i></p>
               <h2 data-lab-title>{available ? 'Rate Limiting Lab' : copy.incoming}</h2>
               <p data-lab-description hidden={!available}>{available ? copy.labDescription : copy.reserved}</p>
               <ul className="lab-tags" data-lab-tags aria-label={copy.technologies} hidden={!available}>{labs[0].tags.map(tag => <li key={tag}>{tag}</li>)}</ul>

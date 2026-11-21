@@ -5,6 +5,7 @@ import { createStaticFolder } from './static-folder.js';
 import { createBinaryRenderer } from './binary.js';
 import { createFireflies } from './fireflies.js';
 import { createLabsBackground } from './background.js';
+import { createLabsFolderFinish } from './folder-finish.js';
 import { createLabsTransitions } from './transitions.js';
 import { createGeometryDebug } from './geometry-debug.js';
 import { createLabsPointer } from './pointer.js';
@@ -43,6 +44,7 @@ let stageObserver = null;
 let resourcesDisposed = false;
 let orbitControls = null;
 let background = null;
+let folderFinish = null;
 let folderRoots = [];
 let fireflyField = null;
 let pointerController = null;
@@ -52,6 +54,25 @@ let idleFrame = 0;
 let ambientPaused = false;
 let stageVisible = true;
 let unregisterTheme;
+let captureFolderPoints = null;
+
+function publishCaptureFolderBounds(root) {
+  if (!captureEnabled || !ctx.config.mobile || !captureFolderPoints) return;
+  camera.updateMatrixWorld(true);
+  root.updateMatrixWorld(true);
+  const { width, height } = stageSize();
+  const bounds = { left: Infinity, top: Infinity, right: -Infinity, bottom: -Infinity };
+  for (const point of captureFolderPoints) {
+    const projected = root.localToWorld(point.clone()).project(camera);
+    const x = (projected.x + 1) * width * 0.5;
+    const y = (1 - projected.y) * height * 0.5;
+    bounds.left = Math.min(bounds.left, x);
+    bounds.top = Math.min(bounds.top, y);
+    bounds.right = Math.max(bounds.right, x);
+    bounds.bottom = Math.max(bounds.bottom, y);
+  }
+  canvas.dataset.mobileFolderBounds = JSON.stringify(bounds);
+}
 
 function disposeSceneResources() {
   if (resourcesDisposed) return;
@@ -62,6 +83,7 @@ function disposeSceneResources() {
   orbitControls = null;
 
   background?.dispose();
+  folderFinish?.dispose();
   fireflyField?.dispose();
   staticFolder.dispose();
   const geometries = new Set();
@@ -91,6 +113,7 @@ function resizeScene() {
 
 function applyProgress(position) {
   const state = transitions.setProgress(position);
+  publishCaptureFolderBounds(state.currentRoot);
   fireflyField?.setTransitionState(state);
   return state;
 }
@@ -180,6 +203,10 @@ try {
   }
   const meshes = await staticFolder.loadFolderScaffold();
   signal?.throwIfAborted();
+  if (captureEnabled && ctx.config.mobile) {
+    captureFolderPoints = meshes.flatMap(({ normalizedPoints }) => normalizedPoints);
+  }
+  folderFinish = createLabsFolderFinish(ctx, meshes);
   staticFolder.addShellOccluder(meshes);
   staticFolder.addGeometryDebugScaffold(meshes);
   const frontCounts = staticFolder.makeFrontGlyphs(meshes);
@@ -189,7 +216,7 @@ try {
   const { renderGroups: glyphRenderGroups } = binary.addGlyphInstances();
   const nextRoot = addNextFolderDepth();
   folderRoots = [folderRoot, nextRoot];
-  transitions = createLabsTransitions(ctx, { binary, cameraRig, folderRoots });
+  transitions = createLabsTransitions(ctx, { binary, cameraRig, folderRoots, glyphs });
   fireflyField = createFireflies(ctx, { glyphs, nextRoot, glyphAtlas: binary.glyphAtlas });
   pointerController = createLabsPointer(ctx, {
     binary,

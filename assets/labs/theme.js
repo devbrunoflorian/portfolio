@@ -8,6 +8,7 @@ export function registerLabsTheme(ctx, render) {
       if (material && !originals.has(material)) originals.set(material, {
         color: material.color?.clone(), blending: material.blending,
         reflection: material.uniforms?.reflectionStrength?.value,
+        labsThemeRole: material.userData?.labsThemeRole,
       });
     }
   });
@@ -27,7 +28,11 @@ export function registerLabsTheme(ctx, render) {
       renderer.setClearColor(light ? 0xf3efea : 0x000000, 1);
       for (const [material, original] of originals) {
         if (original.color) {
-          if (light) material.color.set(0x0052cc);
+          if (original.labsThemeRole) {
+            material.color.set(light ? material.userData.labsLightColor : material.userData.labsDarkColor);
+            material.opacity = light ? material.userData.labsLightOpacity : material.userData.labsDarkOpacity;
+          }
+          else if (light) material.color.set(0x0052cc);
           else material.color.copy(original.color);
         }
         material.blending = light ? THREE.NormalBlending : original.blending;
