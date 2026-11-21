@@ -34,9 +34,10 @@ export function createStaticFolder(ctx) {
       normal: normal.clone(),
       width: BINARY_GLYPH_SIZE * 0.78,
       height: BINARY_GLYPH_SIZE,
-      digit: random() < 0.5 ? 0 : 1,
+      digit: (options.random ?? random)() < 0.5 ? 0 : 1,
       color: new THREE.Color(options.color ?? 0x347fce),
       depth: options.depth ?? 'front',
+      exposed: options.exposed ?? true,
     });
   }
 
@@ -88,12 +89,12 @@ export function createStaticFolder(ctx) {
       for (let y = yMin + 0.035; y <= yMax; y += spacingY) {
         for (let x = xMin + 0.035; x <= xMax; x += spacingX) {
           const hit = triangleAtXY(panel, x, y * heightScaleAt(x), THREE, true);
-          if (!hit || !isVisibleShellPoint(hit.point)) continue;
+          if (!hit) continue;
 
           const edgeDistance = distanceToBoundary(hit.point, panelEdges, THREE);
           if (edgeDistance < 0.095) continue;
-
-
+          const exposed = isVisibleShellPoint(hit.point);
+          const sample = exposed ? random : ctx.backPanelRandom;
           const edgeLight = 1 - THREE.MathUtils.smoothstep(edgeDistance, 0.04, 0.56);
           const baseLight = 1 - THREE.MathUtils.smoothstep(
             hit.point.y,
@@ -105,12 +106,14 @@ export function createStaticFolder(ctx) {
           const body = new THREE.Color(0x4284cd);
           const perimeter = new THREE.Color(0x72a9ff);
           const color = interior
-            .lerp(body, 0.48 + random() * 0.1)
+            .lerp(body, 0.48 + sample() * 0.1)
             .lerp(perimeter, silhouetteLight * 0.88);
           const emission = color.multiplyScalar(glowProfile.faceEmission * (0.92 + silhouetteLight * 0.25 + rimIntensity(hit.point)));
           addGlyph(hit.point, hit.triangle.normal, {
             color: emission,
             offset: 0.011,
+            exposed,
+            random: sample,
           });
           accepted += 1;
         }
@@ -118,7 +121,7 @@ export function createStaticFolder(ctx) {
     }
 
     let edgeAccepted = 0;
-    for (const { curve, normal } of primary.rims) {
+    for (const { curve, normal, back } of primary.rims) {
       const count = Math.round(curve.getLength() / glyphSpacing);
       for (let index = 0; index < count; index++) {
         const point = curve.getPoint(index / count);
@@ -127,6 +130,7 @@ export function createStaticFolder(ctx) {
           color: new THREE.Color(0x69a4ff).multiplyScalar(glowProfile.faceEmission * glowProfile.perimeterEmission * brightness),
           offset: 0.018,
           depth: 'front-edge',
+          exposed: !back || isVisibleShellPoint(point, true),
         });
         edgeAccepted++;
       }

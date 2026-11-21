@@ -177,13 +177,15 @@ export function createBinaryRenderer(ctx, glyphs) {
       if (!atDepth.length) continue;
 
       const geometry = plane.clone();
+      geometry.setAttribute('glyphExposed', new THREE.InstancedBufferAttribute(Float32Array.from(atDepth, glyph => Number(glyph.exposed)), 1));
       const columns = Float32Array.from(atDepth, (glyph) => glyph.digit);
       const scanOrder = Float32Array.from(atDepth, (glyph) => {
         const projectedX = folderRoot.localToWorld(glyph.point.clone()).project(camera).x;
         return THREE.MathUtils.clamp((projectedX - projectedGlyphMinX) / projectedGlyphWidth, 0, 1);
       });
-      const phases = Float32Array.from(atDepth, () => random());
-      const rates = Float32Array.from(atDepth, () => 0.35 + random() * 0.8);
+      const sample = glyph => depth === 'front' && !glyph.exposed ? ctx.backPanelRandom() : random();
+      const phases = Float32Array.from(atDepth, sample);
+      const rates = Float32Array.from(atDepth, glyph => 0.35 + sample(glyph) * 0.8);
       geometry.setAttribute('glyphColumn', new THREE.InstancedBufferAttribute(
         columns,
         1,
@@ -246,7 +248,10 @@ export function createBinaryRenderer(ctx, glyphs) {
     let glyphGroupCount = 0;
 
     nextRoot.traverse((object) => {
-      if (object.userData.depthOccluder) return;
+      if (object.userData.depthOccluder) {
+        object.material = object.material.clone();
+        return;
+      }
       if (object.userData.geometryDebugScaffold) {
         object.material = object.material.clone();
         geometryDebugScaffolds.push(object);

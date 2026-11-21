@@ -33,7 +33,7 @@ export function createFolderShell(THREE) {
     const rim = new THREE.CurvePath();
     const points = shape.getPoints(5).map(({ x, y }) => placeVertex(new THREE.Vector3(x, y, 0.055), back));
     for (let i = 1; i < points.length; i++) rim.add(new THREE.LineCurve3(points[i - 1], points[i]));
-    rims.push({ curve: rim, normal: new THREE.Vector3(0, back ? 0.16 : -0.28, 1).normalize() });
+    rims.push({ back, curve: rim, normal: new THREE.Vector3(0, back ? 0.16 : -0.28, 1).normalize() });
     const geometry = new THREE.ExtrudeGeometry(shape, { depth: 0.055, bevelEnabled: false, curveSegments: 5 });
     const attr = geometry.getAttribute('position');
     for (let i = 0; i < attr.count; i += 3) {
