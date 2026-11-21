@@ -58,8 +58,12 @@ export function createLabsTransitions(ctx, {
         binary.setTransition(object.material, mode, progress, glyphOpacity, pointerMultiplier, counterpartMatrix);
         return;
       }
-      if (object.userData.depthOccluder || object.userData.folderFinish) {
-        object.visible = visible && mode === 0;
+      if (object.userData.depthOccluder) {
+        object.visible = visible && glyphOpacity > 0;
+        object.material.uniforms.mode.value = mode;
+        object.material.uniforms.progress.value = progress;
+      } else if (object.userData.folderFinish) {
+        object.visible = visible && mode === 0 && glyphOpacity > 0;
       }
     });
   }
@@ -82,6 +86,7 @@ export function createLabsTransitions(ctx, {
     const { heroPosition, heroScale, previewPosition: previewBasePosition, previewScale } = layout;
     currentRoot.position.copy(heroPosition);
     currentRoot.scale.copy(heroScale);
+    currentRoot.rotation.y = 0;
     currentRoot.updateMatrixWorld(true);
     const mobileTravel = getMobileTravel();
     const previewPosition = mobile
@@ -101,6 +106,7 @@ export function createLabsTransitions(ctx, {
     if (mobile && hasNext) currentRoot.position.addScaledVector(cameraRight, -mobileTravel.exit * exit);
     currentRoot.visible = true;
     nextRoot.position.copy(previewPosition).lerp(heroPosition, arrival);
+    nextRoot.rotation.y *= 1 - arrival;
     if (mobile) nextRoot.scale.copy(heroScale).multiplyScalar(0.72 + arrival * 0.28);
     else nextRoot.scale.copy(previewScale).lerp(heroScale, arrival);
     scene.updateMatrixWorld(true);
@@ -116,12 +122,13 @@ export function createLabsTransitions(ctx, {
     binary.setBlur(currentRoot, 0);
 
     const previewFade = segment === 0 ? (mobile ? 0 : 1) : easeRange(fraction, 0, 0.1);
-    const previewBlur = hasNext ? (fraction > 0 ? 1 - rebuild : 1) : 0;
+    const previewBlur = hasNext ? 1 - arrival : 0;
+    const previewOpacity = 0.72 * previewFade;
     setFolderVisualState(
       nextRoot,
       fraction > 0 && hasNext ? 2 : 0,
       mobile ? rebuild : fraction,
-      fraction > 0 && hasNext ? 1 : 0.72 * previewFade,
+      THREE.MathUtils.lerp(previewOpacity, 1, rebuild),
       fraction > 0 && hasNext ? rebuild : 0,
       hasNext,
       currentRoot.matrixWorld,

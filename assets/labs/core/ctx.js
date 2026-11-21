@@ -112,6 +112,8 @@ export function createLabsContext(stage) {
       previewFrame: null,
     },
     random: createSeededRandom(RANDOM_SEED),
+    // Filling the concealed leaf must not reseed the approved face or its particle field.
+    backPanelRandom: createSeededRandom(0x4241434b),
     clock,
     reducedMotion,
     pointer: { active: false, x: 0, y: 0, strength: 0 },

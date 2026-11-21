@@ -23,6 +23,7 @@ export function createLabsCamera(ctx) {
     const { anchor, base, baseLine } = layout.previewFrame;
     root.position.copy(basePosition);
     root.scale.copy(scale);
+    root.rotation.y = 0;
     camera.updateMatrixWorld(true);
     root.updateMatrixWorld(true);
     activeRoot.updateMatrixWorld(true);
@@ -35,6 +36,9 @@ export function createLabsCamera(ctx) {
     const cameraRight = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion).normalize();
     const cameraUp = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion).normalize();
     root.position.addScaledVector(cameraRight, targetCenterX - centerView.x);
+    // Show the same three-quarter face from the preview's off-axis position.
+    const bearing = position => Math.atan2(camera.position.x - position.x, camera.position.z - position.z);
+    if (!mobile) root.rotation.y = bearing(root.position) - bearing(activeRoot.position);
     root.updateMatrixWorld(true);
 
     const previewBaseWorld = root.localToWorld(base.clone());

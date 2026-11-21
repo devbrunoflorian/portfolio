@@ -1,3 +1,5 @@
+import { DEFOCUS_PADDING } from '../core/glyph-atlas.js';
+
 export const IDLE_VERTEX_DECLARATIONS = `
 attribute float glyphColumn;
 attribute float glyphScanOrder;
@@ -22,7 +24,7 @@ export function createIdleGlyphUv(flipRate, pointerFlipBoost) {
 }
 
 export const IDLE_BEGIN_VERTEX = `
-    transformed.xy *= mix(1.0, 1.36, glyphAtlasBlur);
+    transformed.xy *= mix(1.0, ${DEFOCUS_PADDING.toFixed(1)}, glyphAtlasBlur);
     glyphPulse = 1.0 + idleStrength * 0.035 * sin(idleTime * pulseRate + pulsePhase * 6.2831853);`;
 
 export const IDLE_FRAGMENT_DECLARATIONS = `
@@ -43,5 +45,5 @@ export const IDLE_ATLAS_FRAGMENT = `#ifdef USE_MAP
   #endif`;
 
 export const IDLE_FRAGMENT_LIGHT = `
-    diffuseColor.rgb *= mix(1.0, 0.39, glyphAtlasBlur);
+    diffuseColor.rgb *= mix(1.0, 0.70, glyphAtlasBlur);
     diffuseColor.rgb *= glyphPulse;`;

@@ -1,4 +1,16 @@
+// Both the glyphs and the depth pass use the same right-to-left release.
+export const TRANSFER_TIMING = `
+float transferAmount(float scanOrder, float seed, float progress) {
+  float order = clamp(1.0 - scanOrder + (seed - 0.5) * 0.08, 0.0, 1.0);
+  return smoothstep(order * 0.35, order * 0.35 + 0.4, progress);
+}
+float distanceFromFolder(float mode, float amount, float progress) {
+  return (mode < 1.5 ? amount : 1.0 - amount) * smoothstep(0.06, 0.22, progress);
+}`;
+
 export const TRANSITION_VERTEX_DECLARATIONS = `
+${TRANSFER_TIMING}
+attribute float glyphExposed;
 uniform float transitionMode;
 uniform float transitionProgress;
 uniform float folderOpacity;
@@ -8,9 +20,7 @@ export const TRANSITION_COUNTERPART_DECLARATION = `uniform mat4 transitionCounte
 
 export const TRANSITION_PROJECT_VERTEX = `
     float glyphSeed = fract(sin(pulsePhase * 127.1 + 311.7) * 43758.5453);
-    float glyphOrder = clamp(1.0 - glyphScanOrder + (glyphSeed - 0.5) * 0.08, 0.0, 1.0);
-    float releaseStart = glyphOrder * 0.35;
-    float dissolve = smoothstep(releaseStart, releaseStart + 0.4, transitionProgress);
+    float dissolve = transferAmount(glyphScanOrder, glyphSeed, transitionProgress);
     glyphTransitionAlpha = 1.0;
     if (transitionMode > 0.5) {
       vec4 glyphLocal = instanceMatrix * vec4(transformed, 1.0);
@@ -27,7 +37,9 @@ export const TRANSITION_PROJECT_VERTEX = `
       gl_Position = mix(gl_Position, transferClip, previewBlend);
       glyphTransitionAlpha = transitionMode < 1.5
         ? 1.0 - dissolve
-        : mix(0.34, dissolve, previewBlend);
+        : mix(1.0, dissolve, previewBlend);
+      float detached = smoothstep(0.0, 0.025, distanceFromFolder(transitionMode, dissolve, transitionProgress));
+      glyphTransitionAlpha *= mix(1.0, glyphExposed, detached);
     }`;
 
 export const TRANSITION_FRAGMENT_DECLARATIONS = `
