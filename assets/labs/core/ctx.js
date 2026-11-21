@@ -20,7 +20,7 @@ const glowProfiles = {
   'blue-max': { strength: 1.25, radius: 0.95, threshold: 0.1, faceEmission: 3.5, perimeterEmission: 1.3 },
   'blue-focused': { strength: 1.25, radius: 0.45, threshold: 0.26, faceEmission: 3.5, perimeterEmission: 1.3 },
   'edge-focus': { strength: 1.1, radius: 0.25, threshold: 0.32, faceEmission: 3.5, perimeterEmission: 1.45 },
-  'reference-glow': { strength: 1.15, radius: 0.35, threshold: 0.28, faceEmission: 3.2, perimeterEmission: 1.4 },
+  'reference-glow': { strength: 0.48, radius: 0.12, threshold: 0.50, faceEmission: 2, perimeterEmission: 1.25 },
   'blue-middle': { strength: 1.2, radius: 0.65, threshold: 0.17, faceEmission: 3.5, perimeterEmission: 1.4 },
   'blue-middle-edge': { strength: 1.2, radius: 0.65, threshold: 0.17, faceEmission: 3.5, perimeterEmission: 1.6 },
 };
@@ -40,14 +40,14 @@ export function createLabsContext(stage) {
   const geometryDebugEnabled = queryParams.get('folder-geometry-debug') === '1';
   const captureEnabled = queryParams.get('labs-capture') === '1';
   const orbitEnabled = queryParams.get('orbit') === '1';
-  const spacingVariants = { '064': 0.064, '095': 0.095, '125': 0.125 };
+  const spacingVariants = { '150': 0.15, '170': 0.17, '190': 0.19 };
   const glowProfileNames = Object.keys(glowProfiles);
   const requestedGlowProfile = captureEnabled && glowProfileNames.includes(queryParams.get('labs-glow'))
     ? queryParams.get('labs-glow')
-    : 'blue-middle';
+    : 'reference-glow';
   const glyphSpacing = captureEnabled && spacingVariants[queryParams.get('labs-spacing')]
     ? spacingVariants[queryParams.get('labs-spacing')]
-    : 0.125;
+    : 0.17;
 
   let renderer;
   try {
@@ -61,7 +61,8 @@ export function createLabsContext(stage) {
     canvas.remove();
     throw error;
   }
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  const mobile = initialSize.width <= 780;
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, mobile ? 1.5 : 2));
   renderer.setSize(initialSize.width, initialSize.height);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -93,6 +94,7 @@ export function createLabsContext(stage) {
       captureEnabled,
       geometryDebugEnabled,
       orbitEnabled,
+      mobile,
       glyphSpacing,
       requestedGlowProfile,
       glowProfile: glowProfiles[requestedGlowProfile],

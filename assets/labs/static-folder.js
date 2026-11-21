@@ -1,16 +1,25 @@
+import { createFolderShell, heightScaleAt } from './core/folder-shell.js';
 import {
   boundarySegments,
   distanceToBoundary,
-  meshTriangles,
   randomPointOnTriangle,
   shellTriangleGeometry,
-  transformMeshVertices,
   triangleAtXY,
 } from './core/mesh-geometry.js';
 import { createShellOcclusion } from './core/shell-occlusion.js';
 
+// Keep glyph proportions uniform; use emission color to describe the folder silhouette.
+const BINARY_GLYPH_SIZE = 0.195;
+
+// Light grazing the upper fold and the two points of contact with the floor.
+function rimIntensity({ x, y }) {
+  const fold = Math.exp(-((x - 1.75) ** 2 / 1.25 + (y - 2.95) ** 2 / 0.32));
+  const contact = Math.exp(-((Math.abs(x) - 2.62) ** 2 / 0.35 + y * y / 0.14));
+  return 0.8 * fold + 1.05 * contact;
+}
+
 export function createStaticFolder(ctx) {
-  const { THREE, GLTFLoader, random, scene, folderRoot, camera } = ctx;
+  const { THREE, random, scene, folderRoot, camera } = ctx;
   const cameraTarget = ctx.cameraTarget;
   const { geometryDebugEnabled, captureEnabled, glyphSpacing, glowProfile } = ctx.config;
   const shellOcclusion = createShellOcclusion(ctx);
@@ -20,58 +29,19 @@ export function createStaticFolder(ctx) {
   const glyphs = [];
 
   function addGlyph(point, normal, options = {}) {
-    const size = options.size ?? 0.072;
     glyphs.push({
       point: point.clone().addScaledVector(normal, options.offset ?? 0.006),
       normal: normal.clone(),
-      width: size * (options.widthRatio ?? 0.78),
-      height: size,
+      width: BINARY_GLYPH_SIZE * 0.78,
+      height: BINARY_GLYPH_SIZE,
       digit: random() < 0.5 ? 0 : 1,
       color: new THREE.Color(options.color ?? 0x347fce),
       depth: options.depth ?? 'front',
     });
   }
 
-  async function loadFolderScaffold() {
-    const gltf = await new GLTFLoader().loadAsync('/assets/models/labs-folder-scaffold.glb');
-    gltf.scene.updateMatrixWorld(true);
-    const sourceMeshes = [];
-    const rawPoints = [];
-
-    gltf.scene.traverse((object) => {
-      if (!object.isMesh) return;
-      const points = transformMeshVertices(object, THREE);
-      sourceMeshes.push({ mesh: object, points });
-      rawPoints.push(...points);
-    });
-
-    const shellMeshes = sourceMeshes.filter(({ mesh }) => mesh.name === 'Object_30');
-    if (shellMeshes.length === 0) throw new Error('The folder scaffold contains no outer-shell geometry.');
-
-    const rawBounds = new THREE.Box3().setFromPoints(rawPoints);
-    const height = rawBounds.max.y - rawBounds.min.y;
-    const scale = 4.45 / height;
-    const bounds = {
-      min: rawBounds.min,
-      center: new THREE.Vector3(
-        (rawBounds.min.x + rawBounds.max.x) * 0.5,
-        rawBounds.min.y,
-        (rawBounds.min.z + rawBounds.max.z) * 0.5,
-      ),
-    };
-
-    const meshes = shellMeshes.map(({ mesh, points }) => ({
-      name: mesh.name,
-      ...meshTriangles(mesh, points, scale, bounds, THREE),
-    }));
-
-    for (const { mesh } of sourceMeshes) {
-      mesh.geometry.dispose();
-      const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-      materials.forEach((material) => material.dispose());
-    }
-
-    return meshes;
+  function loadFolderScaffold() {
+    return [createFolderShell(THREE)];
   }
 
   const addShellOccluder = shellOcclusion.addOccluder;
@@ -93,7 +63,7 @@ export function createStaticFolder(ctx) {
   }
 
   function makeFrontGlyphs(meshes) {
-    const primary = meshes.find((mesh) => mesh.name === 'Object_30');
+    const primary = meshes[0];
     const front = primary.triangles.filter((triangle) => triangle.type === 'front');
     const edge = boundarySegments(front);
     const boundaryPoints = edge.flatMap(({ a, b }) => [a, b]);
@@ -113,69 +83,52 @@ export function createStaticFolder(ctx) {
     const spacingY = glyphSpacing * 1.109375;
     let accepted = 0;
 
-    for (let y = yMin + 0.035; y <= yMax; y += spacingY) {
-      for (let x = xMin + 0.035; x <= xMax; x += spacingX) {
-        const jittered = new THREE.Vector2(
-          x + (random() - 0.5) * spacingX * 0.42,
-          y + (random() - 0.5) * spacingY * 0.34,
-        );
-        const hit = triangleAtXY(front, jittered.x, jittered.y, THREE, true);
-        if (!hit || !isVisibleShellPoint(hit.point)) continue;
+    for (const panel of [front.filter(t => t.back), front.filter(t => !t.back)]) {
+      const panelEdges = boundarySegments(panel);
+      for (let y = yMin + 0.035; y <= yMax; y += spacingY) {
+        for (let x = xMin + 0.035; x <= xMax; x += spacingX) {
+          const hit = triangleAtXY(panel, x, y * heightScaleAt(x), THREE, true);
+          if (!hit || !isVisibleShellPoint(hit.point)) continue;
 
-        const edgeDistance = distanceToBoundary(hit.point, edge, THREE);
-        if (edgeDistance < 0.095) continue;
-        const densityWeight = Math.exp(-edgeDistance / 0.17);
-        const emissionWeight = Math.exp(-edgeDistance / 0.085);
-        const keepChance = 0.82 + densityWeight * 0.12;
-        if (random() > keepChance) continue;
+          const edgeDistance = distanceToBoundary(hit.point, panelEdges, THREE);
+          if (edgeDistance < 0.095) continue;
 
-        const densityBrightness = THREE.MathUtils.smoothstep(densityWeight, 0.08, 0.72);
-        const brightness = THREE.MathUtils.smoothstep(emissionWeight, 0.08, 0.72);
-        const interior = new THREE.Color(0x12365c);
-        const body = new THREE.Color(0x1b507d);
-        const perimeter = new THREE.Color(0x3d85c9);
-        const color = interior
-          .lerp(body, 0.34 + random() * 0.2)
-          .lerp(perimeter, brightness * 0.78);
-        const hotspotChance = brightness > 0.78 ? 0.003 : 0;
-        const hotspot = random() < hotspotChance;
-        const edgeEmission = brightness > 0.68 ? 2.3 : glowProfile.faceEmission;
-        const emission = hotspot
-          ? new THREE.Color(0xa3d7ff).multiplyScalar(2)
-          : color.multiplyScalar(edgeEmission);
-        addGlyph(hit.point, new THREE.Vector3(0, 0, 1), {
-          size: spacingY * (0.91 + densityBrightness * 0.035),
-          color: emission,
-          offset: 0.011,
-        });
-        accepted += 1;
+
+          const edgeLight = 1 - THREE.MathUtils.smoothstep(edgeDistance, 0.04, 0.56);
+          const baseLight = 1 - THREE.MathUtils.smoothstep(
+            hit.point.y,
+            lowestBoundaryY + 0.035,
+            lowestBoundaryY + 0.26,
+          );
+          const silhouetteLight = Math.max(edgeLight, baseLight * 0.86);
+          const interior = new THREE.Color(0x0d2654);
+          const body = new THREE.Color(0x4284cd);
+          const perimeter = new THREE.Color(0x72a9ff);
+          const color = interior
+            .lerp(body, 0.48 + random() * 0.1)
+            .lerp(perimeter, silhouetteLight * 0.88);
+          const emission = color.multiplyScalar(glowProfile.faceEmission * (0.92 + silhouetteLight * 0.25 + rimIntensity(hit.point)));
+          addGlyph(hit.point, hit.triangle.normal, {
+            color: emission,
+            offset: 0.011,
+          });
+          accepted += 1;
+        }
       }
     }
 
     let edgeAccepted = 0;
-    const edgeBuckets = new Set();
-    const edgeSpacing = 0.052;
-    for (const segment of edge) {
-      const length = segment.a.distanceTo(segment.b);
-      const steps = Math.max(1, Math.ceil(length / edgeSpacing));
-      for (let step = 0; step <= steps; step += 1) {
-        const t = THREE.MathUtils.clamp((step + (random() - 0.5) * 0.32) / steps, 0, 1);
-        const point = segment.a.clone().lerp(segment.b, t);
-        const key = `${Math.round(point.x / 0.038)}:${Math.round(point.y / 0.038)}`;
-        if (edgeBuckets.has(key)) continue;
-        edgeBuckets.add(key);
-
-        const variation = random();
-        const blue = new THREE.Color(0x2c83dc).lerp(new THREE.Color(0x5caeff), variation * 0.35);
-        const emission = blue.multiplyScalar((1.28 + variation * 0.44) * glowProfile.perimeterEmission);
-        addGlyph(point, new THREE.Vector3(0, 0, 1), {
-          size: 0.048 + variation * 0.009,
-          widthRatio: 0.72,
-          color: emission,
-          offset: 0.014,
+    for (const { curve, normal } of primary.rims) {
+      const count = Math.round(curve.getLength() / glyphSpacing);
+      for (let index = 0; index < count; index++) {
+        const point = curve.getPoint(index / count);
+        const brightness = 1.18 + rimIntensity(point);
+        addGlyph(point, normal, {
+          color: new THREE.Color(0x69a4ff).multiplyScalar(glowProfile.faceEmission * glowProfile.perimeterEmission * brightness),
+          offset: 0.018,
           depth: 'front-edge',
         });
-        edgeAccepted += 1;
+        edgeAccepted++;
       }
     }
 
@@ -184,7 +137,7 @@ export function createStaticFolder(ctx) {
 
   function makeRearGlyphs(meshes) {
     let accepted = 0;
-    const main = meshes.find((mesh) => mesh.name === 'Object_30');
+    const main = meshes[0];
     const rear = main.triangles.filter((triangle) => triangle.type === 'rear');
     const edge = boundarySegments(rear);
     const points = main.normalizedPoints;
@@ -192,8 +145,10 @@ export function createStaticFolder(ctx) {
     const xMax = Math.max(...points.map((point) => point.x));
     const yMin = Math.min(...points.map((point) => point.y));
     const yMax = Math.max(...points.map((point) => point.y));
-    for (let y = yMin + 0.055; y <= yMax; y += 0.12) {
-      for (let x = xMin + 0.045; x <= xMax; x += 0.12) {
+    const spacingX = glyphSpacing;
+    const spacingY = glyphSpacing * 1.109375;
+    for (let y = yMin + 0.055; y <= yMax; y += spacingY) {
+      for (let x = xMin + 0.045; x <= xMax; x += spacingX) {
         const hit = triangleAtXY(rear, x + 0.03, y + 0.045, THREE, false);
         if (!hit || !isVisibleShellPoint(hit.point)) continue;
         const edgeWeight = Math.exp(-distanceToBoundary(hit.point, edge, THREE) / 0.15);
@@ -204,7 +159,6 @@ export function createStaticFolder(ctx) {
           ? new THREE.Color(0xa3d7ff).multiplyScalar(2)
           : color.multiplyScalar(edgeWeight > 0.72 ? 1.75 : 1);
         addGlyph(hit.point, new THREE.Vector3(0, 0, 1), {
-          size: 0.05 + edgeWeight * 0.006,
           color: emission,
           offset: 0.009,
           depth: 'rear',
@@ -218,7 +172,7 @@ export function createStaticFolder(ctx) {
 
   function makeSideGlyphs(meshes) {
     const viewDirection = camera.position.clone().sub(cameraTarget).normalize();
-    const main = meshes.find((mesh) => mesh.name === 'Object_30');
+    const main = meshes[0];
     const visible = main.triangles
       .filter((triangle) => triangle.type === 'side' && triangle.normal.dot(viewDirection) > 0.08);
     const totalArea = visible.reduce((sum, triangle) => sum + triangle.area, 0);
@@ -230,15 +184,16 @@ export function createStaticFolder(ctx) {
     }
 
     const bucket = new Set();
+    const sideSpacing = BINARY_GLYPH_SIZE * 1.15;
     let accepted = 0;
-    for (let attempt = 0; attempt < 5200 && accepted < 820; attempt += 1) {
+    for (let attempt = 0; attempt < 5200 && accepted < 460; attempt += 1) {
       let target = random() * totalArea;
       let index = cumulative.findIndex((area) => area >= target);
       if (index < 0) index = cumulative.length - 1;
       const triangle = visible[index];
       const point = randomPointOnTriangle(triangle, random, THREE);
       if (!isVisibleShellPoint(point)) continue;
-      const key = `${Math.floor(point.x / 0.07)}:${Math.floor(point.y / 0.07)}:${Math.floor(point.z / 0.075)}`;
+      const key = `${Math.floor(point.x / sideSpacing)}:${Math.floor(point.y / sideSpacing)}:${Math.floor(point.z / sideSpacing)}`;
       if (bucket.has(key)) continue;
       bucket.add(key);
 
@@ -246,10 +201,8 @@ export function createStaticFolder(ctx) {
       const color = new THREE.Color(0x163d65).lerp(new THREE.Color(0x3f89d0), brightness * 0.58);
       const emission = color.multiplyScalar(brightness > 0.72 ? 1.5 : 1);
       addGlyph(point, triangle.normal, {
-        size: 0.069,
         color: emission,
         offset: 0.007,
-        widthRatio: 0.7,
         depth: 'side',
       });
       accepted += 1;

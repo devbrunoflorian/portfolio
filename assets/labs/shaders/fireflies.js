@@ -39,10 +39,10 @@ export const FIREFLY_FRAGMENT_SHADER = `
           float distanceFromCenter = length(gl_PointCoord - vec2(0.5));
           float glow = 1.0 - smoothstep(0.04, 0.5, distanceFromCenter);
           float softHalo = exp(-distanceFromCenter * 5.5) * 0.19;
-          vec2 glyphUv = vec2(gl_PointCoord.x * 0.46153846 + vGlyphColumn * 0.5 + 0.01923077, gl_PointCoord.y);
+          vec2 glyphUv = vec2((gl_PointCoord.x + vGlyphColumn) * 0.25, gl_PointCoord.y);
           float glyphMask = texture2D(glyphAtlas, glyphUv).a;
           float glyphCore = smoothstep(0.06, 0.62, glyphMask);
-          float alpha = mix(glow, glyphCore + softHalo * glow, vGlyph) * vIntensity * 0.56;
-          gl_FragColor = vec4(mix(vec3(0.08, 0.3, 0.95), vec3(0.0, 0.08, 0.38), uLightTheme), alpha);
+          float alpha = mix(glow, glyphCore + softHalo * glow, vGlyph) * vIntensity * 0.94;
+          gl_FragColor = vec4(mix(vec3(0.30, 0.75, 2.8), vec3(0.0, 0.08, 0.38), uLightTheme), alpha);
         }
       `;

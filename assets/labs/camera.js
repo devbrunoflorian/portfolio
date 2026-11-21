@@ -1,8 +1,21 @@
 export function createLabsCamera(ctx) {
   const { THREE, initialSize, canvas, layout } = ctx;
-  const cameraTarget = new THREE.Vector3(0, 1.63, 0);
+  const mobile = initialSize.width <= 780;
+  const compactPhone = initialSize.width < 600;
+  const mobileDistance = compactPhone ? 30 : 20;
+  const mobileViewHeight = 2 * mobileDistance * Math.tan(THREE.MathUtils.degToRad(18));
+  const cameraTarget = new THREE.Vector3(
+    mobile ? (compactPhone ? .15 - Math.max(0, 390 - initialSize.width) * .005 : -3) : 0,
+    mobile ? 2.225 + mobileViewHeight * (compactPhone ? .29 : .23) : 1.63,
+    0,
+  );
   const camera = new THREE.PerspectiveCamera(36, initialSize.width / initialSize.height, 0.1, 60);
-  camera.position.set(-7.4635, 3.2, 11.638);
+  if (mobile) {
+    const direction = new THREE.Vector3(-7.4635, 1.57, 11.638).normalize();
+    camera.position.copy(cameraTarget).addScaledVector(direction, mobileDistance);
+  } else {
+    camera.position.set(-7.4635, 3.2, 11.638);
+  }
   camera.lookAt(cameraTarget);
   ctx.camera = camera;
   ctx.cameraTarget = cameraTarget;

@@ -45,15 +45,13 @@ export function mountLabsController(root, options = {}) {
   if (!runway || !stage || !collection || folders.length < 2) throw new Error("Labs needs its runway, stage and at least two folders.");
 
 
-  if (window.matchMedia("(min-width: 781px)").matches) {
-    try {
-      const { mountLabsFolderScene } = await import("../labs-folder-scene.js");
-      gpuScene = await mountLabsFolderScene(stage, { signal: lifetime.signal });
-      if (disposed) { gpuScene.dispose(); gpuScene = null; return; }
-    } catch (error) {
-      if (disposed) return;
-      console.warn("The static Labs WebGL scene could not start; using the Canvas scene.", error);
-    }
+  try {
+    const { mountLabsFolderScene } = await import("../labs-folder-scene.js");
+    gpuScene = await mountLabsFolderScene(stage, { signal: lifetime.signal });
+    if (disposed) { gpuScene.dispose(); gpuScene = null; return; }
+  } catch (error) {
+    if (disposed) return;
+    console.warn("The static Labs WebGL scene could not start; using the Canvas scene.", error);
   }
 
   const clamp = (value, min = 0, max = 1) => Math.max(min, Math.min(max, value));
@@ -115,7 +113,7 @@ export function mountLabsController(root, options = {}) {
 
   function sceneStep() {
     return window.matchMedia("(max-width: 780px)").matches
-      ? stageWidth * .46
+      ? stageWidth * (stageWidth >= 600 ? .2 : .46)
       : Math.min(460, stageWidth * .33);
   }
 
@@ -124,12 +122,20 @@ export function mountLabsController(root, options = {}) {
     const currentIndex = Math.min(folders.length - 1, Math.floor(bounded + .000001));
     const nextIndex = currentIndex < folders.length - 1 ? currentIndex + 1 : -1;
     const fraction = nextIndex < 0 ? 0 : clamp(bounded - currentIndex);
+    const mobile = isMobileScene();
+    const instantNext = mobile && reduceMotion.matches && fraction >= .5;
     const edgeInstability = nextIndex < 0 ? 0 : smoothstep((fraction - .08) / .26);
-    const dissolution = nextIndex < 0 ? 0 : smoothstep((fraction - .18) / .6);
-    const reconstruction = nextIndex < 0 ? 0 : smoothstep((fraction - .18) / .6);
+    const dissolution = nextIndex < 0 ? 0 : mobile
+      ? reduceMotion.matches ? Number(instantNext) : smoothstep((fraction - .54) / .34)
+      : smoothstep((fraction - .18) / .6);
+    const reconstruction = nextIndex < 0 ? 0 : mobile
+      ? reduceMotion.matches ? Number(instantNext) : smoothstep((fraction - .16) / .46)
+      : smoothstep((fraction - .18) / .6);
+    const exitMotion = mobile && !reduceMotion.matches ? smoothstep((fraction - .08) / .54) : 0;
     const flow = nextIndex < 0 || reduceMotion.matches
       ? 0
-      : smoothstep((fraction - .16) / .25) * (1 - smoothstep((fraction - .82) / .18));
+      : smoothstep((fraction - (mobile ? .16 : .16)) / .25)
+        * (1 - smoothstep((fraction - (mobile ? .88 : .82)) / (mobile ? .12 : .18)));
 
     return {
       currentIndex,
@@ -139,7 +145,8 @@ export function mountLabsController(root, options = {}) {
       dissolution,
       reconstruction,
       currentPresence: 1 - dissolution,
-      nextPresence: nextIndex < 0 ? 0 : .52 + .48 * reconstruction,
+      nextPresence: nextIndex < 0 ? 0 : mobile ? reconstruction : .52 + .48 * reconstruction,
+      exitMotion,
       flow,
     };
   }
@@ -153,6 +160,7 @@ export function mountLabsController(root, options = {}) {
       return;
     }
     const step = sceneStep();
+    const mobileOffset = isMobileScene() && stageWidth >= 600 ? stageWidth * .24 : 0;
     folders.forEach((folder, index) => {
       const isCurrent = index === transition.currentIndex;
       const isNext = index === transition.nextIndex;
@@ -178,7 +186,11 @@ export function mountLabsController(root, options = {}) {
 
       const assembling = isNext ? transition.reconstruction : 0;
       const dissolving = isCurrent ? transition.dissolution : 0;
-      const x = isCurrent ? 0 : step * .78 * (1 - assembling);
+      const x = isMobileScene()
+        ? isCurrent
+          ? mobileOffset - stageWidth * .95 * transition.exitMotion
+          : mobileOffset + stageWidth * .95 * (1 - assembling)
+        : isCurrent ? mobileOffset : mobileOffset + step * .78 * (1 - assembling);
       const y = isCurrent ? 0 : 18 * (1 - assembling);
       const z = isCurrent ? 20 : -155 + 175 * assembling;
       const rotation = 0;
@@ -332,13 +344,11 @@ export function mountLabsController(root, options = {}) {
   });
 
   listen(stage, "pointerdown", (event) => {
-    if (gpuScene) return;
     if (!event.isPrimary || event.button !== 0 || event.target.closest("button, a")) return;
     pointerGesture = { x: event.clientX, y: event.clientY, pointerId: event.pointerId };
     if (event.pointerType !== "touch") stage.setPointerCapture(event.pointerId);
   });
   listen(stage, "pointerup", (event) => {
-    if (gpuScene) return;
     if (!pointerGesture || event.pointerId !== pointerGesture.pointerId) return;
     const deltaX = event.clientX - pointerGesture.x;
     const deltaY = event.clientY - pointerGesture.y;
@@ -346,7 +356,7 @@ export function mountLabsController(root, options = {}) {
     if (Math.abs(deltaX) < 42 || Math.abs(deltaX) < Math.abs(deltaY) * 1.2) return;
     scrollToIndex(activeIndex + (deltaX < 0 ? 1 : -1));
   });
-  listen(stage, "pointercancel", () => { if (!gpuScene) pointerGesture = null; });
+  listen(stage, "pointercancel", () => { pointerGesture = null; });
 
   folders.forEach((folder, folderIndex) => {
     if (gpuScene) return;
@@ -363,7 +373,7 @@ export function mountLabsController(root, options = {}) {
     const system = { folder, canvas, context, reflectionCanvas, reflectionContext, pointer, folderIndex, faces: [], particles: [], bottom: .87, draw: null, visible: false, needsRecovery: false };
 
     function polygon(width, height, depth = 0, layer = 0) {
-      const bottom = isMobileScene() ? .67 : .87;
+      const bottom = .87;
       const yaw = -.55;
       const pitch = -.14;
       const centerX = width * .5;
@@ -493,7 +503,7 @@ export function mountLabsController(root, options = {}) {
       return { points, cells, kind, seed, mutationTick: 0, nextMutationAt: sceneTime + 130 + noise(seed + 77) * 120 };
     }
 
-    function makeEdgeParticles(points, amount) {
+    function makeEdgeParticles(points, amount, scale = 1) {
       const center = points.reduce((sum, point) => [sum[0] + point[0] / points.length, sum[1] + point[1] / points.length], [0, 0]);
       return Array.from({ length: amount }, (_, index) => {
         const edgeIndex = [0, 1, 2, 3, 4, 5, 5, 6, 7][Math.floor(noise(index * 4) * 9)];
@@ -509,7 +519,7 @@ export function mountLabsController(root, options = {}) {
           edgeNormalX *= -1;
           edgeNormalY *= -1;
         }
-        const outward = 5 + noise(index * 4 + 2) * 42;
+        const outward = (5 + noise(index * 4 + 2) * 42) * scale;
         const anchorX = start[0] + (end[0] - start[0]) * along + edgeNormalX * outward;
         const anchorY = start[1] + (end[1] - start[1]) * along + edgeNormalY * outward;
         return {
@@ -523,9 +533,9 @@ export function mountLabsController(root, options = {}) {
           phase: noise(index * 4 + 4) * Math.PI * 2,
           speed: 1.8 + noise(index * 4 + 5) * 2.5,
           orbitSpeed: .7 + noise(index * 4 + 10) * .65,
-          orbitRadiusX: 3 + noise(index * 4 + 11) * 6,
-          orbitRadiusY: 3 + noise(index * 4 + 12) * 6,
-          maxHoverDisplacement: 35 + noise(index * 4 + 13) * 30,
+          orbitRadiusX: (3 + noise(index * 4 + 11) * 6) * scale,
+          orbitRadiusY: (3 + noise(index * 4 + 12) * 6) * scale,
+          maxHoverDisplacement: (35 + noise(index * 4 + 13) * 30) * scale,
           depth: noise(index * 4 + 6),
           binary: noise(index * 4 + 7) > .88,
           bit: index % 2 ? "0" : "1",
@@ -554,7 +564,10 @@ export function mountLabsController(root, options = {}) {
     function drawFace(face, previewAlpha, activeAlpha, roleState, transition, time, enabled) {
       const current = roleState.role === "current";
       const currentness = roleState.currentness;
-      const baseAlpha = previewAlpha + (activeAlpha - previewAlpha) * currentness;
+      const mobileSurface = isMobileScene() && face.kind !== "front"
+        ? face.kind === "side" || face.kind === "top" ? .42 : .16
+        : 1;
+      const baseAlpha = (previewAlpha + (activeAlpha - previewAlpha) * currentness) * mobileSurface;
       const colors = lightTheme ? ['#0052cc', '#12437c', '#002d70'] : face.kind === "side" || face.kind === "top"
         ? [blendHex("#53708f", "#568dc7", currentness), blendHex("#8eb9e7", "#95caff", currentness), blendHex("#cfe6ff", "#f2f9ff", currentness)]
         : face.kind === "rear"
@@ -603,7 +616,7 @@ export function mountLabsController(root, options = {}) {
         const lightAlpha = baseAlpha * contour * pulse * flash * cell.glow * emission * (1 + disturbed) * coherence;
         context.globalAlpha = Math.min(.88 + currentness * .12, lightAlpha);
         context.fillStyle = cell.edgeSample || cell.edgeGlow > .76 ? colors[2] : cell.edgeGlow > .3 ? colors[1] : colors[0];
-        const fontSize = (pointer.width < 245 ? 6.5 : 8) * (cell.sizeTier === 2 ? 1.45 : cell.sizeTier === 1 ? 1.06 : 1);
+        const fontSize = (isMobileScene() ? pointer.width < 245 ? 7.5 : 9 : 8) * (cell.sizeTier === 2 ? 1.45 : cell.sizeTier === 1 ? 1.06 : 1);
         context.font = fontSize.toFixed(1) + "px ui-monospace, SFMono-Regular, Consolas, monospace";
         context.shadowColor = face.kind === "front" ? "rgba(112, 181, 255, .9)" : "rgba(73, 145, 235, .52)";
         context.shadowBlur = cell.edgeSample ? 1.6 + currentness * (5.5 + cell.edgeGlow * 3) : face.kind === "front" && cell.edgeGlow > .78 ? 2 + currentness * 4 : (face.kind === "side" || face.kind === "top") && cell.edgeGlow > .52 ? 1.4 + currentness * 3 : 0;
@@ -617,8 +630,10 @@ export function mountLabsController(root, options = {}) {
       const current = roleState.role === "current";
       const pointerRadius = Math.max(80, Math.min(125, Math.min(pointer.width, pointer.height) * .24));
       const delta = motionPaused && !pointer.recovering ? 0 : Math.min(.05, Math.max(0, deltaMs) / 1000);
-      const previewAmount = Math.min(104, system.particles.length);
-      const amount = Math.round(previewAmount + (system.particles.length - previewAmount) * roleState.currentness);
+      const mobileScene = isMobileScene();
+      const particleLimit = mobileScene ? Math.min(112, system.particles.length) : system.particles.length;
+      const previewAmount = Math.min(mobileScene ? 42 : 104, particleLimit);
+      const amount = Math.round(previewAmount + (particleLimit - previewAmount) * roleState.currentness);
       const transitionKick = current ? transition.dissolution : roleState.assembly * (1 - roleState.assembly);
       let maxDisplacement = 0;
       let maxVelocity = 0;
@@ -673,7 +688,7 @@ export function mountLabsController(root, options = {}) {
         const transitionFactor = 1 + transitionKick * .72;
         const depthScale = .72 + particle.depth * .64;
         const pulse = .72 + (Math.sin(time * .0035 * particle.speed + particle.phase) + 1) * .14;
-        const baseAlpha = current ? .72 : .42;
+        const baseAlpha = mobileScene ? current ? .4 : .2 : current ? .72 : .42;
         const alpha = baseAlpha * pulse * depthScale * transitionFactor;
         context.globalAlpha = alpha;
         context.fillStyle = lightTheme ? '#0052cc' : particle.node ? "#f1f8ff" : "#b7dcff";
@@ -701,7 +716,7 @@ export function mountLabsController(root, options = {}) {
       context.setTransform(pointer.ratio, 0, 0, pointer.ratio, 0, 0);
       context.clearRect(0, 0, pointer.width, pointer.height);
       const bottom = system.bottom;
-      const depth = pointer.width * .16;
+      const depth = pointer.width * (isMobileScene() ? .22 : .16);
       const front = polygon(pointer.width, pointer.height, 0, 0);
       const middle = polygon(pointer.width, pointer.height, -depth * .48, .8);
       const back = polygon(pointer.width, pointer.height, -depth, 1.6);
@@ -777,14 +792,14 @@ export function mountLabsController(root, options = {}) {
       pointer.ratio = Math.min(window.devicePixelRatio || 1, 1.3);
       canvas.width = Math.round(pointer.width * pointer.ratio);
       canvas.height = Math.round(pointer.height * pointer.ratio);
-      system.bottom = isMobileScene() ? .67 : .87;
+      system.bottom = .87;
       folder.dataset.mobile = String(isMobileScene());
       if (reflectionContext) {
         reflectionCanvas.width = canvas.width;
         reflectionCanvas.height = Math.round(canvas.height * (isMobileScene() ? .34 : .43));
       }
       const bottom = system.bottom;
-      const depth = pointer.width * .16;
+      const depth = pointer.width * (isMobileScene() ? .22 : .16);
       const front = polygon(pointer.width, pointer.height, 0, 0);
       const middle = polygon(pointer.width, pointer.height, -depth * .48, .8);
       const back = polygon(pointer.width, pointer.height, -depth, 1.6);
@@ -805,7 +820,7 @@ export function mountLabsController(root, options = {}) {
         makeFace(front, pointer.width < 245 ? 12.5 : 14, pointer.width < 245 ? 14 : 15, 11, "front"),
       ];
       folder.dataset.edgeGlyphCount = String(system.faces[7].cells.filter((cell) => cell.edgeSample).length);
-      system.particles = makeEdgeParticles(front, 260);
+      system.particles = makeEdgeParticles(front, 260, isMobileScene() ? Math.min(1, pointer.width / 390) : 1);
       draw(visualPosition, sceneTime, 0);
       requestSceneAnimation();
     }
